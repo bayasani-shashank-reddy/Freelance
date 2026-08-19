@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
 import { authRouter } from './routes/authRoutes.js';
 import { ideaRouter } from './routes/ideaRoutes.js';
@@ -9,6 +11,10 @@ import { jobRouter } from './routes/jobRoutes.js';
 import { proposalRouter } from './routes/proposalRoutes.js';
 import { User } from './models/User.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config();
 
 const app = express();
