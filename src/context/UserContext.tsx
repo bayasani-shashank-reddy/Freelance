@@ -385,13 +385,14 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     api.register({
       name: newUser.name,
       email: newUser.email,
-      password: (newUser as any).password || 'Client@12345',
+      password: newUser.password,
       role: newUser.role,
     });
 
     if (newUser.role === 'freelancer') {
       const pendingUser: User = { ...newUser, approvalStatus: 'pending', credits: 0 };
       setPendingFreelancers((prev) => [pendingUser, ...prev]);
+      setRegisteredUsers((prev) => [...prev, pendingUser]);
       return { success: true, requiresApproval: true };
     } else {
       const approvedUser: User = { ...newUser, approvalStatus: 'approved', credits: NEW_USER_CREDITS };

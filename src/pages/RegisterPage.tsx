@@ -51,8 +51,9 @@ export const RegisterPage: React.FC<RegisterPageProps> = () => {
 
     const mockUser: User = {
       id: `usr-${Date.now()}`,
-      name: formData.name,
-      email: formData.email,
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      password: formData.password,
       role: role,
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
       balance: 0,
