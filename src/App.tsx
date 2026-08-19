@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { NotificationProvider } from './context/NotificationContext';
 import { ToastProvider } from './context/ToastContext';
 import { ToastContainer } from './components/ToastNotification';
@@ -41,7 +41,7 @@ function App() {
     <UserProvider>
       <ToastProvider>
       <NotificationProvider>
-        <BrowserRouter>
+        <HashRouter>
           <CommandPalette />
           <AnimeMotionScope />
           <CustomCursor />
@@ -80,7 +80,7 @@ function App() {
             </main>
             <Footer />
           </div>
-        </BrowserRouter>
+        </HashRouter>
       </NotificationProvider>
       <ToastContainer />
       </ToastProvider>
