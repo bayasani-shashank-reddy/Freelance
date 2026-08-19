@@ -7,7 +7,7 @@ import type { JobListing } from '../types';
 
 export const JobsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { savedJobIds, toggleSaveJob, dynamicJobs, postNewJob, user } = useUser();
+  const { savedJobIds, toggleSaveJob, dynamicJobs, postNewJob, submitIdea, user } = useUser();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedType, setSelectedType] = useState<'All' | 'Fixed' | 'Hourly'>('All');
@@ -66,6 +66,18 @@ export const JobsPage: React.FC = () => {
     };
 
     postNewJob(job);
+
+    // Send idea report to Admin
+    submitIdea({
+      clientId: user?.id || 'usr-client-1',
+      clientName: user?.name || 'Alex Rivera',
+      clientEmail: user?.email || '',
+      clientAvatar: user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+      rawIdea: `${newJobData.title}: ${newJobData.description}`,
+      submissionType: 'detailed_brief' as any,
+      creditsCost: 0,
+    });
+
     setModalOpen(false);
     setNewJobData({
       title: '',

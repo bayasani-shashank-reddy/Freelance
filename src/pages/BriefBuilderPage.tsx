@@ -340,6 +340,17 @@ export const BriefBuilderPage: React.FC = () => {
 
     postNewJob(newJob);
 
+    // Send idea report to Admin
+    submitIdea({
+      clientId: user?.id || 'usr-client-1',
+      clientName: user?.name || 'Alex Rivera',
+      clientEmail: user?.email || '',
+      clientAvatar: user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+      rawIdea: `${newJob.title}: ${formData.rawIdea}`,
+      submissionType: 'detailed_brief' as any,
+      creditsCost: IDEA_SUBMISSION_COST,
+    });
+
     const newProject: ProjectBrief = {
       id: newJob.id,
       title: newJob.title,
