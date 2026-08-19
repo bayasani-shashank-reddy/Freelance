@@ -66,7 +66,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [assignModal, setAssignModal] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState('');
   const [selectedFreelancerId, setSelectedFreelancerId] = useState('');
-  const [activeDocView, setActiveDocView] = useState<{ fileName: string; rawText?: string } | null>(null);
+  const [activeDocView, setActiveDocView] = useState<{ fileName: string; rawText?: string; docContentHtml?: string } | null>(null);
 
 
 
@@ -307,7 +307,7 @@ export const AdminDashboardPage: React.FC = () => {
                             <span className="text-xs font-mono text-indigo-300 font-bold">{sub.docFileName}</span>
                           </div>
                           <button
-                            onClick={() => setActiveDocView({ fileName: sub.docFileName!, rawText: sub.rawIdea })}
+                            onClick={() => setActiveDocView({ fileName: sub.docFileName!, rawText: sub.rawIdea, docContentHtml: sub.docContentHtml })}
                             className="px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[11px] font-bold flex items-center gap-1 hover:bg-indigo-500/30 transition-all"
                           >
                             <Eye className="w-3.5 h-3.5" />
@@ -781,6 +781,7 @@ export const AdminDashboardPage: React.FC = () => {
           onClose={() => setActiveDocView(null)}
           fileName={activeDocView.fileName}
           rawText={activeDocView.rawText}
+          docContentHtml={activeDocView.docContentHtml}
           onShareToChat={(text) => {
             if (selectedClientId) sendAdminClientMessage(selectedClientId, text);
           }}

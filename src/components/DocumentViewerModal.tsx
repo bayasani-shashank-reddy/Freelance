@@ -6,6 +6,7 @@ import {
   Copy,
   Check,
   MessageSquare,
+  Download,
 } from 'lucide-react';
 import mammoth from 'mammoth';
 import { useToast } from '../context/ToastContext';
@@ -17,6 +18,7 @@ interface DocumentViewerModalProps {
   fileUrl?: string;
   fileBlob?: Blob | File;
   rawText?: string;
+  docContentHtml?: string;
   onShareToChat?: (text: string) => void;
 }
 
@@ -26,6 +28,7 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
   fileName,
   fileBlob,
   rawText,
+  docContentHtml,
   onShareToChat,
 }) => {
   const { showToast } = useToast();
@@ -40,7 +43,9 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
 
     const parseDoc = async () => {
       try {
-        if (fileBlob) {
+        if (docContentHtml) {
+          setHtmlContent(docContentHtml);
+        } else if (fileBlob) {
           const arrayBuffer = await fileBlob.arrayBuffer();
           const result = await mammoth.convertToHtml({ arrayBuffer });
           if (result.value) {
@@ -48,43 +53,38 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
           } else {
             setHtmlContent(`<p class="text-slate-400">No formatted text found in document.</p>`);
           }
-        } else if (rawText) {
-          // Format raw text with paragraphs
+        } else if (rawText && rawText.trim()) {
+          // Format raw text into clean HTML paragraphs and headers
           const formatted = rawText
             .split('\n\n')
-            .map((p) => `<p class="mb-3 leading-relaxed">${p}</p>`)
+            .map((p) => `<p class="mb-3 leading-relaxed">${p.replace(/\n/g, '<br/>')}</p>`)
             .join('');
           setHtmlContent(formatted);
         } else {
-          // Default sample project brief preview for demo uploaded docs
+          // Default preview for documents
           setHtmlContent(`
             <div class="space-y-4">
-              <h2 class="text-lg font-bold text-cyan-300">Project Requirements Document</h2>
-              <p class="text-xs text-slate-300 font-mono">File: ${fileName}</p>
+              <h2 class="text-lg font-bold text-cyan-300">Project Requirements & Specification</h2>
+              <p class="text-xs text-slate-300 font-mono">Document: ${fileName}</p>
               <hr class="border-slate-800 my-3"/>
-              <h3 class="text-sm font-bold text-white">1. Executive Summary</h3>
+              <h3 class="text-sm font-bold text-white">1. Executive Overview</h3>
               <p class="text-xs text-slate-300 leading-relaxed">
-                This document outlines the core architecture, functional specifications, design expectations, and milestones for the project.
+                This document contains project scope, architectural requirements, and design expectations for the engagement.
               </p>
-              <h3 class="text-sm font-bold text-white mt-4">2. Core Deliverables</h3>
+              <h3 class="text-sm font-bold text-white mt-4">2. Specifications</h3>
               <ul class="list-disc pl-5 text-xs text-slate-300 space-y-1.5">
-                <li>High-fidelity responsive UI/UX system with dark theme support</li>
-                <li>Secure authentication and role-based dashboard access</li>
-                <li>Real-time client ↔ admin messaging and automated milestone tracking</li>
-                <li>Fast performance with WebGL/3D visual enhancements</li>
+                <li>High-fidelity responsive user interface with modern dark theme</li>
+                <li>Real-time client ↔ admin messaging & milestone delivery</li>
+                <li>Escrow protected payments & NCX virtual digital credits</li>
               </ul>
-              <h3 class="text-sm font-bold text-white mt-4">3. Timeline & Target Budget</h3>
-              <p class="text-xs text-slate-300 leading-relaxed">
-                Target delivery: 3-4 weeks. Quality assurance and security review included prior to release.
-              </p>
             </div>
           `);
         }
       } catch (err) {
         setHtmlContent(`
           <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 space-y-2">
-            <p class="font-bold text-amber-300">Document Preview (${fileName})</p>
-            <p class="leading-relaxed">This document has been securely uploaded and stored on the server. You can view, download, or share it with collaborators below.</p>
+            <p class="font-bold text-cyan-300">${fileName}</p>
+            <p class="leading-relaxed">${rawText || 'Document content loaded successfully.'}</p>
           </div>
         `);
       } finally {
@@ -93,7 +93,7 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
     };
 
     parseDoc();
-  }, [isOpen, fileBlob, rawText, fileName]);
+  }, [isOpen, fileBlob, rawText, docContentHtml, fileName]);
 
   if (!isOpen) return null;
 
@@ -103,6 +103,19 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
     setCopied(true);
     showToast({ type: 'success', title: 'Link Copied!', message: 'Shareable document link copied to clipboard.' });
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleDownloadDoc = () => {
+    const blob = new Blob([rawText || htmlContent.replace(/<[^>]+>/g, '\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName.endsWith('.docx') || fileName.endsWith('.txt') ? fileName : `${fileName}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast({ type: 'success', title: 'Downloading Document', message: `Saved ${fileName} to your computer.` });
   };
 
   const handleShareToConversation = () => {
@@ -126,14 +139,23 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               <h2 className="text-base font-bold text-white flex items-center gap-2">
                 <span>{fileName}</span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                  In-App Viewer
+                  In-App Document Viewer
                 </span>
               </h2>
-              <p className="text-[11px] font-mono text-slate-400">Microsoft Word (.docx) / Document Preview</p>
+              <p className="text-[11px] font-mono text-slate-400">Microsoft Word (.docx) / Project Specification</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownloadDoc}
+              className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-bold flex items-center gap-1.5 transition-all border border-slate-700"
+              title="Download Document"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Download</span>
+            </button>
+
             {/* Share Menu Button */}
             <div className="relative">
               <button
@@ -198,16 +220,16 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
         <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between text-xs">
           <div className="text-[11px] font-mono text-slate-400 flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span>Ready for collaboration & sharing</span>
+            <span>Document loaded & verified</span>
           </div>
 
           <div className="flex items-center gap-2">
             <button
-              onClick={handleCopyLink}
+              onClick={handleDownloadDoc}
               className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold flex items-center gap-1.5 transition-all border border-slate-800"
             >
-              <Copy className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Copy Link</span>
+              <Download className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Download File</span>
             </button>
 
             {onShareToChat && (
@@ -225,3 +247,5 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
     </div>
   );
 };
+
+export default DocumentViewerModal;

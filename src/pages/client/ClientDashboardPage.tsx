@@ -83,7 +83,7 @@ export const ClientDashboardPage: React.FC = () => {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'projects' | 'messages' | 'submissions'>('projects');
   const [newMessageText, setNewMessageText] = useState('');
-  const [activeDocView, setActiveDocView] = useState<{ fileName: string; rawText?: string } | null>(null);
+  const [activeDocView, setActiveDocView] = useState<{ fileName: string; rawText?: string; docContentHtml?: string } | null>(null);
 
   // Edit Idea State
   const [editingSubmission, setEditingSubmission] = useState<{ id: string; rawIdea: string; docFileName?: string } | null>(null);
@@ -447,7 +447,7 @@ export const ClientDashboardPage: React.FC = () => {
                           </div>
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => setActiveDocView({ fileName: sub.docFileName!, rawText: sub.rawIdea })}
+                              onClick={() => setActiveDocView({ fileName: sub.docFileName!, rawText: sub.rawIdea, docContentHtml: sub.docContentHtml })}
                               className="px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[11px] font-bold flex items-center gap-1 hover:bg-indigo-500/30 transition-all"
                             >
                               <span>Preview</span>
@@ -673,6 +673,7 @@ export const ClientDashboardPage: React.FC = () => {
         onClose={() => setActiveDocView(null)}
         fileName={activeDocView.fileName}
         rawText={activeDocView.rawText}
+        docContentHtml={activeDocView.docContentHtml}
         onShareToChat={(text) => {
           if (user?.id) sendAdminClientMessage(user.id, text);
         }}

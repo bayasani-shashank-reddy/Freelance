@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import confetti from 'canvas-confetti';
+import mammoth from 'mammoth';
 import { useUser, IDEA_SUBMISSION_COST } from '../context/UserContext';
 import { NcxCoinIcon, NcxCreditBadge, NcxCostTag, NcxDeductionRow, NcxCreditCard } from '../components/NcxCredit';
 
@@ -276,18 +277,38 @@ export const BriefBuilderPage: React.FC = () => {
   };
 
   // Document Upload Submit Handler
-  const handleDocumentSubmit = () => {
+  const handleDocumentSubmit = async () => {
     if (!uploadedFile) return;
+
+    let docHtml = '';
+    let extractedText = '';
+
+    try {
+      const arrayBuffer = await uploadedFile.arrayBuffer();
+      const result = await mammoth.convertToHtml({ arrayBuffer });
+      if (result.value) {
+        docHtml = result.value;
+      }
+      const rawRes = await mammoth.extractRawText({ arrayBuffer });
+      if (rawRes.value) {
+        extractedText = rawRes.value;
+      }
+    } catch (err) {
+      console.log('Doc parsing notice:', err);
+    }
+
     const result = submitIdea({
       clientId: user?.id || 'usr-1',
       clientName: user?.name || 'Client',
       clientAvatar: user?.avatar || '',
       clientEmail: user?.email || '',
-      rawIdea: `[Document Upload] ${uploadedFile.name}`,
+      rawIdea: extractedText.trim() || `[Document Upload] ${uploadedFile.name}`,
       docFileName: uploadedFile.name,
+      docContentHtml: docHtml || undefined,
       submissionType: 'document',
       creditsCost: IDEA_SUBMISSION_COST,
     });
+
     if (result.success) {
       setUploadSuccess(true);
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.5 } });
