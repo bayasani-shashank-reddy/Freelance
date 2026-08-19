@@ -1,7 +1,16 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { User } from '../models/User.js';
 
 export const authRouter = express.Router();
+
+const getFilterById = (id) => {
+  if (!id) return { _id: new mongoose.Types.ObjectId() };
+  if (mongoose.Types.ObjectId.isValid(id) && String(new mongoose.Types.ObjectId(id)) === id) {
+    return { $or: [{ _id: id }, { customId: id }] };
+  }
+  return { customId: id };
+};
 
 // Get all users
 authRouter.get('/users', async (req, res) => {
@@ -80,7 +89,7 @@ authRouter.post('/login', async (req, res) => {
 authRouter.post('/freelancers/:id/approve', async (req, res) => {
   try {
     const user = await User.findOneAndUpdate(
-      { $or: [{ _id: req.params.id }, { customId: req.params.id }] },
+      getFilterById(req.params.id),
       { approvalStatus: 'approved' },
       { new: true }
     );
@@ -94,7 +103,7 @@ authRouter.post('/freelancers/:id/approve', async (req, res) => {
 authRouter.post('/freelancers/:id/reject', async (req, res) => {
   try {
     const user = await User.findOneAndUpdate(
-      { $or: [{ _id: req.params.id }, { customId: req.params.id }] },
+      getFilterById(req.params.id),
       { approvalStatus: 'rejected' },
       { new: true }
     );
@@ -104,24 +113,23 @@ authRouter.post('/freelancers/:id/reject', async (req, res) => {
   }
 });
 
-// Update NCX credits
+// Update credits
 authRouter.post('/users/:id/credits', async (req, res) => {
   try {
-    const { amount, type } = req.body; // type: 'add' | 'spend'
-    const user = await User.findOne({ $or: [{ _id: req.params.id }, { customId: req.params.id }] });
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    const { amount, type } = req.body;
+    const user = await User.findOne(getFilterById(req.params.id));
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
-    if (type === 'spend') {
-      if (user.credits < amount) {
-        return res.status(400).json({ error: `Insufficient credits. You need ${amount} NCX but only have ${user.credits} NCX.` });
-      }
-      user.credits -= amount;
-    } else {
+    if (type === 'add') {
       user.credits += amount;
+    } else {
+      user.credits = Math.max(0, user.credits - amount);
     }
 
     await user.save();
-    res.json({ success: true, credits: user.credits, user });
+    res.json({ success: true, credits: user.credits });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

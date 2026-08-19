@@ -122,6 +122,19 @@ export const api = {
     }
   },
 
+  async editIdea(id: string, updateData: any) {
+    try {
+      const res = await fetch(`${API_BASE}/ideas/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData),
+      });
+      return await res.json();
+    } catch {
+      return { success: false };
+    }
+  },
+
   // Admin-Client Messages
   async getMessages(conversationId?: string) {
     try {

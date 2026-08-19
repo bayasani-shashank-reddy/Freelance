@@ -8,9 +8,11 @@ const IdeaSubmissionSchema = new mongoose.Schema({
   clientEmail: { type: String, default: '' },
   rawIdea: { type: String, required: true },
   docFileName: { type: String, default: null },
-  submissionType: { type: String, enum: ['text', 'document', 'detailed'], default: 'text' },
+  docContentHtml: { type: String, default: null },
+  docBase64: { type: String, default: null },
+  submissionType: { type: String, default: 'text' },
   creditsCost: { type: Number, default: 50 },
-  status: { type: String, enum: ['New', 'Reviewed', 'Actioned'], default: 'New' },
+  status: { type: String, default: 'New' },
   createdAt: { type: String, default: () => new Date().toLocaleString() },
   timestamp: { type: Date, default: Date.now }
 });

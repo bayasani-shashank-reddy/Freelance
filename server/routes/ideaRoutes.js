@@ -1,8 +1,17 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { IdeaSubmission } from '../models/IdeaSubmission.js';
 import { User } from '../models/User.js';
 
 export const ideaRouter = express.Router();
+
+const getFilterById = (id) => {
+  if (!id) return { _id: new mongoose.Types.ObjectId() };
+  if (mongoose.Types.ObjectId.isValid(id) && String(new mongoose.Types.ObjectId(id)) === id) {
+    return { $or: [{ _id: id }, { customId: id }] };
+  }
+  return { customId: id };
+};
 
 // Get all ideas (for Admin Dashboard)
 ideaRouter.get('/', async (req, res) => {
@@ -27,26 +36,41 @@ ideaRouter.get('/client/:clientId', async (req, res) => {
 // Submit a new idea (deducts 50 NCX credits)
 ideaRouter.post('/submit', async (req, res) => {
   try {
-    const { clientId, clientName, clientEmail, clientAvatar, rawIdea, docFileName, submissionType, creditsCost = 50 } = req.body;
-
-    // Check & deduct user credits in MongoDB
-    const client = await User.findOne({ $or: [{ _id: clientId }, { customId: clientId }] });
-    if (client) {
-      if (client.credits < creditsCost) {
-        return res.status(400).json({ error: `Insufficient NCX credits. You need ${creditsCost} NCX but only have ${client.credits} NCX.` });
-      }
-      client.credits -= creditsCost;
-      await client.save();
-    }
-
-    const newIdea = new IdeaSubmission({
-      customId: `idea-${Date.now()}`,
+    const {
       clientId,
       clientName,
       clientEmail,
       clientAvatar,
       rawIdea,
+      docFileName,
+      docContentHtml,
+      docBase64,
+      submissionType,
+      creditsCost = 50,
+      customId,
+    } = req.body;
+
+    // Deduct user credits safely if user found
+    try {
+      const client = await User.findOne(getFilterById(clientId));
+      if (client) {
+        client.credits = Math.max(0, (client.credits || 0) - creditsCost);
+        await client.save();
+      }
+    } catch (uErr) {
+      console.log('Credit deduction notice:', uErr.message);
+    }
+
+    const newIdea = new IdeaSubmission({
+      customId: customId || `idea-${Date.now()}`,
+      clientId: clientId || 'usr-client-1',
+      clientName: clientName || 'Client',
+      clientEmail: clientEmail || '',
+      clientAvatar: clientAvatar || '',
+      rawIdea: rawIdea || 'New Idea Submission',
       docFileName: docFileName || null,
+      docContentHtml: docContentHtml || null,
+      docBase64: docBase64 || null,
       submissionType: submissionType || 'text',
       creditsCost,
       status: 'New',
@@ -54,7 +78,28 @@ ideaRouter.post('/submit', async (req, res) => {
     });
 
     await newIdea.save();
-    res.status(201).json({ success: true, idea: newIdea, remainingCredits: client?.credits ?? 0 });
+    res.status(201).json({ success: true, idea: newIdea });
+  } catch (err) {
+    console.error('Error in /ideas/submit:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Client edits idea before review
+ideaRouter.patch('/:id', async (req, res) => {
+  try {
+    const { rawIdea, docFileName, docContentHtml, submissionType } = req.body;
+    const idea = await IdeaSubmission.findOneAndUpdate(
+      getFilterById(req.params.id),
+      {
+        ...(rawIdea ? { rawIdea } : {}),
+        ...(docFileName !== undefined ? { docFileName } : {}),
+        ...(docContentHtml !== undefined ? { docContentHtml } : {}),
+        ...(submissionType ? { submissionType } : {}),
+      },
+      { new: true }
+    );
+    res.json({ success: true, idea });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -65,7 +110,7 @@ ideaRouter.patch('/:id/status', async (req, res) => {
   try {
     const { status } = req.body;
     const idea = await IdeaSubmission.findOneAndUpdate(
-      { $or: [{ _id: req.params.id }, { customId: req.params.id }] },
+      getFilterById(req.params.id),
       { status },
       { new: true }
     );

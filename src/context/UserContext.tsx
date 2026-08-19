@@ -237,38 +237,127 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         // Fetch ideas from MongoDB
         const dbIdeas = await api.getIdeas();
-        if (dbIdeas && Array.isArray(dbIdeas) && dbIdeas.length > 0) {
-          const formattedIdeas: IdeaSubmission[] = dbIdeas.map((d: any) => ({
-            id: d.customId || d._id,
-            clientId: d.clientId,
-            clientName: d.clientName,
-            clientAvatar: d.clientAvatar,
-            clientEmail: d.clientEmail,
-            rawIdea: d.rawIdea,
-            docFileName: d.docFileName,
-            submissionType: d.submissionType,
-            creditsCost: d.creditsCost,
-            status: d.status,
-            createdAt: d.createdAt,
-          }));
-          setIdeaSubmissions(formattedIdeas);
+        if (dbIdeas && Array.isArray(dbIdeas)) {
+          if (dbIdeas.length > 0) {
+            const formattedIdeas: IdeaSubmission[] = dbIdeas.map((d: any) => ({
+              id: d.customId || d._id,
+              clientId: d.clientId,
+              clientName: d.clientName,
+              clientAvatar: d.clientAvatar,
+              clientEmail: d.clientEmail,
+              rawIdea: d.rawIdea,
+              docFileName: d.docFileName,
+              docContentHtml: d.docContentHtml,
+              submissionType: d.submissionType,
+              creditsCost: d.creditsCost,
+              status: d.status,
+              createdAt: d.createdAt,
+            }));
+            setIdeaSubmissions(formattedIdeas);
+          } else {
+            // If DB is empty, sync any local submissions to MongoDB Atlas
+            ideaSubmissions.forEach((sub) => {
+              api.submitIdea({
+                customId: sub.id,
+                clientId: sub.clientId,
+                clientName: sub.clientName,
+                clientEmail: sub.clientEmail,
+                clientAvatar: sub.clientAvatar,
+                rawIdea: sub.rawIdea,
+                docFileName: sub.docFileName,
+                docContentHtml: sub.docContentHtml,
+                submissionType: sub.submissionType,
+                creditsCost: sub.creditsCost,
+              });
+            });
+          }
+        }
+
+        // Fetch proposals from MongoDB
+        const dbProps = await api.getProposals();
+        if (dbProps && Array.isArray(dbProps)) {
+          if (dbProps.length > 0) {
+            const formattedProps: Proposal[] = dbProps.map((p: any) => ({
+              id: p.customId || p._id,
+              jobId: p.jobId,
+              jobTitle: p.jobTitle,
+              freelancerId: p.freelancerId,
+              freelancerName: p.freelancerName,
+              freelancerAvatar: p.freelancerAvatar,
+              freelancerTitle: p.freelancerTitle,
+              proposedBudget: p.proposedBudget,
+              proposedDeliveryTime: p.proposedDeliveryTime,
+              coverLetter: p.coverLetter,
+              milestonesProposed: p.milestonesProposed || [],
+              submittedAt: p.submittedAt,
+              status: p.status,
+            }));
+            setDynamicProposals(formattedProps);
+          } else {
+            // Push local proposals to MongoDB Atlas
+            dynamicProposals.forEach((prop) => {
+              api.submitProposal(prop);
+            });
+          }
+        }
+
+        // Fetch jobs from MongoDB
+        const dbJobs = await api.getJobs();
+        if (dbJobs && Array.isArray(dbJobs)) {
+          if (dbJobs.length > 0) {
+            const formattedJobs: JobListing[] = dbJobs.map((j: any) => ({
+              id: j.customId || j._id,
+              title: j.title,
+              clientName: j.clientName,
+              clientAvatar: j.clientAvatar,
+              clientRating: j.clientRating,
+              clientId: j.clientId,
+              category: j.category,
+              description: j.description,
+              budgetType: j.budgetType,
+              minBudget: j.minBudget,
+              maxBudget: j.maxBudget,
+              duration: j.duration,
+              experienceLevel: j.experienceLevel,
+              skills: j.skills || [],
+              proposalsCount: j.proposalsCount || 0,
+              postedAt: j.postedAt,
+              status: j.status,
+              assignedFreelancerId: j.assignedFreelancerId,
+              assignedFreelancerName: j.assignedFreelancerName,
+              isRemote: j.isRemote ?? true,
+            }));
+            setDynamicJobs(formattedJobs);
+          } else {
+            // Push local jobs to MongoDB Atlas
+            dynamicJobs.forEach((job) => {
+              api.postJob(job);
+            });
+          }
         }
 
         // Fetch messages from MongoDB
         const dbMsgs = await api.getMessages();
-        if (dbMsgs && Array.isArray(dbMsgs) && dbMsgs.length > 0) {
-          const formattedMsgs: AdminClientMessage[] = dbMsgs.map((m: any) => ({
-            id: m.customId || m._id,
-            conversationId: m.conversationId,
-            senderId: m.senderId,
-            senderName: m.senderName,
-            senderAvatar: m.senderAvatar,
-            senderRole: m.senderRole,
-            text: m.text,
-            timestamp: m.timestamp,
-            attachmentName: m.attachmentName,
-          }));
-          setAdminClientMessages(formattedMsgs);
+        if (dbMsgs && Array.isArray(dbMsgs)) {
+          if (dbMsgs.length > 0) {
+            const formattedMsgs: AdminClientMessage[] = dbMsgs.map((m: any) => ({
+              id: m.customId || m._id,
+              conversationId: m.conversationId,
+              senderId: m.senderId,
+              senderName: m.senderName,
+              senderAvatar: m.senderAvatar,
+              senderRole: m.senderRole,
+              text: m.text,
+              timestamp: m.timestamp,
+              attachmentName: m.attachmentName,
+            }));
+            setAdminClientMessages(formattedMsgs);
+          } else {
+            // Push local messages to MongoDB Atlas
+            adminClientMessages.forEach((msg) => {
+              api.sendMessage(msg);
+            });
+          }
         }
 
         // Fetch users from MongoDB
@@ -468,6 +557,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const postNewJob = (job: JobListing) => {
     setDynamicJobs((prev) => [job, ...prev]);
+    api.postJob(job);
   };
 
   const submitProposal = (proposal: Proposal) => {
@@ -475,6 +565,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setDynamicJobs((prev) =>
       prev.map((j) => (j.id === proposal.jobId ? { ...j, proposalsCount: j.proposalsCount + 1 } : j))
     );
+    api.submitProposal(proposal);
   };
 
   const awardProposalWorkByAdmin = (proposalId: string) => {
@@ -490,13 +581,15 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         j.id === targetProp.jobId
           ? {
               ...j,
-              status: 'In Review' as const,
+              status: 'In Progress' as const,
               assignedFreelancerId: targetProp.freelancerId || 'usr-free-1',
               assignedFreelancerName: targetProp.freelancerName,
             }
           : j
       )
     );
+
+    api.awardProposal(proposalId);
   };
 
   const addWorkspaceTask = (task: TaskItem) => {
@@ -598,6 +691,12 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           : item
       )
     );
+
+    api.editIdea(ideaId, {
+      rawIdea: updatedText,
+      docFileName: updatedDocName !== undefined ? updatedDocName : undefined,
+      submissionType: updatedDocName ? 'document' : undefined,
+    });
 
     return { success: true };
   };

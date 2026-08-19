@@ -6,10 +6,10 @@ const JobSchema = new mongoose.Schema({
   clientName: { type: String, required: true },
   clientAvatar: { type: String, default: '' },
   clientRating: { type: Number, default: 4.9 },
-  clientId: { type: String, default: '' },
+  clientId: { type: String, default: '', index: true },
   category: { type: String, default: 'Web Development' },
   description: { type: String, required: true },
-  budgetType: { type: String, enum: ['Fixed', 'Hourly'], default: 'Fixed' },
+  budgetType: { type: String, default: 'Fixed' },
   minBudget: { type: Number, default: 250 },
   maxBudget: { type: Number, default: 1500 },
   duration: { type: String, default: '2–4 weeks' },
@@ -17,7 +17,9 @@ const JobSchema = new mongoose.Schema({
   skills: [{ type: String }],
   proposalsCount: { type: Number, default: 0 },
   postedAt: { type: String, default: 'Just now' },
-  status: { type: String, enum: ['Open', 'In Progress', 'Completed', 'Closed'], default: 'Open' },
+  status: { type: String, default: 'Open' },
+  assignedFreelancerId: { type: String, default: null },
+  assignedFreelancerName: { type: String, default: null },
   isRemote: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now }
 });

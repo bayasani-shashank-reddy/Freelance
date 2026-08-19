@@ -202,7 +202,7 @@ export interface JobListing {
   skills: string[];
   proposalsCount: number;
   postedAt: string;
-  status: 'Open' | 'In Review' | 'Closed';
+  status: 'Open' | 'In Progress' | 'In Review' | 'Closed';
   isRemote: boolean;
   saved?: boolean;
   clientId?: string;
