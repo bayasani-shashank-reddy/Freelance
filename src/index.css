@@ -1,0 +1,159 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-coral: #FF6B6B;
+  --color-brand-violet: #7C3AED;
+  --color-brand-blue: #2563EB;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-slate-950 text-slate-100 antialiased selection:bg-brand-violet/20 selection:text-brand-violet font-sans overflow-x-hidden;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    body, button, a {
+      cursor: none !important;
+    }
+  }
+}
+
+:root {
+  --mesh-hue: 0deg;
+  --mesh-scroll-y: 0px;
+}
+
+.living-mesh {
+  position: relative;
+  isolation: isolate;
+}
+
+.living-mesh::before {
+  content: '';
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% calc(12% + var(--mesh-scroll-y)), rgba(99, 102, 241, 0.24), transparent 28%),
+    radial-gradient(circle at 78% calc(22% + var(--mesh-scroll-y)), rgba(34, 211, 238, 0.18), transparent 26%),
+    radial-gradient(circle at 42% calc(82% + var(--mesh-scroll-y)), rgba(244, 114, 182, 0.12), transparent 30%);
+  filter: hue-rotate(var(--mesh-hue)) blur(18px);
+  transform: translate3d(0, calc(var(--mesh-scroll-y) * -0.35), 0);
+  will-change: filter, transform;
+}
+
+.section-divider path {
+  filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.35));
+}
+
+.testimonial-carousel {
+  scroll-padding-inline: 1rem;
+}
+
+.testimonial-card {
+  user-select: none;
+}
+
+@media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
+  .living-mesh::before {
+    filter: blur(16px);
+    transform: none;
+    will-change: auto;
+  }
+
+  .testimonial-carousel {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#FF6B6B] via-[#7C3AED] to-[#2563EB];
+  }
+  .bg-gradient-mesh {
+    @apply bg-gradient-to-br from-[#FAFAFA] via-[#F3F4F6] to-[#FAFAFA];
+  }
+  .glass-card {
+    @apply bg-slate-900/95 backdrop-blur-xl border border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.5)] rounded-2xl text-slate-100;
+  }
+  .glass-panel {
+    @apply bg-slate-950/90 backdrop-blur-lg border border-slate-800/80 shadow-md rounded-xl text-slate-100;
+  }
+  .glass-button {
+    @apply bg-slate-900 hover:bg-slate-800 backdrop-blur-md border border-slate-700 text-white shadow-sm transition-all duration-300;
+  }
+}
+
+/* Custom Animations */
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-20px) scale(1.02); }
+}
+@keyframes floatFast {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.6; transform: scale(1); filter: blur(40px); }
+  50% { opacity: 0.9; transform: scale(1.1); filter: blur(50px); }
+}
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes bounce3D {
+  0%, 100% { transform: translateY(0) rotateX(0); }
+  50% { transform: translateY(-15px) rotateX(10deg); }
+}
+@keyframes rotateOrb {
+  0% { transform: rotate(0deg) translate(50px) rotate(0deg); }
+  100% { transform: rotate(360deg) translate(50px) rotate(-360deg); }
+}
+@keyframes particleFloat {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+}
+
+.animate-float-slow { animation: floatSlow 6s ease-in-out infinite; }
+.animate-float-fast { animation: floatFast 3s ease-in-out infinite; }
+.animate-pulse-glow { animation: pulseGlow 4s ease-in-out infinite; }
+.animate-slide-up { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-fade-in { animation: fadeIn 0.6s ease-out forwards; }
+.animate-bounce-3d { animation: bounce3D 3s ease-in-out infinite; }
+.animate-rotate-orb { animation: rotateOrb 15s linear infinite; }
+.animate-particle { animation: particleFloat 4s linear infinite; }
+
+/* Custom Scrollbar for Light Theme */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1; 
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1; 
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8; 
+}
+
+html {
+  scroll-behavior: smooth;
+}
