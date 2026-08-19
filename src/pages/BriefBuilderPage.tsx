@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import type { BriefInput, ProjectBrief } from '../types';
 import {
   SAMPLE_PROJECT_TEMPLATES,
@@ -20,15 +20,35 @@ import {
   Wand2,
   Globe,
   Briefcase,
+  Upload,
+  FileText,
+  Zap,
+  FileUp,
+  CheckCircle2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import confetti from 'canvas-confetti';
-import { useUser } from '../context/UserContext';
+import { useUser, IDEA_SUBMISSION_COST } from '../context/UserContext';
+import { NcxCoinIcon, NcxCreditBadge, NcxCostTag, NcxDeductionRow, NcxCreditCard } from '../components/NcxCredit';
+
+type SubmissionMode = 'select' | 'quick' | 'upload' | 'detailed';
 
 export const BriefBuilderPage: React.FC = () => {
   const navigate = useNavigate();
-  const { postNewJob, user } = useUser();
+  const { postNewJob, user, submitIdea } = useUser();
   const [currentStep, setCurrentStep] = useState(1);
+  const [submissionMode, setSubmissionMode] = useState<SubmissionMode>('select');
+
+  // Quick Idea Mode State
+  const [quickIdeaText, setQuickIdeaText] = useState('');
+  const [quickIdeaSuccess, setQuickIdeaSuccess] = useState(false);
+  const [quickIdeaError, setQuickIdeaError] = useState<string | null>(null);
+
+  // Document Upload Mode State
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form State
   const [formData, setFormData] = useState<BriefInput>({
@@ -235,6 +255,47 @@ export const BriefBuilderPage: React.FC = () => {
     });
   };
 
+  // Quick Idea Submit Handler
+  const handleQuickIdeaSubmit = () => {
+    if (!quickIdeaText.trim()) return;
+    const result = submitIdea({
+      clientId: user?.id || 'usr-1',
+      clientName: user?.name || 'Client',
+      clientAvatar: user?.avatar || '',
+      clientEmail: user?.email || '',
+      rawIdea: quickIdeaText,
+      submissionType: 'text',
+      creditsCost: IDEA_SUBMISSION_COST,
+    });
+    if (result.success) {
+      setQuickIdeaSuccess(true);
+      confetti({ particleCount: 80, spread: 60, origin: { y: 0.5 } });
+    } else {
+      setQuickIdeaError(result.error || 'Submission failed.');
+    }
+  };
+
+  // Document Upload Submit Handler
+  const handleDocumentSubmit = () => {
+    if (!uploadedFile) return;
+    const result = submitIdea({
+      clientId: user?.id || 'usr-1',
+      clientName: user?.name || 'Client',
+      clientAvatar: user?.avatar || '',
+      clientEmail: user?.email || '',
+      rawIdea: `[Document Upload] ${uploadedFile.name}`,
+      docFileName: uploadedFile.name,
+      submissionType: 'document',
+      creditsCost: IDEA_SUBMISSION_COST,
+    });
+    if (result.success) {
+      setUploadSuccess(true);
+      confetti({ particleCount: 80, spread: 60, origin: { y: 0.5 } });
+    } else {
+      setUploadError(result.error || 'Submission failed.');
+    }
+  };
+
   // Generate AI Questions & Structure
   const handleProceedToClarification = async () => {
     setIsAiProcessing(true);
@@ -299,6 +360,266 @@ export const BriefBuilderPage: React.FC = () => {
   return (
     <div className="pt-28 pb-24 bg-slate-950 min-h-screen text-slate-200">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        {/* ── MODE SELECTION SCREEN ── */}
+        {submissionMode === 'select' && (
+          <div className="max-w-3xl mx-auto text-center space-y-8">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-mono bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 mb-4">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                <span>NEXUSCRAFT PROJECT SUBMISSION PORTAL</span>
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-3">
+                How would you like to <span className="gradient-text">share your idea?</span>
+              </h1>
+              <p className="text-slate-400 text-sm">Choose the method that works best for you. Each submission costs <NcxCostTag amount={IDEA_SUBMISSION_COST} label="" />. You have <NcxCreditBadge amount={user?.credits ?? 0} />.</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 text-left">
+              {/* Quick Idea */}
+              <button
+                onClick={() => setSubmissionMode('quick')}
+                className="group p-6 rounded-3xl border-2 border-slate-800 bg-slate-900/80 hover:border-cyan-500/60 hover:bg-slate-900 transition-all text-left space-y-3"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Zap className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-white group-hover:text-cyan-300 transition-colors">Quick Idea</h3>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">Just type your idea in plain words — no forms, no steps. Submit instantly and our admin will reach out.</p>
+                </div>
+                <NcxCostTag amount={IDEA_SUBMISSION_COST} />
+              </button>
+
+              {/* Upload Document */}
+              <button
+                onClick={() => setSubmissionMode('upload')}
+                className="group p-6 rounded-3xl border-2 border-slate-800 bg-slate-900/80 hover:border-indigo-500/60 hover:bg-slate-900 transition-all text-left space-y-3"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <FileUp className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-white group-hover:text-indigo-300 transition-colors">Upload Document</h3>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">Already have a Word doc (.docx) or PDF with your requirements? Upload it directly and we'll review it.</p>
+                </div>
+                <NcxCostTag amount={IDEA_SUBMISSION_COST} />
+              </button>
+
+              {/* Detailed Brief */}
+              <button
+                onClick={() => setSubmissionMode('detailed')}
+                className="group p-6 rounded-3xl border-2 border-slate-800 bg-slate-900/80 hover:border-purple-500/60 hover:bg-slate-900 transition-all text-left space-y-3"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-purple-500/15 border border-purple-500/30 text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Wand2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-white group-hover:text-purple-300 transition-colors">AI Brief Builder</h3>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">Answer guided questions to build a detailed project brief with AI assistance for precise matching.</p>
+                </div>
+                <NcxCostTag amount={IDEA_SUBMISSION_COST} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── QUICK IDEA MODE ── */}
+        {submissionMode === 'quick' && !quickIdeaSuccess && (
+          <div className="max-w-2xl mx-auto space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+              <button onClick={() => setSubmissionMode('select')} className="text-slate-400 hover:text-white text-xs font-mono transition-colors">← Back</button>
+              <span className="text-xs font-mono text-cyan-300 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/20">QUICK IDEA MODE</span>
+            </div>
+            <div className="glass-card border border-cyan-500/30 rounded-3xl p-6 sm:p-10 space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-cyan-500/15 text-cyan-400 flex items-center justify-center border border-cyan-500/30">
+                  <Zap className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-extrabold text-white">Share Your Idea</h2>
+                  <p className="text-xs text-slate-400">Describe what you want to build — our admin will review and contact you.</p>
+                </div>
+              </div>
+
+              <NcxCreditCard
+                amount={user?.credits ?? 0}
+                label="Your NCX Balance"
+                subtitle={`This submission costs NCX ${IDEA_SUBMISSION_COST}. Submit your idea and admin will reach out within 24 hours.`}
+              />
+
+              {quickIdeaError && (
+                <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono">
+                  ⚠ {quickIdeaError}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-mono font-bold text-slate-300 mb-2">Your Project Idea *</label>
+                <textarea
+                  rows={7}
+                  value={quickIdeaText}
+                  onChange={(e) => setQuickIdeaText(e.target.value)}
+                  placeholder="e.g. I want a website for my bakery where customers can see our menu, place orders online, and book custom cakes. I need it to be mobile-friendly and have a nice, warm design..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-sm text-white focus:outline-none focus:border-cyan-500/50 leading-relaxed placeholder:text-slate-600"
+                />
+                <div className="flex justify-between mt-1">
+                  <span className="text-[10px] font-mono text-slate-500">Min. 20 characters</span>
+                  <span className="text-[10px] font-mono text-slate-500">{quickIdeaText.length} chars</span>
+                </div>
+              </div>
+
+              <button
+                disabled={quickIdeaText.trim().length < 20}
+                onClick={handleQuickIdeaSubmit}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-extrabold text-sm shadow-lg flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
+              >
+                <NcxCoinIcon size="sm" />
+                Submit Idea — <NcxCreditBadge amount={IDEA_SUBMISSION_COST} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {submissionMode === 'quick' && quickIdeaSuccess && (
+          <div className="max-w-lg mx-auto">
+            <div className="glass-card border border-emerald-500/40 rounded-3xl p-8 text-center space-y-5 bg-slate-900/95">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/40">
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+              <h2 className="text-2xl font-extrabold text-white">Idea Submitted! 🎉</h2>
+              <p className="text-slate-300 text-xs leading-relaxed">
+                Your idea has been sent directly to our admin team. They'll review it and reach out to you via the platform chat within 24 hours.
+              </p>
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-left space-y-3">
+                <NcxDeductionRow label="NCX USED:" amount={IDEA_SUBMISSION_COST} variant="deduct" />
+                <NcxDeductionRow label="NCX REMAINING:" amount={user?.credits ?? 0} variant="reward" />
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <span className="text-slate-400">STATUS:</span>
+                  <span className="text-cyan-300 font-bold">Sent to Admin ✓</span>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate('/client/dashboard')}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-500 text-white font-bold text-xs shadow-lg"
+              >
+                Go to Dashboard
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── DOCUMENT UPLOAD MODE ── */}
+        {submissionMode === 'upload' && !uploadSuccess && (
+          <div className="max-w-2xl mx-auto space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+              <button onClick={() => setSubmissionMode('select')} className="text-slate-400 hover:text-white text-xs font-mono transition-colors">← Back</button>
+              <span className="text-xs font-mono text-indigo-300 bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/20">DOCUMENT UPLOAD MODE</span>
+            </div>
+            <div className="glass-card border border-indigo-500/30 rounded-3xl p-6 sm:p-10 space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
+                  <FileUp className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-extrabold text-white">Upload Your Document</h2>
+                  <p className="text-xs text-slate-400">Upload a Word document (.docx) or PDF with your project requirements.</p>
+                </div>
+              </div>
+
+              <NcxCreditCard
+                amount={user?.credits ?? 0}
+                label="Your NCX Balance"
+                subtitle={`This submission costs NCX ${IDEA_SUBMISSION_COST}. Upload your document and admin will review it and contact you.`}
+              />
+
+              {uploadError && (
+                <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono">
+                  ⚠ {uploadError}
+                </div>
+              )}
+
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-slate-700 hover:border-indigo-500/50 rounded-2xl p-10 text-center cursor-pointer transition-all group"
+              >
+                {uploadedFile ? (
+                  <div className="space-y-2">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center mx-auto border border-indigo-500/30">
+                      <FileText className="w-6 h-6" />
+                    </div>
+                    <p className="text-sm font-bold text-white">{uploadedFile.name}</p>
+                    <p className="text-[10px] font-mono text-slate-400">{(uploadedFile.size / 1024).toFixed(1)} KB — click to change</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-800 text-slate-400 flex items-center justify-center mx-auto group-hover:bg-indigo-500/15 group-hover:text-indigo-400 transition-all">
+                      <Upload className="w-6 h-6" />
+                    </div>
+                    <p className="text-sm text-slate-300 font-semibold">Click to upload or drag & drop</p>
+                    <p className="text-[10px] font-mono text-slate-500">.docx, .doc, .pdf — Max 10MB</p>
+                  </div>
+                )}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".docx,.doc,.pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) setUploadedFile(file);
+                }}
+              />
+
+              <button
+                disabled={!uploadedFile}
+                onClick={handleDocumentSubmit}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-extrabold text-sm shadow-lg flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
+              >
+                <NcxCoinIcon size="sm" />
+                Submit Document — <NcxCreditBadge amount={IDEA_SUBMISSION_COST} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {submissionMode === 'upload' && uploadSuccess && (
+          <div className="max-w-lg mx-auto">
+            <div className="glass-card border border-emerald-500/40 rounded-3xl p-8 text-center space-y-5 bg-slate-900/95">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/40">
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+              <h2 className="text-2xl font-extrabold text-white">Document Submitted! 🎉</h2>
+              <p className="text-slate-300 text-xs leading-relaxed">
+                Your document <strong className="text-indigo-300">{uploadedFile?.name}</strong> has been sent to our admin team. They'll review it and contact you shortly.
+              </p>
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-left space-y-3">
+                <NcxDeductionRow label="NCX USED:" amount={IDEA_SUBMISSION_COST} variant="deduct" />
+                <NcxDeductionRow label="NCX REMAINING:" amount={user?.credits ?? 0} variant="reward" />
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <span className="text-slate-400">STATUS:</span>
+                  <span className="text-cyan-300 font-bold">Sent to Admin ✓</span>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate('/client/dashboard')}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-500 text-white font-bold text-xs shadow-lg"
+              >
+                Go to Dashboard
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── DETAILED BRIEF (Original Multi-step Wizard) ── */}
+        {submissionMode === 'detailed' && (
+          <>
+            <div className="flex items-center gap-3 mb-6">
+              <button onClick={() => setSubmissionMode('select')} className="text-slate-400 hover:text-white text-xs font-mono transition-colors">← Back to options</button>
+              <span className="text-xs font-mono text-purple-300 bg-purple-500/10 px-2.5 py-0.5 rounded-full border border-purple-500/20">AI BRIEF BUILDER</span>
+            </div>
+
         {/* Wizard Progress Header */}
         {currentStep <= 10 && (
           <div className="mb-10 text-center max-w-2xl mx-auto">
@@ -1025,9 +1346,12 @@ export const BriefBuilderPage: React.FC = () => {
             </div>
           </div>
         )}
+          </>
+        )}
       </div>
     </div>
   );
 };
 
 export default BriefBuilderPage;
+

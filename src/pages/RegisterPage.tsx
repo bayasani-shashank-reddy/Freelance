@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Lock, User as UserIcon, ArrowRight, Briefcase, Code, Clock, CheckCircle2, ShieldCheck, Zap } from 'lucide-react';
+import { Mail, Lock, User as UserIcon, ArrowRight, Briefcase, Code, Clock, CheckCircle2, ShieldCheck } from 'lucide-react';
 import type { ViewMode, User, UserRole } from '../types';
 import { useUser, NEW_USER_CREDITS } from '../context/UserContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { NcxCoinIcon, NcxCreditBadge } from '../components/NcxCredit';
 
 const MotionDiv = motion.div as any;
 
@@ -142,11 +143,17 @@ export const RegisterPage: React.FC<RegisterPageProps> = () => {
                   <Briefcase className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white group-hover:text-cyan-300 transition-colors">
-                    Client / Project Owner
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-white group-hover:text-cyan-300 transition-colors">
+                      Client / Project Owner
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono text-[10px] font-bold border border-indigo-500/30 flex items-center gap-1">
+                      <NcxCoinIcon size="xs" />
+                      +500 NCX Gift
+                    </span>
+                  </div>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    I want to post projects, build AI briefs, and hire top freelancers.
+                    Get 500 free NCX digital credits to test & submit ideas directly to admin.
                   </p>
                 </div>
               </div>
@@ -178,6 +185,20 @@ export const RegisterPage: React.FC<RegisterPageProps> = () => {
         {/* STEP 2: USER DETAILS FORM */}
         {step === 2 && (
           <form onSubmit={handleRegister} className="space-y-4 text-xs">
+            {role === 'client' && (
+              <div className="p-3.5 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center gap-3">
+                <NcxCoinIcon size="md" className="shrink-0 animate-bounce" />
+                <div>
+                  <div className="font-bold text-white flex items-center gap-1.5">
+                    <span>Includes</span>
+                    <NcxCreditBadge amount={NEW_USER_CREDITS} size="xs" />
+                    <span>Free Digital Credits</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">Instantly test project idea submissions upon sign up!</p>
+                </div>
+              </div>
+            )}
+
             {error && (
               <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono text-center font-bold">
                 ⚠ {error}

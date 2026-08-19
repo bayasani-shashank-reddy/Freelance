@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { NotificationDropdown } from './NotificationDropdown';
 import { useUser } from '../context/UserContext';
+import { NcxCoinIcon, NcxCreditBadge } from './NcxCredit';
 
 export const Navbar: React.FC = () => {
   const { role, user, isAuthenticated, logout } = useUser();
@@ -163,15 +164,25 @@ export const Navbar: React.FC = () => {
               </NavLink>
             </div>
           ) : (
-            /* Logged In State: Wallet Pill + Notifications + Role Menu */
+            /* Logged In State: NCX Credits Pill / Wallet Pill + Notifications + Role Menu */
             <>
-              <button
-                onClick={() => navigate('/wallet')}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold hover:bg-emerald-500/20 transition-all"
-              >
-                <Wallet className="w-3.5 h-3.5 text-emerald-400" />
-                <span>${(user?.balance || 0).toLocaleString()}</span>
-              </button>
+              {role === 'client' ? (
+                <button
+                  onClick={() => navigate('/client/dashboard')}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-mono font-bold hover:bg-indigo-500/25 transition-all shadow-sm shadow-indigo-500/20"
+                >
+                  <NcxCoinIcon size="xs" />
+                  <NcxCreditBadge amount={user?.credits ?? 0} size="xs" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate('/wallet')}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold hover:bg-emerald-500/20 transition-all"
+                >
+                  <Wallet className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>${(user?.balance || 0).toLocaleString()}</span>
+                </button>
+              )}
 
               <NotificationDropdown />
 
