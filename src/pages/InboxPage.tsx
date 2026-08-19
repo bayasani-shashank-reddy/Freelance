@@ -87,7 +87,7 @@ const getAIReplies = (lastMsg: string): { label: string; text: string }[] => {
 };
 
 export const InboxPage: React.FC = () => {
-  const { user, role, chatMessages, sendChatMessage, dynamicJobs, approvedFreelancers } = useUser();
+  const { user, role, chatMessages, sendChatMessage, dynamicJobs } = useUser();
 
   // Active Job Workspace Conversations
   const baseJobs = role === 'admin' 
@@ -109,20 +109,8 @@ export const InboxPage: React.FC = () => {
     contractAmount: j.maxBudget,
   }));
 
-  // Direct Freelancer Network Conversations
-  const otherFreelancers = approvedFreelancers.filter((f) => f.id !== user?.id);
-  const freelancerConversations: Conversation[] = otherFreelancers.map((f) => ({
-    id: `direct-${f.id}`,
-    name: f.name,
-    avatar: f.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-    lastMessage: chatMessages[`direct-${f.id}`]?.slice(-1)[0]?.text || 'Start direct message...',
-    time: chatMessages[`direct-${f.id}`]?.slice(-1)[0]?.timestamp || 'Active',
-    unread: 0,
-    online: true,
-    role: f.title || 'Specialist Freelancer',
-  }));
-
-  const allConversations: Conversation[] = [...jobConversations, ...freelancerConversations];
+  // Strict Communication Guardrails: ONLY assigned project workspaces unlock
+  const allConversations: Conversation[] = jobConversations;
 
   const [selected, setSelected] = useState<string>(allConversations.length > 0 ? allConversations[0].id : '');
   const [docViewerFile, setDocViewerFile] = useState<string | null>(null);
@@ -257,12 +245,14 @@ export const InboxPage: React.FC = () => {
             {/* Conversation list */}
             <div className="flex-1 overflow-y-auto">
               {filtered.length === 0 ? (
-                <div className="p-6 text-center text-xs font-mono text-slate-500 space-y-2">
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center mx-auto border border-cyan-500/30">
+                <div className="p-6 text-center text-xs font-mono text-slate-400 space-y-2">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mx-auto border border-indigo-500/30">
                     <MessageSquare className="w-5 h-5" />
                   </div>
-                  <p>No active chat conversations yet.</p>
-                  <p className="text-[10px] text-slate-400">Real-time chats will appear here as you submit proposals or post projects!</p>
+                  <p className="font-bold text-white">No Assigned Project Workspaces Yet</p>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Private project chat unlocks automatically once the Admin assigns a verified freelancer to the project!
+                  </p>
                 </div>
               ) : (
                 filtered.map((convo) => (

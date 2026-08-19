@@ -48,6 +48,7 @@ interface UserContextType {
   // Idea Submissions
   ideaSubmissions: IdeaSubmission[];
   submitIdea: (idea: Omit<IdeaSubmission, 'id' | 'createdAt' | 'status'>) => { success: boolean; error?: string };
+  editIdea: (ideaId: string, updatedText: string, updatedDocName?: string) => { success: boolean; error?: string };
   updateIdeaStatus: (ideaId: string, status: IdeaSubmission['status']) => void;
   // Admin-Client Chat
   adminClientMessages: AdminClientMessage[];
@@ -580,6 +581,27 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true };
   };
 
+  const editIdea = (ideaId: string, updatedText: string, updatedDocName?: string): { success: boolean; error?: string } => {
+    const target = ideaSubmissions.find((i) => i.id === ideaId);
+    if (!target) return { success: false, error: 'Submission not found.' };
+    if (target.status !== 'New') return { success: false, error: 'Cannot edit: Admin is already reviewing or has actioned this idea.' };
+
+    setIdeaSubmissions((prev) =>
+      prev.map((item) =>
+        item.id === ideaId
+          ? {
+              ...item,
+              rawIdea: updatedText,
+              docFileName: updatedDocName !== undefined ? updatedDocName : item.docFileName,
+              submissionType: updatedDocName ? 'document' : item.submissionType,
+            }
+          : item
+      )
+    );
+
+    return { success: true };
+  };
+
   const updateIdeaStatus = (ideaId: string, status: IdeaSubmission['status']) => {
     api.updateIdeaStatus(ideaId, status);
     setIdeaSubmissions((prev) =>
@@ -708,6 +730,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         sendChatMessage,
         ideaSubmissions,
         submitIdea,
+        editIdea,
         updateIdeaStatus,
         adminClientMessages,
         sendAdminClientMessage,

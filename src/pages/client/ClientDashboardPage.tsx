@@ -79,11 +79,16 @@ const ACTIVITY_FEED = [
 
 export const ClientDashboardPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, dynamicJobs, ideaSubmissions, adminClientMessages, sendAdminClientMessage } = useUser();
+  const { user, dynamicJobs, ideaSubmissions, editIdea, adminClientMessages, sendAdminClientMessage } = useUser();
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'projects' | 'messages' | 'submissions'>('projects');
   const [newMessageText, setNewMessageText] = useState('');
   const [activeDocView, setActiveDocView] = useState<{ fileName: string; rawText?: string } | null>(null);
+
+  // Edit Idea State
+  const [editingSubmission, setEditingSubmission] = useState<{ id: string; rawIdea: string; docFileName?: string } | null>(null);
+  const [editIdeaText, setEditIdeaText] = useState('');
+  const [editDocName, setEditDocName] = useState('');
 
   // Get the client's idea submissions
   const mySubmissions = ideaSubmissions.filter((s) => s.clientId === user?.id);
@@ -109,7 +114,24 @@ export const ClientDashboardPage: React.FC = () => {
     if (!newMessageText.trim() || !user?.id) return;
     sendAdminClientMessage(user.id, newMessageText);
     setNewMessageText('');
-    showToast({ type: 'success', title: 'Message Sent', message: 'Your message has been sent to Admin.' });
+    showToast({ type: 'success', title: 'Message Sent', message: 'Sent directly to NexusCraft Admin.' });
+  };
+
+  const handleSaveEditedIdea = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSubmission) return;
+    if (!editIdeaText.trim()) {
+      showToast({ type: 'error', title: 'Empty Content', message: 'Please provide idea details or requirements.' });
+      return;
+    }
+
+    const res = editIdea(editingSubmission.id, editIdeaText, editDocName || undefined);
+    if (res.success) {
+      showToast({ type: 'success', title: 'Idea Updated!', message: 'Your updated project idea was saved and sent to Admin for review.' });
+      setEditingSubmission(null);
+    } else {
+      showToast({ type: 'error', title: 'Update Failed', message: res.error || 'Could not update idea.' });
+    }
   };
 
 
@@ -423,15 +445,43 @@ export const ClientDashboardPage: React.FC = () => {
                             <FileText className="w-4 h-4 text-indigo-400 shrink-0" />
                             <span className="text-xs font-mono text-indigo-300 font-bold">{sub.docFileName}</span>
                           </div>
-                          <button
-                            onClick={() => setActiveDocView({ fileName: sub.docFileName!, rawText: sub.rawIdea })}
-                            className="px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[11px] font-bold flex items-center gap-1 hover:bg-indigo-500/30 transition-all"
-                          >
-                            <span>Preview</span>
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setActiveDocView({ fileName: sub.docFileName!, rawText: sub.rawIdea })}
+                              className="px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[11px] font-bold flex items-center gap-1 hover:bg-indigo-500/30 transition-all"
+                            >
+                              <span>Preview</span>
+                            </button>
+                            {sub.status === 'New' && (
+                              <button
+                                onClick={() => {
+                                  setEditingSubmission({ id: sub.id, rawIdea: sub.rawIdea, docFileName: sub.docFileName });
+                                  setEditIdeaText(sub.rawIdea);
+                                  setEditDocName(sub.docFileName || '');
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold flex items-center gap-1 hover:bg-cyan-500/30 transition-all"
+                              >
+                                <span>✏️ Edit</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ) : (
-                        <p className="text-xs text-slate-300 leading-relaxed line-clamp-3">{sub.rawIdea}</p>
+                        <div className="space-y-2">
+                          <p className="text-xs text-slate-300 leading-relaxed line-clamp-3">{sub.rawIdea}</p>
+                          {sub.status === 'New' && (
+                            <button
+                              onClick={() => {
+                                setEditingSubmission({ id: sub.id, rawIdea: sub.rawIdea });
+                                setEditIdeaText(sub.rawIdea);
+                                setEditDocName('');
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold inline-flex items-center gap-1 hover:bg-cyan-500/30 transition-all"
+                            >
+                              <span>✏️ Edit Idea</span>
+                            </button>
+                          )}
+                        </div>
                       )}
 
                       <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-900 text-[10px] font-mono">
@@ -627,6 +677,78 @@ export const ClientDashboardPage: React.FC = () => {
           if (user?.id) sendAdminClientMessage(user.id, text);
         }}
       />
+    )}
+
+    {/* Client Edit Idea Modal (Allowed before Admin accepts) */}
+    {editingSubmission && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+        <div className="relative w-full max-w-lg rounded-3xl bg-slate-900 border border-cyan-500/40 p-6 sm:p-8 shadow-2xl space-y-5">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+            <div>
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <span>✏️ Edit Submitted Idea</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                  Pre-Review Edit
+                </span>
+              </h2>
+              <p className="text-xs text-slate-400">Update your project idea before the Admin reviews or actions it.</p>
+            </div>
+            <button
+              onClick={() => setEditingSubmission(null)}
+              className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800"
+            >
+              ✕
+            </button>
+          </div>
+
+          <form onSubmit={handleSaveEditedIdea} className="space-y-4 text-xs">
+            <div>
+              <label className="block font-mono font-bold text-slate-300 mb-1.5">Project Idea / Requirements</label>
+              <textarea
+                rows={5}
+                required
+                value={editIdeaText}
+                onChange={(e) => setEditIdeaText(e.target.value)}
+                placeholder="Describe your vision, core features, and target timeline..."
+                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-xs text-slate-200 focus:outline-none focus:border-cyan-400 leading-relaxed"
+              />
+            </div>
+
+            <div>
+              <label className="block font-mono font-bold text-slate-300 mb-1.5">Attached Document File (Optional)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={editDocName}
+                  onChange={(e) => setEditDocName(e.target.value)}
+                  placeholder="e.g. Project_Brief_v2.docx"
+                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-400 font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-[11px] font-mono text-cyan-300">
+              💡 Editing is free! Your updated specifications will be immediately reflected on the Admin Moderation Portal.
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setEditingSubmission(null)}
+                className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-500 text-white font-extrabold shadow-lg hover:from-indigo-500 hover:to-cyan-400 transition-all"
+              >
+                Save &amp; Update Idea
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     )}
     </>
   );
