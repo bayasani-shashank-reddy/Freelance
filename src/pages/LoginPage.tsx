@@ -1,57 +1,51 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, Mail, ArrowRight, ShieldCheck, UserCheck, Briefcase } from 'lucide-react';
+import { Lock, Mail, ArrowRight, UserCheck, Briefcase } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useUser, SEED_ACCOUNTS } from '../context/UserContext';
+import { useUser } from '../context/UserContext';
 import { useToast } from '../context/ToastContext';
-import type { UserRole } from '../types';
 
 const MotionDiv = motion.div as any;
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { authenticateUser, login } = useUser();
+  const { authenticateUser } = useUser();
   const { showToast } = useToast();
-  const [selectedRole, setSelectedRole] = useState<UserRole>('client');
-  const [email, setEmail] = useState('client@nexuscraft.com');
-  const [password, setPassword] = useState('Client@12345');
+  const [selectedRole, setSelectedRole] = useState<'client' | 'freelancer'>('client');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const handleRoleSelect = (role: UserRole) => {
-    setSelectedRole(role);
-    setError(null);
-    const seed = SEED_ACCOUNTS.find((a) => a.role === role);
-    if (seed) {
-      setEmail(seed.email);
-      setPassword(seed.password || 'Admin@12345');
-    }
-  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    const res = authenticateUser(email, password);
+    if (!email.trim() || !password.trim()) {
+      setError('Please enter your email and password.');
+      return;
+    }
+
+    const res = authenticateUser(email.trim(), password);
     if (res.success && res.user) {
-      showToast({ type: 'success', title: `Welcome back, ${res.user.name}!`, message: `Logged in as ${res.user.role}.` });
-      if (res.user.role === 'admin') navigate('/admin/dashboard');
-      else if (res.user.role === 'freelancer') navigate('/freelancer/dashboard');
-      else navigate('/client/dashboard');
-    } else {
-      // Fallback seed match by role if user typed standard demo pass
-      const seedMatch = SEED_ACCOUNTS.find((a) => a.email.toLowerCase() === email.toLowerCase());
-      if (seedMatch) {
-        login(seedMatch);
-        showToast({ type: 'success', title: `Welcome, ${seedMatch.name}!`, message: `Signed in as ${seedMatch.role}.` });
-        if (seedMatch.role === 'admin') navigate('/admin/dashboard');
-        else if (seedMatch.role === 'freelancer') navigate('/freelancer/dashboard');
-        else navigate('/client/dashboard');
+      showToast({
+        type: 'success',
+        title: `Welcome, ${res.user.name}!`,
+        message: res.user.role === 'admin' ? 'Signed in as Platform Administrator.' : `Logged in as ${res.user.role}.`,
+      });
+
+      // Automatic direct routing based on user's actual role in MongoDB / state
+      if (res.user.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else if (res.user.role === 'freelancer') {
+        navigate('/freelancer/dashboard');
       } else {
-        const errMsg = res.error || 'Invalid credentials. Please check your email & password.';
-        setError(errMsg);
-        showToast({ type: 'error', title: 'Login Failed', message: errMsg });
+        navigate('/client/dashboard');
       }
+    } else {
+      const errMsg = res.error || 'Invalid email or password. Please try again.';
+      setError(errMsg);
+      showToast({ type: 'error', title: 'Login Failed', message: errMsg });
     }
   };
 
@@ -61,35 +55,41 @@ export const LoginPage: React.FC = () => {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-lg glass-card border border-slate-800 p-8 rounded-3xl space-y-6 shadow-2xl bg-slate-900/95"
+        className="w-full max-w-md glass-card border border-slate-800 p-8 rounded-3xl space-y-6 shadow-2xl bg-slate-900/95"
       >
         <div className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-cyan-500/40 text-cyan-400 flex items-center justify-center mx-auto mb-2">
+          <div className="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-cyan-500/40 text-cyan-400 flex items-center justify-center mx-auto mb-2 shadow-lg shadow-indigo-500/10">
             <Lock className="w-7 h-7" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white">Sign In to NexusCraft</h1>
-          <p className="text-xs font-mono text-slate-400">Select your account role and enter credentials to access your dashboard.</p>
+          <p className="text-xs text-slate-400">Enter your credentials to access your account workspace.</p>
         </div>
 
-        {/* 3 Role Selection Tabs */}
-        <div className="grid grid-cols-3 gap-2 p-1.5 rounded-2xl bg-slate-950 border border-slate-800">
+        {/* 2 Role Tabs: Client & Freelancer (Admin automatically detected from credentials) */}
+        <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl bg-slate-950 border border-slate-800">
           <button
             type="button"
-            onClick={() => handleRoleSelect('client')}
-            className={`py-2.5 px-3 rounded-xl text-xs font-bold font-mono transition-all flex flex-col items-center gap-1 ${
+            onClick={() => {
+              setSelectedRole('client');
+              setError(null);
+            }}
+            className={`py-2.5 px-3 rounded-xl text-xs font-bold font-mono transition-all flex items-center justify-center gap-2 ${
               selectedRole === 'client'
                 ? 'bg-gradient-to-r from-indigo-600 to-cyan-500 text-white shadow-md'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <UserCheck className="w-4 h-4" />
-            <span>Client / User</span>
+            <span>Client</span>
           </button>
 
           <button
             type="button"
-            onClick={() => handleRoleSelect('freelancer')}
-            className={`py-2.5 px-3 rounded-xl text-xs font-bold font-mono transition-all flex flex-col items-center gap-1 ${
+            onClick={() => {
+              setSelectedRole('freelancer');
+              setError(null);
+            }}
+            className={`py-2.5 px-3 rounded-xl text-xs font-bold font-mono transition-all flex items-center justify-center gap-2 ${
               selectedRole === 'freelancer'
                 ? 'bg-gradient-to-r from-indigo-600 to-cyan-500 text-white shadow-md'
                 : 'text-slate-400 hover:text-slate-200'
@@ -97,19 +97,6 @@ export const LoginPage: React.FC = () => {
           >
             <Briefcase className="w-4 h-4" />
             <span>Freelancer</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleRoleSelect('admin')}
-            className={`py-2.5 px-3 rounded-xl text-xs font-bold font-mono transition-all flex flex-col items-center gap-1 ${
-              selectedRole === 'admin'
-                ? 'bg-gradient-to-r from-indigo-600 to-cyan-500 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span>Admin</span>
           </button>
         </div>
 
@@ -129,7 +116,7 @@ export const LoginPage: React.FC = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@company.com"
+                placeholder="you@example.com"
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500/50"
               />
             </div>
@@ -149,7 +136,7 @@ export const LoginPage: React.FC = () => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
+                placeholder="Enter your password"
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500/50"
               />
             </div>
@@ -171,24 +158,18 @@ export const LoginPage: React.FC = () => {
             type="submit"
             className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white font-extrabold text-xs shadow-lg flex items-center justify-center gap-2 transition-all"
           >
-            <span>Sign In as {selectedRole.toUpperCase()}</span>
+            <span>Sign In</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
-        <div className="text-center pt-2 text-xs space-y-2 border-t border-slate-800">
+        <div className="text-center pt-2 text-xs border-t border-slate-800">
           <p className="text-slate-400">
-            Need a new account?{' '}
+            Need an account?{' '}
             <Link to="/register" className="text-cyan-400 font-bold hover:underline">
               Create Client or Freelancer Account
             </Link>
           </p>
-          <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 font-mono text-[10px] text-slate-400 text-left space-y-1">
-            <div className="text-cyan-400 font-bold">DEMO CREDENTIALS REFERENCE:</div>
-            <div>• Admin: admin@nexuscraft.com (Pass: Admin@12345)</div>
-            <div>• Client: client@nexuscraft.com (Pass: Client@12345)</div>
-            <div>• Freelancer: freelancer@nexuscraft.com (Pass: Freelancer@12345)</div>
-          </div>
         </div>
       </MotionDiv>
     </div>

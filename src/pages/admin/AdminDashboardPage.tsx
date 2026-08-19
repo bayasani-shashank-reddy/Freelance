@@ -22,6 +22,7 @@ import {
 import confetti from 'canvas-confetti';
 import { useUser, SEED_ACCOUNTS } from '../../context/UserContext';
 import { NcxCoinIcon, NcxCreditBadge } from '../../components/NcxCredit';
+import { DocumentViewerModal } from '../../components/DocumentViewerModal';
 
 export const AdminDashboardPage: React.FC = () => {
   const {
@@ -65,6 +66,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [assignModal, setAssignModal] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState('');
   const [selectedFreelancerId, setSelectedFreelancerId] = useState('');
+  const [activeDocView, setActiveDocView] = useState<{ fileName: string; rawText?: string } | null>(null);
 
 
 
@@ -299,9 +301,18 @@ export const AdminDashboardPage: React.FC = () => {
                       </div>
 
                       {sub.docFileName ? (
-                        <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-900 border border-slate-800 mb-3">
-                          <FileUp className="w-4 h-4 text-indigo-400 shrink-0" />
-                          <span className="text-xs font-mono text-indigo-300">{sub.docFileName}</span>
+                        <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 mb-3">
+                          <div className="flex items-center gap-2">
+                            <FileUp className="w-4 h-4 text-indigo-400 shrink-0" />
+                            <span className="text-xs font-mono text-indigo-300 font-bold">{sub.docFileName}</span>
+                          </div>
+                          <button
+                            onClick={() => setActiveDocView({ fileName: sub.docFileName!, rawText: sub.rawIdea })}
+                            className="px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[11px] font-bold flex items-center gap-1 hover:bg-indigo-500/30 transition-all"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Preview Doc</span>
+                          </button>
                         </div>
                       ) : (
                         <p className="text-xs text-slate-300 leading-relaxed mb-3 line-clamp-4">{sub.rawIdea}</p>
@@ -761,6 +772,19 @@ export const AdminDashboardPage: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* In-App Document Viewer Modal */}
+      {activeDocView && (
+        <DocumentViewerModal
+          isOpen={!!activeDocView}
+          onClose={() => setActiveDocView(null)}
+          fileName={activeDocView.fileName}
+          rawText={activeDocView.rawText}
+          onShareToChat={(text) => {
+            if (selectedClientId) sendAdminClientMessage(selectedClientId, text);
+          }}
+        />
       )}
     </div>
   );

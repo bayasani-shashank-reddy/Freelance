@@ -30,6 +30,7 @@ import {
   NcxCoinIcon,
   NcxCreditBadge,
 } from '../../components/NcxCredit';
+import { DocumentViewerModal } from '../../components/DocumentViewerModal';
 
 const MotionDiv = motion.div as any;
 
@@ -82,6 +83,7 @@ export const ClientDashboardPage: React.FC = () => {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'projects' | 'messages' | 'submissions'>('projects');
   const [newMessageText, setNewMessageText] = useState('');
+  const [activeDocView, setActiveDocView] = useState<{ fileName: string; rawText?: string } | null>(null);
 
   // Get the client's idea submissions
   const mySubmissions = ideaSubmissions.filter((s) => s.clientId === user?.id);
@@ -416,9 +418,17 @@ export const ClientDashboardPage: React.FC = () => {
                       </div>
 
                       {sub.docFileName ? (
-                        <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-900 border border-slate-800">
-                          <FileText className="w-4 h-4 text-indigo-400 shrink-0" />
-                          <span className="text-xs font-mono text-indigo-300">{sub.docFileName}</span>
+                        <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-indigo-400 shrink-0" />
+                            <span className="text-xs font-mono text-indigo-300 font-bold">{sub.docFileName}</span>
+                          </div>
+                          <button
+                            onClick={() => setActiveDocView({ fileName: sub.docFileName!, rawText: sub.rawIdea })}
+                            className="px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[11px] font-bold flex items-center gap-1 hover:bg-indigo-500/30 transition-all"
+                          >
+                            <span>Preview</span>
+                          </button>
                         </div>
                       ) : (
                         <p className="text-xs text-slate-300 leading-relaxed line-clamp-3">{sub.rawIdea}</p>
@@ -605,6 +615,19 @@ export const ClientDashboardPage: React.FC = () => {
       </div>
     </div>
     </div>
+
+    {/* In-App Document Viewer Modal */}
+    {activeDocView && (
+      <DocumentViewerModal
+        isOpen={!!activeDocView}
+        onClose={() => setActiveDocView(null)}
+        fileName={activeDocView.fileName}
+        rawText={activeDocView.rawText}
+        onShareToChat={(text) => {
+          if (user?.id) sendAdminClientMessage(user.id, text);
+        }}
+      />
+    )}
     </>
   );
 };

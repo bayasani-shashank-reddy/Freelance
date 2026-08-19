@@ -19,6 +19,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { NexusAIAssistantModal } from '../components/NexusAIAssistantModal';
+import { DocumentViewerModal } from '../components/DocumentViewerModal';
 import { useUser } from '../context/UserContext';
 
 interface Conversation {
@@ -86,19 +87,20 @@ const getAIReplies = (lastMsg: string): { label: string; text: string }[] => {
 };
 
 export const InboxPage: React.FC = () => {
-  const { user, role, chatMessages, sendChatMessage, dynamicJobs } = useUser();
+  const { user, role, chatMessages, sendChatMessage, dynamicJobs, approvedFreelancers } = useUser();
 
+  // Active Job Workspace Conversations
   const baseJobs = role === 'admin' 
     ? dynamicJobs.filter((j) => !!j.assignedFreelancerId)
     : dynamicJobs.filter((j) => (role === 'client' ? j.clientId === user?.id : j.assignedFreelancerId === user?.id) && !!j.assignedFreelancerId);
 
-  const userConversations: Conversation[] = baseJobs.map((j) => ({
+  const jobConversations: Conversation[] = baseJobs.map((j) => ({
     id: j.id,
     name: role === 'admin' 
       ? `${j.clientName} & ${j.assignedFreelancerName}` 
       : (role === 'client' ? j.assignedFreelancerName || 'Freelancer' : j.clientName || 'Client'),
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-    lastMessage: chatMessages[j.id]?.slice(-1)[0]?.text || 'Project workspace created.',
+    lastMessage: chatMessages[j.id]?.slice(-1)[0]?.text || 'Project workspace channel ready.',
     time: chatMessages[j.id]?.slice(-1)[0]?.timestamp || j.postedAt,
     unread: 0,
     online: true,
@@ -107,7 +109,23 @@ export const InboxPage: React.FC = () => {
     contractAmount: j.maxBudget,
   }));
 
-  const [selected, setSelected] = useState<string>(userConversations.length > 0 ? userConversations[0].id : '');
+  // Direct Freelancer Network Conversations
+  const otherFreelancers = approvedFreelancers.filter((f) => f.id !== user?.id);
+  const freelancerConversations: Conversation[] = otherFreelancers.map((f) => ({
+    id: `direct-${f.id}`,
+    name: f.name,
+    avatar: f.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    lastMessage: chatMessages[`direct-${f.id}`]?.slice(-1)[0]?.text || 'Start direct message...',
+    time: chatMessages[`direct-${f.id}`]?.slice(-1)[0]?.timestamp || 'Active',
+    unread: 0,
+    online: true,
+    role: f.title || 'Specialist Freelancer',
+  }));
+
+  const allConversations: Conversation[] = [...jobConversations, ...freelancerConversations];
+
+  const [selected, setSelected] = useState<string>(allConversations.length > 0 ? allConversations[0].id : '');
+  const [docViewerFile, setDocViewerFile] = useState<string | null>(null);
   const [messageText, setMessageText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [aiModalOpen, setAiModalOpen] = useState(false);
@@ -121,7 +139,7 @@ export const InboxPage: React.FC = () => {
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [reactions, setReactions] = useState<Record<string, string[]>>({});
 
-  const activeConvo = userConversations.find((c) => c.id === selected) || userConversations[0];
+  const activeConvo = allConversations.find((c) => c.id === selected) || allConversations[0];
   const activeMessages = selected ? chatMessages[selected] || [] : [];
 
   // Dynamic AI reply suggestions based on last received message
@@ -172,8 +190,8 @@ export const InboxPage: React.FC = () => {
     });
   };
 
-  const filtered = userConversations.filter(
-    (c) =>
+  const filtered = allConversations.filter(
+    (c: Conversation) =>
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.lastMessage.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.role.toLowerCase().includes(searchQuery.toLowerCase())
@@ -720,6 +738,18 @@ export const InboxPage: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* In-App Document Viewer Modal */}
+      {docViewerFile && (
+        <DocumentViewerModal
+          isOpen={!!docViewerFile}
+          onClose={() => setDocViewerFile(null)}
+          fileName={docViewerFile}
+          onShareToChat={(text) => {
+            if (selected) sendChatMessage(selected, text);
+          }}
+        />
       )}
     </div>
   );

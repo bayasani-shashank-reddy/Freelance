@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { UserRole, User, JobListing, Proposal, TaskItem, ChatMessage, IdeaSubmission, AdminClientMessage } from '../types';
+import { api } from '../lib/api';
 
 export interface SeedAccount extends User {
   password?: string;
@@ -229,6 +230,106 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(STORAGE_KEYS.ALL_CLIENTS, JSON.stringify(allClients));
   }, [user, role, registeredUsers, dynamicJobs, dynamicProposals, workspaceTasks, pendingFreelancers, approvedFreelancers, chatMessages, ideaSubmissions, adminClientMessages, allClients]);
 
+  // ── Sync with MongoDB API on Mount ──
+  useEffect(() => {
+    const syncWithMongo = async () => {
+      try {
+        // Fetch ideas from MongoDB
+        const dbIdeas = await api.getIdeas();
+        if (dbIdeas && Array.isArray(dbIdeas) && dbIdeas.length > 0) {
+          const formattedIdeas: IdeaSubmission[] = dbIdeas.map((d: any) => ({
+            id: d.customId || d._id,
+            clientId: d.clientId,
+            clientName: d.clientName,
+            clientAvatar: d.clientAvatar,
+            clientEmail: d.clientEmail,
+            rawIdea: d.rawIdea,
+            docFileName: d.docFileName,
+            submissionType: d.submissionType,
+            creditsCost: d.creditsCost,
+            status: d.status,
+            createdAt: d.createdAt,
+          }));
+          setIdeaSubmissions(formattedIdeas);
+        }
+
+        // Fetch messages from MongoDB
+        const dbMsgs = await api.getMessages();
+        if (dbMsgs && Array.isArray(dbMsgs) && dbMsgs.length > 0) {
+          const formattedMsgs: AdminClientMessage[] = dbMsgs.map((m: any) => ({
+            id: m.customId || m._id,
+            conversationId: m.conversationId,
+            senderId: m.senderId,
+            senderName: m.senderName,
+            senderAvatar: m.senderAvatar,
+            senderRole: m.senderRole,
+            text: m.text,
+            timestamp: m.timestamp,
+            attachmentName: m.attachmentName,
+          }));
+          setAdminClientMessages(formattedMsgs);
+        }
+
+        // Fetch users from MongoDB
+        const dbUsers = await api.getUsers();
+        if (dbUsers && Array.isArray(dbUsers) && dbUsers.length > 0) {
+          const clients = dbUsers.filter((u: any) => u.role === 'client');
+          if (clients.length > 0) {
+            setAllClients(clients.map((c: any) => ({
+              id: c.customId || c._id,
+              name: c.name,
+              email: c.email,
+              role: 'client',
+              avatar: c.avatar,
+              credits: c.credits,
+              company: c.company,
+              title: c.title || 'Client',
+              approvalStatus: c.approvalStatus,
+              balance: c.balance || 0,
+              escrowBalance: c.escrowBalance || 0,
+            })));
+          }
+
+          const approved = dbUsers.filter((u: any) => u.role === 'freelancer' && u.approvalStatus === 'approved');
+          if (approved.length > 0) {
+            setApprovedFreelancers(approved.map((f: any) => ({
+              id: f.customId || f._id,
+              name: f.name,
+              email: f.email,
+              role: 'freelancer',
+              avatar: f.avatar,
+              title: f.title,
+              skills: f.skills,
+              approvalStatus: 'approved',
+              balance: f.balance || 0,
+              escrowBalance: f.escrowBalance || 0,
+            })));
+          }
+
+          const pending = dbUsers.filter((u: any) => u.role === 'freelancer' && u.approvalStatus === 'pending');
+          if (pending.length > 0) {
+            setPendingFreelancers(pending.map((f: any) => ({
+              id: f.customId || f._id,
+              name: f.name,
+              email: f.email,
+              role: 'freelancer',
+              avatar: f.avatar,
+              title: f.title,
+              skills: f.skills,
+              approvalStatus: 'pending',
+              balance: f.balance || 0,
+              escrowBalance: f.escrowBalance || 0,
+            })));
+          }
+        }
+      } catch (err) {
+        console.log('MongoDB sync note: running in local/hybrid mode');
+      }
+    };
+
+    syncWithMongo();
+  }, []);
+
   const setRole = (newRole: UserRole) => {
     setRoleState(newRole);
     if (user) setUserState({ ...user, role: newRole });
@@ -280,6 +381,14 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const registerUser = (newUser: User): { success: boolean; requiresApproval: boolean } => {
+    // Send to MongoDB API
+    api.register({
+      name: newUser.name,
+      email: newUser.email,
+      password: (newUser as any).password || 'Client@12345',
+      role: newUser.role,
+    });
+
     if (newUser.role === 'freelancer') {
       const pendingUser: User = { ...newUser, approvalStatus: 'pending', credits: 0 };
       setPendingFreelancers((prev) => [pendingUser, ...prev]);
@@ -455,10 +564,23 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       )
     );
 
+    // Also send to MongoDB
+    api.submitIdea({
+      clientId: idea.clientId,
+      clientName: idea.clientName,
+      clientEmail: idea.clientEmail,
+      clientAvatar: idea.clientAvatar,
+      rawIdea: idea.rawIdea,
+      docFileName: idea.docFileName,
+      submissionType: idea.submissionType,
+      creditsCost: idea.creditsCost,
+    });
+
     return { success: true };
   };
 
   const updateIdeaStatus = (ideaId: string, status: IdeaSubmission['status']) => {
+    api.updateIdeaStatus(ideaId, status);
     setIdeaSubmissions((prev) =>
       prev.map((idea) => (idea.id === ideaId ? { ...idea, status } : idea))
     );
@@ -483,6 +605,17 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setAdminClientMessages((prev) => [...prev, newMsg]);
+
+    // Send to MongoDB
+    api.sendMessage({
+      conversationId,
+      senderId: newMsg.senderId,
+      senderName: newMsg.senderName,
+      senderAvatar: newMsg.senderAvatar,
+      senderRole: newMsg.senderRole,
+      text: newMsg.text,
+      attachmentName: newMsg.attachmentName,
+    });
   };
 
   const toggleSaveJob = (jobId: string) => {

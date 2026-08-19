@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "server": "node server/index.js",
+    "server:dev": "node --watch server/index.js",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
@@ -22,6 +24,7 @@
     "cmdk": "^1.1.1",
     "framer-motion": "^13.0.0",
     "lucide-react": "^1.29.0",
+    "mammoth": "^1.12.1",
     "motion-dom": "^13.0.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
