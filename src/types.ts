@@ -301,6 +301,8 @@ export interface IdeaSubmission {
   clientEmail: string;
   rawIdea: string;
   docFileName?: string;
+  docContentHtml?: string;
+  docBase64?: string;
   submissionType: 'text' | 'document' | 'detailed_brief';
   status: 'New' | 'Reviewed' | 'Actioned';
   creditsCost: number;
