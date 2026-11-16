@@ -1972,5 +1972,27 @@ export const api = {
     } catch {
       return [];
     }
+  },
+
+  // Intake Reference Template (Admin-managed reference document for client submission)
+  async getIntakeReferenceTemplate() {
+    try {
+      const res = await fetch(`${API_BASE}/settings/intake-template`);
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async updateIntakeReferenceTemplate(formData: FormData) {
+    try {
+      const res = await fetch(`${API_BASE}/settings/intake-template`, {
+        method: 'POST',
+        body: formData
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
   }
 };

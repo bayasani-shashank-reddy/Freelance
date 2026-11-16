@@ -18,7 +18,8 @@ import {
   X,
   RefreshCw,
   Info,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Edit
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useUser } from '../../context/UserContext';
@@ -77,6 +78,15 @@ export const AdminDocumentManagementSuite: React.FC = () => {
   const [assignProjectIds, setAssignProjectIds] = useState<string[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
 
+  // Global Intake Reference Template (Document format required for client project submission)
+  const [intakeTemplate, setIntakeTemplate] = useState<any | null>(null);
+  const [adminIntakeModalOpen, setAdminIntakeModalOpen] = useState(false);
+  const [adminIntakeFile, setAdminIntakeFile] = useState<File | null>(null);
+  const [adminIntakeTitle, setAdminIntakeTitle] = useState('');
+  const [adminIntakeInstructions, setAdminIntakeInstructions] = useState('');
+  const [isSavingIntakeTemplate, setIsSavingIntakeTemplate] = useState(false);
+  const adminIntakeFileInputRef = useRef<HTMLInputElement>(null);
+
   // Review Modal State
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [activeReviewItem, setActiveReviewItem] = useState<any | null>(null);
@@ -91,7 +101,7 @@ export const AdminDocumentManagementSuite: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [reqsData, tmplsData, revsData, compData] = await Promise.all([
+      const [reqsData, tmplsData, revsData, compData, intakeTmplData] = await Promise.all([
         api.getDocumentRequirements({
           category: reqFilterCategory !== 'All' ? reqFilterCategory : undefined,
           status: reqFilterStatus !== 'All' ? reqFilterStatus : undefined,
@@ -101,17 +111,56 @@ export const AdminDocumentManagementSuite: React.FC = () => {
         api.getDocumentReviews({
           status: reviewFilterStatus !== 'All' ? reviewFilterStatus : undefined
         }),
-        api.getDocumentComplianceOverview()
+        api.getDocumentComplianceOverview(),
+        api.getIntakeReferenceTemplate()
       ]);
 
       if (Array.isArray(reqsData)) setRequirements(reqsData);
       if (Array.isArray(tmplsData)) setTemplates(tmplsData);
       if (Array.isArray(revsData)) setReviews(revsData);
       if (compData && compData.projects) setComplianceOverview(compData);
+      if (intakeTmplData && intakeTmplData.template) {
+        setIntakeTemplate(intakeTmplData.template);
+        setAdminIntakeTitle(intakeTmplData.template.title || '');
+        setAdminIntakeInstructions(intakeTmplData.template.instructions || '');
+      }
     } catch (err) {
       console.error('Error loading document suite data:', err);
     }
     setLoading(false);
+  };
+
+  const handleOpenAdminIntakeModal = () => {
+    setAdminIntakeTitle(intakeTemplate?.title || 'Official Project Specification Template');
+    setAdminIntakeInstructions(intakeTemplate?.instructions || '');
+    setAdminIntakeFile(null);
+    setAdminIntakeModalOpen(true);
+  };
+
+  const handleSaveAdminIntake = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingIntakeTemplate(true);
+
+    const formData = new FormData();
+    if (adminIntakeFile) {
+      formData.append('file', adminIntakeFile);
+    }
+    formData.append('title', adminIntakeTitle);
+    formData.append('instructions', adminIntakeInstructions);
+    formData.append('adminId', user?.customId || user?.id || 'admin');
+    formData.append('adminName', user?.name || 'Administrator');
+
+    const res = await api.updateIntakeReferenceTemplate(formData);
+    setIsSavingIntakeTemplate(false);
+
+    if (res.success && res.template) {
+      setIntakeTemplate(res.template);
+      setAdminIntakeModalOpen(false);
+      confetti({ particleCount: 50, spread: 60 });
+      alert('Official project intake reference document updated! Clients will now see this new format on the submission page.');
+    } else {
+      alert(res.error || 'Failed to update reference document.');
+    }
   };
 
   useEffect(() => {
@@ -458,6 +507,55 @@ export const AdminDocumentManagementSuite: React.FC = () => {
               <span className="text-[10px] font-mono uppercase font-bold text-rose-500">Revisions Requested</span>
               <div className="text-3xl font-display font-bold text-rose-600 dark:text-rose-400 mt-1">{revisionReqs}</div>
               <span className="text-[10px] text-[#8F91A3]">Action pending client</span>
+            </div>
+          </div>
+
+          {/* CLIENT PROJECT INTAKE REFERENCE DOCUMENT (ADMIN MANAGED) */}
+          <div className="p-5 rounded-2xl bg-[#F0F4FF] dark:bg-[#151D33] border border-[#3978FF]/30 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-[#3978FF] text-white">
+                    CLIENT SUBMISSION REFERENCE FORMAT
+                  </span>
+                  <span className="text-[10px] font-mono text-[#8F91A3]">
+                    Active on Project Intake Portal (/submit-request)
+                  </span>
+                </div>
+                <h3 className="font-display font-bold text-base text-[#17172B] dark:text-white mt-1">
+                  {intakeTemplate?.title || 'Official Project Intake Specification Template'}
+                </h3>
+                <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-0.5 max-w-2xl leading-relaxed">
+                  {intakeTemplate?.instructions || 'This reference template is provided to clients on the project submission portal. Clients download this file to prepare their project specifications according to this exact format.'}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <a
+                  href={api.getDocumentDownloadUrl(intakeTemplate?.storagePath || '/uploads/NexusCraft_Project_Intake_Specification_Template.docx')}
+                  target="_blank"
+                  rel="noreferrer"
+                  download
+                  className="px-3.5 py-1.5 rounded-xl bg-white dark:bg-[#1E1E38] border border-[#3978FF]/30 text-[#3978FF] text-xs font-bold hover:bg-[#F5F2FF] transition-all flex items-center gap-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Format</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={handleOpenAdminIntakeModal}
+                  className="px-3.5 py-1.5 rounded-xl bg-[#3978FF] hover:bg-[#2D60CC] text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+                >
+                  <Edit className="w-3.5 h-3.5" />
+                  <span>Change Reference Document</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4 text-[11px] font-mono text-[#65677A] dark:text-[#A6A8C0] pt-2 border-t border-[#D5E2FF] dark:border-[#202945]">
+              <span>Active File: <strong className="text-[#17172B] dark:text-white">{intakeTemplate?.originalName || 'NexusCraft_Project_Intake_Specification_Template.docx'}</strong></span>
+              <span>Size: <strong>{intakeTemplate?.fileSize || '32.5 KB'}</strong></span>
+              <span>Last Updated: <strong>{intakeTemplate?.updatedAt ? new Date(intakeTemplate.updatedAt).toLocaleDateString() : 'Initial Setup'}</strong></span>
             </div>
           </div>
 
@@ -1523,6 +1621,119 @@ export const AdminDocumentManagementSuite: React.FC = () => {
                 >
                   {isSubmittingReview && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
                   <span>Confirm Decision</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          ADMIN MODAL: CHANGE GLOBAL INTAKE REFERENCE DOCUMENT TEMPLATE
+      ───────────────────────────────────────────────────────────── */}
+      {adminIntakeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-2xl p-6 sm:p-8 space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-[#F0F2F9] dark:border-[#202038]">
+              <div>
+                <span className="text-[10px] font-mono font-bold uppercase text-[#3978FF]">
+                  INTAKE PORTAL GOVERNANCE
+                </span>
+                <h3 className="font-display font-bold text-lg text-[#17172B] dark:text-white">
+                  Change Project Intake Reference Document
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAdminIntakeModalOpen(false)}
+                className="p-1.5 rounded-xl text-[#8F91A3] hover:bg-[#F5F6FA] dark:hover:bg-[#1E1E38]"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAdminIntake} className="space-y-4">
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-[#17172B] dark:text-white">
+                  Template Title
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={adminIntakeTitle}
+                  onChange={(e) => setAdminIntakeTitle(e.target.value)}
+                  placeholder="e.g. Official Project Intake Specification Template"
+                  className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs font-semibold outline-none focus:border-[#7357FF]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-[#17172B] dark:text-white">
+                  Client Instructions (Displayed on /submit-request)
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={adminIntakeInstructions}
+                  onChange={(e) => setAdminIntakeInstructions(e.target.value)}
+                  placeholder="Explain the required format, sections, or expectations..."
+                  className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs outline-none focus:border-[#7357FF]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-[#17172B] dark:text-white">
+                  Upload Replacement Reference Document (.docx, .pdf, .zip, etc.)
+                </label>
+
+                <input
+                  ref={adminIntakeFileInputRef}
+                  type="file"
+                  accept=".docx,.doc,.pdf,.zip,.txt"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      setAdminIntakeFile(e.target.files[0]);
+                    }
+                  }}
+                />
+
+                <div
+                  onClick={() => adminIntakeFileInputRef.current?.click()}
+                  className="p-4 border-2 border-dashed border-[#3978FF]/40 hover:border-[#3978FF] rounded-xl text-center cursor-pointer bg-[#F0F4FF] dark:bg-[#151D33] transition-colors"
+                >
+                  {adminIntakeFile ? (
+                    <div className="text-xs font-bold text-[#3978FF] flex items-center justify-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      <span>{adminIntakeFile.name} ({(adminIntakeFile.size / 1024).toFixed(1)} KB)</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-1 text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                      <Upload className="w-5 h-5 mx-auto text-[#3978FF]" />
+                      <p className="font-semibold text-[#17172B] dark:text-white">Click to select new reference file</p>
+                      <p className="text-[10px] text-[#8F91A3]">
+                        Current active: {intakeTemplate?.originalName || 'Default DOCX Template'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#F0F2F9] dark:border-[#202038]">
+                <button
+                  type="button"
+                  onClick={() => setAdminIntakeModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-[#65677A]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingIntakeTemplate}
+                  className="px-5 py-2 rounded-xl bg-[#3978FF] hover:bg-[#2D60CC] text-white font-semibold text-xs shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                  {isSavingIntakeTemplate && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Save & Publish Format</span>
                 </button>
               </div>
             </form>
