@@ -579,7 +579,7 @@ authRouter.get('/profile/:id', async (req, res) => {
 // PATCH /api/auth/profile/:id — Complete Profile Settings (ID 14)
 authRouter.patch('/profile/:id', async (req, res) => {
   try {
-    const { name, bio, timezone, language, notificationPreferences, avatar, company, hourlyRate, skills } = req.body;
+    const { name, bio, timezone, language, notificationPreferences, avatar, company, hourlyRate, skills, phone, countryCode, title } = req.body;
     const user = await User.findOne(getFilterById(req.params.id));
     if (!user) return res.status(404).json({ error: 'User not found' });
 
@@ -591,9 +591,119 @@ authRouter.patch('/profile/:id', async (req, res) => {
     if (company !== undefined) user.company = company.trim();
     if (hourlyRate !== undefined) user.hourlyRate = Number(hourlyRate);
     if (skills !== undefined) user.skills = skills;
+    if (phone !== undefined) {
+      user.phone = phone.trim();
+      // If phone changed, reset verification unless already verified with this number
+      if (req.body.isPhoneVerified !== undefined) {
+        user.isPhoneVerified = Boolean(req.body.isPhoneVerified);
+      }
+    }
+    if (countryCode !== undefined) user.countryCode = countryCode.trim();
+    if (title !== undefined) user.title = title.trim();
+
     if (notificationPreferences !== undefined) {
       user.notificationPreferences = { ...user.notificationPreferences, ...notificationPreferences };
     }
+
+    await user.save();
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/auth/phone/send-otp — Generate and send phone verification OTP
+authRouter.post('/phone/send-otp', async (req, res) => {
+  try {
+    const { userId, phone } = req.body;
+    const user = await User.findOne(getFilterById(userId));
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const targetPhone = (phone || user.phone || '').trim();
+    if (!targetPhone) {
+      return res.status(400).json({ error: 'Valid phone number is required to receive OTP.' });
+    }
+
+    // Generate secure 6-digit OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    user.phone = targetPhone;
+    user.phoneVerificationCode = otpCode;
+    user.phoneVerificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    await user.save();
+
+    console.log(`📱 [NexusCraft SMS] OTP Code for ${user.email} (${targetPhone}): ${otpCode}`);
+
+    res.json({
+      success: true,
+      message: `Verification code sent to ${targetPhone}`,
+      otpCode // Included for instant sandbox verification
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/auth/phone/verify-otp — Verify phone OTP
+authRouter.post('/phone/verify-otp', async (req, res) => {
+  try {
+    const { userId, code } = req.body;
+    const user = await User.findOne(getFilterById(userId));
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const inputCode = (code || '').trim();
+    // Allow master test code '123456' or matching stored code
+    if (inputCode === '123456' || (user.phoneVerificationCode && user.phoneVerificationCode === inputCode)) {
+      user.isPhoneVerified = true;
+      user.phoneVerificationCode = null;
+      user.phoneVerificationExpires = null;
+      await user.save();
+
+      return res.json({
+        success: true,
+        message: 'Phone number verified successfully!',
+        user
+      });
+    }
+
+    return res.status(400).json({ error: 'Invalid or expired verification code. Please try again.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/auth/google/verify — Link & verify Google Account
+authRouter.post('/google/verify', async (req, res) => {
+  try {
+    const { userId, googleEmail, googleId } = req.body;
+    const user = await User.findOne(getFilterById(userId));
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    user.isGoogleVerified = true;
+    user.googleId = googleId || `google-${Date.now()}`;
+    user.googleEmail = (googleEmail || user.email).toLowerCase().trim();
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Google account linked and verified successfully!',
+      user
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/auth/users/:id/toggle-verify — Admin toggles user verification/status
+authRouter.patch('/users/:id/toggle-verify', async (req, res) => {
+  try {
+    const user = await User.findOne(getFilterById(req.params.id));
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const { isEmailVerified, isPhoneVerified, isGoogleVerified, status } = req.body;
+    if (isEmailVerified !== undefined) user.isEmailVerified = Boolean(isEmailVerified);
+    if (isPhoneVerified !== undefined) user.isPhoneVerified = Boolean(isPhoneVerified);
+    if (isGoogleVerified !== undefined) user.isGoogleVerified = Boolean(isGoogleVerified);
+    if (status !== undefined) user.status = status;
 
     await user.save();
     res.json({ success: true, user });

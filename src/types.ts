@@ -26,6 +26,10 @@ export interface User {
   createdByAdmin?: boolean;
   trustScore?: number;
   verificationBadge?: string;
+  isEmailVerified?: boolean;
+  isPhoneVerified?: boolean;
+  isGoogleVerified?: boolean;
+  googleEmail?: string;
   lastLogin?: string;
   createdAt?: string;
   completedContracts?: number;

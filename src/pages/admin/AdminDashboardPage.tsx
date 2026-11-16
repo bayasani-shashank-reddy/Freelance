@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import {
   Search,
@@ -16,6 +16,14 @@ import {
   Sparkles,
   Plus,
   ChevronLeft,
+  Phone,
+  ExternalLink,
+  Edit,
+  Upload,
+  FileText,
+  CheckCircle2,
+  Link as LinkIcon,
+  X
 } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 import { api } from '../../lib/api';
@@ -197,6 +205,81 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
   });
   const [creditGrantModal, setCreditGrantModal] = useState(false);
   const [creditGrantForm, setCreditGrantForm] = useState({ userId: '', amount: 100, reason: 'Administrative Grant' });
+
+  // Reference Document Edit Modal State (Admin Feature)
+  const [editDocModalOpen, setEditDocModalOpen] = useState(false);
+  const [editDocForm, setEditDocForm] = useState({
+    projectTitle: '',
+    referenceUrl: '',
+    docFileName: '',
+    docStoragePath: '',
+    docFileSize: '',
+    priority: 'Normal'
+  });
+  const [editDocUploading, setEditDocUploading] = useState(false);
+  const adminFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleOpenEditDoc = () => {
+    if (!activeRequest) return;
+    setEditDocForm({
+      projectTitle: activeRequest.projectTitle || activeRequest.title || '',
+      referenceUrl: activeRequest.referenceUrl || '',
+      docFileName: activeRequest.docFileName || '',
+      docStoragePath: activeRequest.docStoragePath || '',
+      docFileSize: activeRequest.docFileSize || '',
+      priority: activeRequest.priority || 'Normal'
+    });
+    setEditDocModalOpen(true);
+  };
+
+  const handleDocFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setEditDocUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await api.uploadDocument(fd);
+      if (res?.file) {
+        setEditDocForm(prev => ({
+          ...prev,
+          docFileName: res.file.originalName,
+          docStoragePath: res.file.storagePath,
+          docFileSize: res.file.size
+        }));
+      }
+    } catch (err: any) {
+      alert(`File upload failed: ${err.message}`);
+    } finally {
+      setEditDocUploading(false);
+    }
+  };
+
+  const handleSaveReferenceDoc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeRequest) return;
+    const reqId = activeRequest.customId || activeRequest.id;
+    const res = await api.updateProjectReference(reqId, {
+      ...editDocForm,
+      adminId: user?.customId || 'admin',
+      adminName: user?.name || 'Admin Lead'
+    });
+    if (res?.success) {
+      setEditDocModalOpen(false);
+      refreshRequests();
+      confetti({ particleCount: 30, spread: 35 });
+    } else {
+      alert(res?.error || 'Failed to update reference materials.');
+    }
+  };
+
+  const handleToggleVerification = async (u: any, field: 'isPhoneVerified' | 'isGoogleVerified' | 'isEmailVerified') => {
+    const currentVal = Boolean(u[field]);
+    const res = await api.toggleUserVerification(u.customId || u.id || u._id, { [field]: !currentVal });
+    if (res?.success) {
+      setAllUsers(prev => prev.map(item => (item.customId === u.customId || item.id === u.id || item._id === u._id) ? { ...item, [field]: !currentVal } : item));
+    }
+  };
 
   // Initial Data Fetch
   useEffect(() => {
@@ -977,6 +1060,27 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
                         <td className="py-3.5 px-3 text-[#222438]">
                           <div className="font-semibold">{r.clientName || 'Direct Client'}</div>
                           <div className="text-[#777B8A] text-[11px]">{r.clientEmail || 'client@nexuscraft.app'}</div>
+                          {r.clientPhone && (
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <a
+                                href={`tel:${r.clientCountryCode || ''}${r.clientPhone}`}
+                                className="inline-flex items-center gap-1 text-[11px] font-mono text-[#3978FF] hover:underline"
+                                title="Call Client Directly"
+                              >
+                                <Phone className="w-3 h-3 text-[#3978FF]" />
+                                <span>{r.clientCountryCode || ''} {r.clientPhone}</span>
+                              </a>
+                              <a
+                                href={`https://wa.me/${(r.clientCountryCode || '+91').replace('+', '')}${r.clientPhone.replace(/[^0-9]/g, '')}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Chat on WhatsApp"
+                                className="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] font-bold hover:bg-emerald-100 transition-colors"
+                              >
+                                WhatsApp
+                              </a>
+                            </div>
+                          )}
                         </td>
                         <td className="py-3.5 px-3 text-[#777B8A] whitespace-nowrap">
                           {r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 28, 2026'}
@@ -1355,9 +1459,35 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
                       <h3 className="font-display font-bold text-xl text-[#17172B] dark:text-white mt-0.5">
                         {activeRequest.projectTitle}
                       </h3>
-                      <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
-                        Client: {activeRequest.clientName} • Category: {activeRequest.aiCategory} • Submitted: {activeRequest.createdAt}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                        <span>Client: <strong>{activeRequest.clientName}</strong> ({activeRequest.clientEmail || 'No email'})</span>
+                        <span>•</span>
+                        <span>Category: <strong>{activeRequest.aiCategory}</strong></span>
+                        <span>•</span>
+                        <span>Submitted: {activeRequest.createdAt}</span>
+                      </div>
+                      {activeRequest.clientPhone && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-[#17172B] dark:text-white bg-[#F0F2F9] dark:bg-[#1E1E38] px-2.5 py-1 rounded-lg">
+                            <Phone className="w-3.5 h-3.5 text-[#3978FF]" />
+                            <span>{activeRequest.clientCountryCode || ''} {activeRequest.clientPhone}</span>
+                          </span>
+                          <a
+                            href={`tel:${activeRequest.clientCountryCode || ''}${activeRequest.clientPhone}`}
+                            className="px-2.5 py-1 rounded-lg bg-[#E9F1FF] text-[#3978FF] text-[11px] font-bold hover:bg-[#D5E5FF] transition-colors"
+                          >
+                            Direct Call
+                          </a>
+                          <a
+                            href={`https://wa.me/${(activeRequest.clientCountryCode || '+91').replace('+', '')}${activeRequest.clientPhone.replace(/[^0-9]/g, '')}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 text-[11px] font-bold hover:bg-emerald-100 transition-colors"
+                          >
+                            WhatsApp
+                          </a>
+                        </div>
+                      )}
                     </div>
 
                     {/* Status Changer */}
@@ -1429,13 +1559,41 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
                     )}
                   </div>
 
-                  {/* Document & Private Sharing Actions */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                    <div className="flex items-center gap-2">
+                  {/* Reference Link & Attached Documents */}
+                  <div className="p-4 rounded-xl bg-[#F7F8FC] dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono font-bold uppercase text-[#65677A]">REFERENCE MATERIALS & DOCUMENTS:</span>
+                      <button
+                        type="button"
+                        onClick={handleOpenEditDoc}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#EEE9FF] hover:bg-[#7357FF] hover:text-white text-[#7357FF] text-xs font-bold transition-all cursor-pointer"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                        <span>Edit / Replace Reference Doc</span>
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-4 text-xs">
+                      {/* Reference URL */}
+                      {activeRequest.referenceUrl ? (
+                        <a
+                          href={activeRequest.referenceUrl.startsWith('http') ? activeRequest.referenceUrl : `https://${activeRequest.referenceUrl}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#1E1E38] border border-[#E8EAF4] dark:border-[#2A2A46] text-[#3978FF] font-semibold hover:underline"
+                        >
+                          <LinkIcon className="w-3.5 h-3.5 text-[#3978FF]" />
+                          <span className="truncate max-w-xs">{activeRequest.referenceUrl}</span>
+                          <ExternalLink className="w-3 h-3 ml-0.5" />
+                        </a>
+                      ) : (
+                        <span className="text-[#8F91A3] italic">No reference URL provided</span>
+                      )}
+
+                      {/* Document Preview */}
                       {activeRequest.docFileName ? (
-                        <BoxedButton
-                          variant="secondary"
-                          size="sm"
+                        <button
+                          type="button"
                           onClick={() => {
                             setDocViewer({
                               isOpen: true,
@@ -1443,15 +1601,21 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
                               storagePath: activeRequest.docStoragePath || undefined
                             });
                           }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#1E1E38] border border-[#E8EAF4] dark:border-[#2A2A46] text-[#7357FF] font-semibold hover:bg-[#F5F2FF] cursor-pointer"
                         >
-                          <Eye className="w-3.5 h-3.5 mr-1" />
-                          View Client Doc: {activeRequest.docFileName}
-                        </BoxedButton>
+                          <FileText className="w-3.5 h-3.5 text-[#7357FF]" />
+                          <span>{activeRequest.docFileName}</span>
+                          {activeRequest.docFileSize && <span className="text-[10px] text-[#8F91A3]">({activeRequest.docFileSize})</span>}
+                          <Eye className="w-3 h-3 ml-1 text-[#65677A]" />
+                        </button>
                       ) : (
-                        <span className="text-xs text-[#65677A] font-mono">No attached document</span>
+                        <span className="text-[#8F91A3] italic">No document file attached</span>
                       )}
                     </div>
+                  </div>
 
+                  {/* Private Sharing Action */}
+                  <div className="flex items-center justify-end pt-2">
                     <BoxedButton
                       variant="primary"
                       size="sm"
@@ -1875,11 +2039,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
             <table className="w-full text-xs text-left">
               <thead>
                 <tr className="border-b border-[#E8EAF4] dark:border-[#2A2A46] font-mono text-[#8F91A3]">
-                  <th className="py-2.5 px-3">Client ID</th>
-                  <th className="py-2.5 px-3">Name</th>
-                  <th className="py-2.5 px-3">Email</th>
+                  <th className="py-2.5 px-3">User & Contact</th>
+                  <th className="py-2.5 px-3">Phone & Comms</th>
+                  <th className="py-2.5 px-3">Verification Matrix</th>
                   <th className="py-2.5 px-3">Role</th>
-                  <th className="py-2.5 px-3">Balance</th>
+                  <th className="py-2.5 px-3">NCX Balance</th>
                   <th className="py-2.5 px-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -1893,11 +2057,84 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
                 ) : (
                   allUsers.map(u => (
                     <tr key={u.customId || u.id || u._id} className="hover:bg-[#F8F9FC] dark:hover:bg-[#1E1E38] transition-colors">
-                      <td className="py-3 px-3 font-mono font-bold text-[#3978FF]">
-                        {u.customId || u.id || u._id}
+                      <td className="py-3 px-3">
+                        <div className="font-semibold text-[#17172B] dark:text-white">{u.name || 'Client Lead'}</div>
+                        <div className="text-[11px] text-[#65677A]">{u.email}</div>
+                        <div className="font-mono text-[10px] text-[#3978FF] mt-0.5">{u.customId || u.id || u._id}</div>
                       </td>
-                      <td className="py-3 px-3 font-semibold text-[#17172B] dark:text-white">{u.name || 'Client Lead'}</td>
-                      <td className="py-3 px-3 text-[#65677A]">{u.email}</td>
+                      <td className="py-3 px-3">
+                        {u.phone ? (
+                          <div className="space-y-1">
+                            <a
+                              href={`tel:${u.countryCode || '+91'}${u.phone}`}
+                              className="inline-flex items-center gap-1 font-mono text-xs text-[#3978FF] hover:underline"
+                            >
+                              <Phone className="w-3 h-3 text-[#3978FF]" />
+                              <span>{u.countryCode || '+91'} {u.phone}</span>
+                            </a>
+                            <div>
+                              <a
+                                href={`https://wa.me/${(u.countryCode || '+91').replace('+', '')}${u.phone}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-block px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 text-[10px] font-bold hover:bg-emerald-100 transition-colors"
+                              >
+                                WhatsApp Chat
+                              </a>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-[#8F91A3] italic">No phone attached</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3">
+                        <div className="flex flex-wrap gap-1.5">
+                          {/* Phone Verification Toggle */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleVerification(u, 'isPhoneVerified')}
+                            title="Click to toggle Phone verification status"
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all ${
+                              u.isPhoneVerified
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                                : 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border border-amber-200 dark:border-amber-800 opacity-70 hover:opacity-100'
+                            }`}
+                          >
+                            <Phone className="w-2.5 h-2.5" />
+                            <span>Phone: {u.isPhoneVerified ? 'Verified' : 'Unverified'}</span>
+                          </button>
+
+                          {/* Google Verification Toggle */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleVerification(u, 'isGoogleVerified')}
+                            title="Click to toggle Google verification status"
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all ${
+                              u.isGoogleVerified
+                                ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
+                                : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700 opacity-70 hover:opacity-100'
+                            }`}
+                          >
+                            <span>G</span>
+                            <span>Google: {u.isGoogleVerified ? 'Linked' : 'Not Linked'}</span>
+                          </button>
+
+                          {/* Email Verification Toggle */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleVerification(u, 'isEmailVerified')}
+                            title="Click to toggle Email verification status"
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all ${
+                              u.isEmailVerified !== false
+                                ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-400 border border-purple-200 dark:border-purple-800'
+                                : 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-400 border border-red-200 dark:border-red-800'
+                            }`}
+                          >
+                            <CheckCircle2 className="w-2.5 h-2.5" />
+                            <span>Email: {u.isEmailVerified !== false ? 'Verified' : 'Pending'}</span>
+                          </button>
+                        </div>
+                      </td>
                       <td className="py-3 px-3">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                           u.role === 'admin' ? 'bg-[#D5FF68] text-[#17172B]' : u.role === 'freelancer' ? 'bg-[#E9F1FF] text-[#3978FF]' : 'bg-[#EEE9FF] text-[#7357FF]'
@@ -2182,6 +2419,135 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
         scopeChange={selectedScopeChange?.change || null}
         onReviewed={() => refreshRequests()}
       />
+
+      {/* Edit Reference Document & Specification Modal (Admin Feature) */}
+      {editDocModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E8EAF4] dark:border-[#2A2A46]">
+              <div>
+                <h3 className="font-display font-bold text-base text-[#17172B] dark:text-white">
+                  Update Project Reference & Specifications
+                </h3>
+                <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                  Edit reference document, URLs, priority, or project title.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditDocModalOpen(false)}
+                className="text-[#65677A] hover:text-[#17172B] dark:hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveReferenceDoc} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">
+                  Project Title
+                </label>
+                <input
+                  type="text"
+                  value={editDocForm.projectTitle}
+                  onChange={e => setEditDocForm({ ...editDocForm, projectTitle: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs text-[#17172B] dark:text-white"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">
+                  Intake Priority
+                </label>
+                <select
+                  value={editDocForm.priority}
+                  onChange={e => setEditDocForm({ ...editDocForm, priority: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs text-[#17172B] dark:text-white"
+                >
+                  <option value="Low">Low</option>
+                  <option value="Normal">Normal</option>
+                  <option value="High">High</option>
+                  <option value="Urgent">Urgent (Express)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">
+                  Reference / PRD / Figma URL
+                </label>
+                <div className="relative">
+                  <LinkIcon className="absolute left-3 top-2.5 w-4 h-4 text-[#8F91A3]" />
+                  <input
+                    type="url"
+                    value={editDocForm.referenceUrl}
+                    onChange={e => setEditDocForm({ ...editDocForm, referenceUrl: e.target.value })}
+                    placeholder="https://figma.com/@project or github repo"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs text-[#17172B] dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">
+                  Attached Reference Document (.pdf, .docx, .txt)
+                </label>
+                <div className="p-3 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="w-4 h-4 text-[#7357FF] flex-shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold truncate text-[#17172B] dark:text-white">
+                        {editDocForm.docFileName || 'No document currently attached'}
+                      </div>
+                      {editDocForm.docFileSize && (
+                        <div className="text-[10px] text-[#8F91A3]">{editDocForm.docFileSize}</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      ref={adminFileInputRef}
+                      onChange={handleDocFileUpload}
+                      className="hidden"
+                      accept=".pdf,.doc,.docx,.txt"
+                    />
+                    <button
+                      type="button"
+                      disabled={editDocUploading}
+                      onClick={() => adminFileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#7357FF] text-white text-xs font-semibold hover:bg-[#5E43E2] transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{editDocUploading ? 'Uploading...' : 'Replace File'}</span>
+                    </button>
+                    {editDocForm.docFileName && (
+                      <button
+                        type="button"
+                        onClick={() => setEditDocForm(prev => ({ ...prev, docFileName: '', docStoragePath: '', docFileSize: '' }))}
+                        className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg cursor-pointer"
+                        title="Remove Document"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-[#E8EAF4] dark:border-[#2A2A46]">
+                <BoxedButton variant="secondary" size="sm" onClick={() => setEditDocModalOpen(false)}>
+                  Cancel
+                </BoxedButton>
+                <BoxedButton variant="accent" size="sm" type="submit">
+                  Save Specification Changes
+                </BoxedButton>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 </div>
   );
 };

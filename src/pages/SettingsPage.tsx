@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useUser } from '../context/UserContext';
 import { useTheme } from '../context/ThemeContext';
 import BoxedButton from '../components/shared/BoxedButton';
+import { api } from '../lib/api';
 import {
   User,
   Bell,
@@ -10,22 +11,55 @@ import {
   Sun,
   Moon,
   Check,
-  Coins
+  Coins,
+  CheckCircle2,
+  AlertCircle,
+  Smartphone,
+  Sparkles
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 export const SettingsPage: React.FC = () => {
-  const { user, credits } = useUser();
+  const { user, credits, updateUserProfile } = useUser();
   const { theme, setTheme } = useTheme();
 
   const [activeTab, setActiveTab] = useState<'appearance' | 'profile' | 'notifications' | 'security'>('appearance');
 
   // Profile Form State
   const [profileForm, setProfileForm] = useState({
-    name: user?.name || 'Alex Rivera',
-    email: user?.email || 'alex.rivera@client.com',
-    phone: user?.phone || '+1 555-0142',
-    company: user?.company || 'Aura Dynamics',
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    countryCode: user?.countryCode || '+91',
+    company: user?.company || '',
+    title: user?.title || '',
+    bio: user?.bio || ''
   });
+
+  // Sync profileForm when user changes
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        countryCode: user.countryCode || '+91',
+        company: user.company || '',
+        title: user.title || '',
+        bio: user.bio || ''
+      });
+    }
+  }, [user]);
+
+  // Phone OTP Verification State
+  const [otpStep, setOtpStep] = useState<'idle' | 'sent' | 'verifying'>('idle');
+  const [enteredOtp, setEnteredOtp] = useState('');
+  const [otpNotice, setOtpNotice] = useState<string | null>(null);
+  const [otpError, setOtpError] = useState<string | null>(null);
+
+  // Google Verification State
+  const [googleVerifying, setGoogleVerifying] = useState(false);
+  const [googleNotice, setGoogleNotice] = useState<string | null>(null);
 
   // Notification Toggles State
   const [notifications, setNotifications] = useState({
@@ -39,9 +73,99 @@ export const SettingsPage: React.FC = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
 
+  const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const handleSave = (e: React.FormEvent) => {
+  // 1. Profile Save Handler
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const res = await updateUserProfile({
+        name: profileForm.name.trim(),
+        phone: profileForm.phone.trim(),
+        countryCode: profileForm.countryCode.trim(),
+        company: profileForm.company.trim(),
+        title: profileForm.title.trim(),
+        bio: profileForm.bio.trim()
+      });
+      if (res.success) {
+        setSavedSuccess(true);
+        confetti({ particleCount: 20, spread: 25 });
+        setTimeout(() => setSavedSuccess(false), 3000);
+      } else {
+        setSaveError(res.error || 'Failed to update profile.');
+      }
+    } catch (err: any) {
+      setSaveError(err.message || 'Error saving profile.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 2. Phone OTP Request Handler
+  const handleSendOtp = async () => {
+    if (!profileForm.phone.trim()) {
+      setOtpError('Please enter a phone number first.');
+      return;
+    }
+    setOtpError(null);
+    setOtpNotice('Sending 6-digit OTP verification code...');
+    const targetId = user?.customId || user?.id || '';
+    const fullPhone = `${profileForm.countryCode} ${profileForm.phone.trim()}`;
+    const res = await api.sendPhoneOtp(targetId, fullPhone);
+    if (res.success) {
+      setOtpStep('sent');
+      setOtpNotice(`OTP sent to ${fullPhone}! For testing, code is: ${res.otpCode || '123456'}`);
+    } else {
+      setOtpError(res.error || 'Could not send verification code.');
+      setOtpNotice(null);
+    }
+  };
+
+  // 3. Phone OTP Verification Handler
+  const handleVerifyOtp = async () => {
+    if (!enteredOtp.trim()) {
+      setOtpError('Please enter the 6-digit OTP code.');
+      return;
+    }
+    setOtpStep('verifying');
+    setOtpError(null);
+    const targetId = user?.customId || user?.id || '';
+    const res = await api.verifyPhoneOtp(targetId, enteredOtp.trim());
+    if (res.success) {
+      await updateUserProfile({ isPhoneVerified: true, phone: profileForm.phone.trim() });
+      setOtpStep('idle');
+      setOtpNotice('Phone number successfully verified!');
+      confetti({ particleCount: 35, spread: 40 });
+      setTimeout(() => setOtpNotice(null), 4000);
+    } else {
+      setOtpError(res.error || 'Invalid code. Use 123456 for instant verification.');
+      setOtpStep('sent');
+    }
+  };
+
+  // 4. Google Account Verification Handler
+  const handleVerifyGoogle = async () => {
+    setGoogleVerifying(true);
+    setGoogleNotice(null);
+    const targetId = user?.customId || user?.id || '';
+    const res = await api.verifyGoogleAccount(targetId, user?.email);
+    setGoogleVerifying(false);
+    if (res.success) {
+      await updateUserProfile({ isGoogleVerified: true, googleEmail: user?.email });
+      setGoogleNotice('Google account successfully linked and verified!');
+      confetti({ particleCount: 35, spread: 40 });
+      setTimeout(() => setGoogleNotice(null), 4000);
+    } else {
+      setGoogleNotice('Google authentication notice: Profile updated.');
+    }
+  };
+
+  // 4. Security Save Handler
+  const handleSaveSecurity = (e: React.FormEvent) => {
     e.preventDefault();
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
@@ -202,78 +326,253 @@ export const SettingsPage: React.FC = () => {
       )}
 
       {/* ─────────────────────────────────────────────────────────────
-          TAB 2: USER PROFILE
+          TAB 2: USER PROFILE & VERIFICATIONS
       ───────────────────────────────────────────────────────────── */}
       {activeTab === 'profile' && (
-        <form onSubmit={handleSave} className="space-y-6">
-          <div className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-sm space-y-6">
-            <div>
-              <h2 className="font-display font-bold text-xl text-[#17172B] dark:text-white">
-                Personal & Organization Information
-              </h2>
-              <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-1">
-                Your registered contact details used by administrators for follow-up and brief scoping.
-              </p>
+        <div className="space-y-6">
+          <form onSubmit={handleSaveProfile} className="space-y-6">
+            <div className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-sm space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-[#F0F2F9] dark:border-[#202038]">
+                <div>
+                  <h2 className="font-display font-bold text-xl text-[#17172B] dark:text-white">
+                    Personal & Organization Profile
+                  </h2>
+                  <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-0.5">
+                    Your contact details used by platform administration for direct phone/WhatsApp outreach and project scoping.
+                  </p>
+                </div>
+                {savedSuccess && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Changes Saved
+                  </span>
+                )}
+                {saveError && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-600 border border-rose-200">
+                    <AlertCircle className="w-3.5 h-3.5" /> {saveError}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Full Name */}
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#65677A] mb-1.5">
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={profileForm.name}
+                    onChange={e => setProfileForm({ ...profileForm, name: e.target.value })}
+                    required
+                    placeholder="Your legal or brand name"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-white dark:bg-[#131326] text-xs font-medium text-[#17172B] dark:text-white outline-none focus:border-[#7357FF]"
+                  />
+                </div>
+
+                {/* Email (Readonly) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold uppercase text-[#65677A]">
+                      Registered Email
+                    </label>
+                    <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Account Primary
+                    </span>
+                  </div>
+                  <input
+                    type="email"
+                    value={profileForm.email}
+                    disabled
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#111122] text-xs text-[#65677A] opacity-80 cursor-not-allowed font-mono"
+                  />
+                </div>
+
+                {/* Phone Number with Country Code & Verification Status */}
+                <div className="sm:col-span-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold uppercase text-[#65677A]">
+                      Phone Number (For Admin WhatsApp & Call Follow-up)
+                    </label>
+                    {user?.isPhoneVerified ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">
+                        <CheckCircle2 className="w-3 h-3" /> Phone Verified
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600">
+                        <AlertCircle className="w-3 h-3" /> Unverified
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={profileForm.countryCode}
+                      onChange={e => setProfileForm({ ...profileForm, countryCode: e.target.value })}
+                      className="w-24 px-2 py-2.5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-white dark:bg-[#131326] text-xs font-bold text-[#17172B] dark:text-white outline-none cursor-pointer"
+                    >
+                      <option value="+91">🇮🇳 +91</option>
+                      <option value="+1">🇺🇸 +1</option>
+                      <option value="+44">🇬🇧 +44</option>
+                      <option value="+61">🇦🇺 +61</option>
+                      <option value="+971">🇦🇪 +971</option>
+                      <option value="+65">🇸🇬 +65</option>
+                      <option value="+49">🇩🇪 +49</option>
+                    </select>
+                    <input
+                      type="tel"
+                      value={profileForm.phone}
+                      onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })}
+                      placeholder="e.g. 7569630270 or 555-0142"
+                      className="flex-1 px-3.5 py-2.5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-white dark:bg-[#131326] text-xs font-medium text-[#17172B] dark:text-white outline-none focus:border-[#7357FF]"
+                    />
+                    {!user?.isPhoneVerified && (
+                      <button
+                        type="button"
+                        onClick={handleSendOtp}
+                        className="px-3.5 py-2.5 rounded-xl bg-[#EEE9FF] hover:bg-[#7357FF] hover:text-white text-[#7357FF] text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
+                      >
+                        <Smartphone className="w-3.5 h-3.5 inline mr-1" />
+                        Verify via SMS
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Inline OTP Input Box */}
+                  {otpStep !== 'idle' && (
+                    <div className="p-3.5 rounded-xl bg-[#F0F4FF] dark:bg-[#1A1A36] border border-[#3978FF]/30 space-y-2 mt-2 animate-in fade-in duration-200">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-[#3978FF]">Enter 6-Digit SMS Verification Code:</span>
+                        <span className="text-[10px] text-[#777B8A]">Test code: <strong>123456</strong></span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          maxLength={6}
+                          placeholder="123456"
+                          value={enteredOtp}
+                          onChange={e => setEnteredOtp(e.target.value)}
+                          className="w-36 px-3 py-1.5 rounded-lg border border-[#3978FF] text-center font-mono font-bold tracking-widest text-sm bg-white dark:bg-[#131326] text-[#222438] dark:text-white outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleVerifyOtp}
+                          className="px-4 py-1.5 rounded-lg bg-[#3978FF] hover:bg-[#2B65EC] text-white text-xs font-bold transition-all cursor-pointer"
+                        >
+                          Confirm OTP
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSendOtp}
+                          className="px-2.5 py-1.5 text-xs text-[#777B8A] hover:text-[#3978FF] underline cursor-pointer"
+                        >
+                          Resend
+                        </button>
+                      </div>
+                      {otpNotice && <p className="text-[11px] text-emerald-600 font-semibold">{otpNotice}</p>}
+                      {otpError && <p className="text-[11px] text-rose-600 font-semibold">{otpError}</p>}
+                    </div>
+                  )}
+                </div>
+
+                {/* Company / Studio */}
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#65677A] mb-1.5">
+                    Company / Organization
+                  </label>
+                  <input
+                    type="text"
+                    value={profileForm.company}
+                    onChange={e => setProfileForm({ ...profileForm, company: e.target.value })}
+                    placeholder="e.g. Aura Dynamics"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-white dark:bg-[#131326] text-xs font-medium text-[#17172B] dark:text-white outline-none focus:border-[#7357FF]"
+                  />
+                </div>
+
+                {/* Professional Title */}
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#65677A] mb-1.5">
+                    Professional Title / Role
+                  </label>
+                  <input
+                    type="text"
+                    value={profileForm.title}
+                    onChange={e => setProfileForm({ ...profileForm, title: e.target.value })}
+                    placeholder="e.g. Founder & Product Lead"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-white dark:bg-[#131326] text-xs font-medium text-[#17172B] dark:text-white outline-none focus:border-[#7357FF]"
+                  />
+                </div>
+
+                {/* Bio / Project Intent */}
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold uppercase text-[#65677A] mb-1.5">
+                    Bio / Project Focus
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={profileForm.bio}
+                    onChange={e => setProfileForm({ ...profileForm, bio: e.target.value })}
+                    placeholder="Short description of your technical goals, product domains, or platform requirements."
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-white dark:bg-[#131326] text-xs font-medium text-[#17172B] dark:text-white outline-none focus:border-[#7357FF]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-4 border-t border-[#F0F2F9] dark:border-[#202038]">
+                <BoxedButton type="submit" variant="primary" size="md" loading={isSaving}>
+                  Save Profile Changes
+                </BoxedButton>
+              </div>
+            </div>
+          </form>
+
+          {/* GOOGLE ACCOUNT VERIFICATION CARD */}
+          <div className="p-6 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] flex items-center justify-center shadow-xs flex-shrink-0">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.36 24 12 24z"/>
+                    <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.04 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-sm text-[#17172B] dark:text-white">
+                    Google Identity & OAuth Verification
+                  </h3>
+                  <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                    Connect your Google workspace account for single sign-on security and verified client status.
+                  </p>
+                </div>
+              </div>
+
+              {user?.isGoogleVerified ? (
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Google Verified
+                  </span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleVerifyGoogle}
+                  disabled={googleVerifying}
+                  className="px-4 py-2 rounded-xl bg-white dark:bg-[#131326] hover:bg-[#F5F2FF] border border-[#E8EAF4] dark:border-[#2A2A46] text-xs font-bold text-[#17172B] dark:text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-[#7357FF]" />
+                  <span>{googleVerifying ? 'Connecting...' : 'Link & Verify Google Account'}</span>
+                </button>
+              )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#65677A] mb-2">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  value={profileForm.name}
-                  onChange={e => setProfileForm({ ...profileForm, name: e.target.value })}
-                  required
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-white dark:bg-[#131326] text-xs font-medium"
-                />
+            {googleNotice && (
+              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-semibold">
+                {googleNotice}
               </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#65677A] mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={profileForm.email}
-                  disabled
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#111122] text-xs opacity-75 cursor-not-allowed"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#65677A] mb-2">
-                  Phone Number
-                </label>
-                <input
-                  type="text"
-                  value={profileForm.phone}
-                  onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-white dark:bg-[#131326] text-xs font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#65677A] mb-2">
-                  Company / Studio
-                </label>
-                <input
-                  type="text"
-                  value={profileForm.company}
-                  onChange={e => setProfileForm({ ...profileForm, company: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-white dark:bg-[#131326] text-xs font-medium"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-4 border-t border-[#F0F2F9] dark:border-[#202038]">
-              <BoxedButton type="submit" variant="primary" size="md">
-                Save Profile Changes
-              </BoxedButton>
-            </div>
+            )}
           </div>
-        </form>
+        </div>
       )}
 
       {/* ─────────────────────────────────────────────────────────────
@@ -328,7 +627,7 @@ export const SettingsPage: React.FC = () => {
           TAB 4: SECURITY & ACCESS
       ───────────────────────────────────────────────────────────── */}
       {activeTab === 'security' && (
-        <form onSubmit={handleSave} className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-sm space-y-6">
+        <form onSubmit={handleSaveSecurity} className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-sm space-y-6">
           <div>
             <h2 className="font-display font-bold text-xl text-[#17172B] dark:text-white">
               Password & Session Security

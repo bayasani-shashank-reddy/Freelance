@@ -30,6 +30,16 @@ const UserSchema = new mongoose.Schema({
   emailVerificationToken: { type: String },
   emailVerificationExpires: { type: Date },
 
+  // Phone Verification
+  isPhoneVerified: { type: Boolean, default: false },
+  phoneVerificationCode: { type: String, default: null },
+  phoneVerificationExpires: { type: Date, default: null },
+
+  // Google Account Verification / OAuth
+  isGoogleVerified: { type: Boolean, default: false },
+  googleId: { type: String, default: null },
+  googleEmail: { type: String, default: null },
+
   // Password Recovery (ID 9)
   passwordResetToken: { type: String },
   passwordResetExpires: { type: Date },

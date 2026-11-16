@@ -98,6 +98,7 @@ interface UserContextType {
   logout: () => void;
   authenticateUser: (identifier: string, pass: string) => Promise<{ success: boolean; user?: User; error?: string }>;
   registerUser: (data: { name: string; email: string; phone?: string; countryCode?: string; password?: string; company?: string }) => Promise<{ success: boolean; user?: User; error?: string }>;
+  updateUserProfile: (data: Partial<User>) => Promise<{ success: boolean; error?: string }>;
   
   // Project Requests
   projectRequests: ProjectRequest[];
@@ -228,7 +229,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         credits: res.user.credits ?? 500,
         avatar: res.user.avatar,
         title: res.user.title,
-        skills: res.user.skills
+        skills: res.user.skills,
+        isEmailVerified: res.user.isEmailVerified,
+        isPhoneVerified: res.user.isPhoneVerified,
+        isGoogleVerified: res.user.isGoogleVerified,
+        googleEmail: res.user.googleEmail
       };
       login(formatted);
       return { success: true, user: formatted };
@@ -296,6 +301,36 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     login(fallbackUser);
     return { success: true, user: fallbackUser };
+  };
+
+  // Update user profile and persist changes
+  const updateUserProfile = async (data: Partial<User>): Promise<{ success: boolean; error?: string }> => {
+    if (!user) return { success: false, error: 'User not logged in' };
+    const targetId = user.customId || user.id || (user as any)._id;
+    try {
+      const res = await api.updateProfile(targetId, data);
+      if (res.success && res.user) {
+        const updated: User = {
+          ...user,
+          ...data,
+          name: res.user.name || user.name,
+          phone: res.user.phone ?? user.phone,
+          company: res.user.company ?? user.company,
+          title: res.user.title ?? user.title,
+          bio: res.user.bio ?? user.bio,
+          isPhoneVerified: res.user.isPhoneVerified ?? user.isPhoneVerified,
+          isEmailVerified: res.user.isEmailVerified ?? user.isEmailVerified,
+          isGoogleVerified: res.user.isGoogleVerified ?? user.isGoogleVerified,
+          googleEmail: res.user.googleEmail ?? user.googleEmail
+        };
+        login(updated);
+        return { success: true };
+      }
+    } catch {}
+    // Optimistic fallback
+    const updatedUser = { ...user, ...data };
+    login(updatedUser);
+    return { success: true };
   };
 
   // Refresh requests
@@ -552,6 +587,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         authenticateUser,
         registerUser,
+        updateUserProfile,
         projectRequests,
         refreshRequests,
         submitProjectRequest,

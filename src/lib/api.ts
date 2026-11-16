@@ -1232,6 +1232,71 @@ export const api = {
     }
   },
 
+  async sendPhoneOtp(userId: string, phone: string) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/phone/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, phone })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async verifyPhoneOtp(userId: string, code: string) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/phone/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, code })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async verifyGoogleAccount(userId: string, googleEmail?: string, googleId?: string) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/google/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, googleEmail, googleId })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async toggleUserVerification(userId: string, data: any) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/users/${userId}/toggle-verify`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async updateProjectReference(projectId: string, data: any) {
+    try {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/reference`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
   // ── PHASE 2: FINANCIAL INTEGRITY & ORDERS ──
   async createPaymentOrder(userId: string, packageId: string, currency = 'INR') {
     try {

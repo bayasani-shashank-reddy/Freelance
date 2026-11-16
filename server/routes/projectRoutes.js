@@ -192,6 +192,14 @@ projectRouter.post('/submit', async (req, res) => {
       finalCategory = generated.category;
     }
 
+    const submittedPhone = (req.body.clientPhone || user.phone || '').trim();
+    const submittedCountryCode = (req.body.clientCountryCode || user.countryCode || '+1').trim();
+    if (submittedPhone && !user.phone) {
+      user.phone = submittedPhone;
+      user.countryCode = submittedCountryCode;
+      await user.save();
+    }
+
     const customId = `req-${Date.now()}`;
     const newRequest = new ProjectRequest({
       customId,
@@ -199,8 +207,8 @@ projectRouter.post('/submit', async (req, res) => {
       clientName: user.name,
       clientAvatar: user.avatar,
       clientEmail: user.email,
-      clientPhone: user.phone || '',
-      clientCountryCode: user.countryCode || '+1',
+      clientPhone: submittedPhone,
+      clientCountryCode: submittedCountryCode,
       projectTitle: projectTitle.trim(),
       rawIdea: rawIdea.trim() || projectTitle.trim(),
       referenceUrl: referenceUrl.trim(),
@@ -462,6 +470,56 @@ projectRouter.patch('/:id/status', async (req, res) => {
     await notif.save();
 
     res.json({ success: true, request });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/projects/:id/reference — Admin or Client updates reference document or URL
+projectRouter.patch('/:id/reference', async (req, res) => {
+  try {
+    const request = await ProjectRequest.findOne(getFilterById(req.params.id));
+    if (!request) return res.status(404).json({ error: 'Request not found.' });
+
+    const {
+      referenceUrl,
+      docFileName,
+      docStoragePath,
+      docFileSize,
+      docFileType,
+      projectTitle,
+      priority,
+      adminNotes
+    } = req.body;
+
+    if (referenceUrl !== undefined) request.referenceUrl = referenceUrl.trim();
+    if (docFileName !== undefined) request.docFileName = docFileName;
+    if (docStoragePath !== undefined) request.docStoragePath = docStoragePath;
+    if (docFileSize !== undefined) request.docFileSize = docFileSize;
+    if (docFileType !== undefined) request.docFileType = docFileType;
+    if (projectTitle !== undefined && projectTitle.trim()) request.projectTitle = projectTitle.trim();
+    if (priority !== undefined) request.priority = priority;
+    if (adminNotes !== undefined) request.internalNote = adminNotes;
+
+    await request.save();
+
+    // Log activity
+    const act = new RequestActivity({
+      customId: `act-${Date.now()}`,
+      requestId: request.customId || request._id,
+      actorId: req.body.adminId || 'usr-admin-1',
+      actorName: req.body.adminName || 'Admin Lead',
+      actorRole: 'admin',
+      activityType: 'document_update',
+      internalNote: `Reference document or URL updated: ${docFileName || referenceUrl || 'Updated specification'}`
+    });
+    await act.save();
+
+    res.json({
+      success: true,
+      message: 'Project reference document and details updated successfully.',
+      request
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -19,13 +19,20 @@ import confetti from 'canvas-confetti';
 
 export const SubmitRequestPage: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, submitProjectRequest, credits } = useUser();
+  const { user, isAuthenticated, submitProjectRequest, credits } = useUser();
 
   // Form Fields
   const [projectTitle, setProjectTitle] = useState('');
   const [referenceUrl, setReferenceUrl] = useState('');
+  const [clientPhone, setClientPhone] = useState(user?.phone || '');
+  const [clientCountryCode, setClientCountryCode] = useState(user?.countryCode || '+91');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadMetadata, setUploadMetadata] = useState<{ originalName: string; size: string; mimeType: string; storagePath: string } | null>(null);
+
+  React.useEffect(() => {
+    if (user?.phone) setClientPhone(user.phone);
+    if (user?.countryCode) setClientCountryCode(user.countryCode);
+  }, [user]);
 
   // AI Scoping State (FREE Preview)
   const [aiGenerating, setAiGenerating] = useState(false);
@@ -174,6 +181,8 @@ export const SubmitRequestPage: React.FC = () => {
     const payload = {
       projectTitle: projectTitle.trim(),
       referenceUrl: referenceUrl.trim(),
+      clientPhone: clientPhone.trim(),
+      clientCountryCode: clientCountryCode.trim(),
       docFileName: uploadMetadata?.originalName || null,
       docFileSize: uploadMetadata?.size || null,
       docFileType: uploadMetadata?.mimeType || null,
@@ -412,12 +421,71 @@ export const SubmitRequestPage: React.FC = () => {
           </div>
         </div>
 
-        {/* SECTION 3: AI SYNTHESIS PREVIEW (FREE PREVIEW ACTION) */}
+        {/* SECTION 3: CONTACT TELEMETRY (PHONE & WHATSAPP) */}
+        <div className="space-y-4 pt-4 border-t border-[#F0F2F9] dark:border-[#202038]">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-lg bg-[#EEE9FF] dark:bg-[#252445] text-[#7357FF] flex items-center justify-center font-bold text-xs font-mono">
+              03
+            </span>
+            <div>
+              <h3 className="font-display font-bold text-base text-[#17172B] dark:text-white">
+                Contact Phone & WhatsApp Outreach
+              </h3>
+              <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                Provided directly to administrator triage for real-time WhatsApp updates, clarification calls, and engineering quotes.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-[#65677A] dark:text-[#A6A8C0]">
+                Direct Contact Phone Number
+              </label>
+              <div className="flex items-center gap-2">
+                <select
+                  value={clientCountryCode}
+                  onChange={(e) => setClientCountryCode(e.target.value)}
+                  className="w-24 px-2.5 py-2.5 rounded-xl bg-white dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] text-xs font-bold text-[#17172B] dark:text-white outline-none cursor-pointer"
+                >
+                  <option value="+91">🇮🇳 +91</option>
+                  <option value="+1">🇺🇸 +1</option>
+                  <option value="+44">🇬🇧 +44</option>
+                  <option value="+61">🇦🇺 +61</option>
+                  <option value="+971">🇦🇪 +971</option>
+                  <option value="+65">🇸🇬 +65</option>
+                  <option value="+49">🇩🇪 +49</option>
+                </select>
+                <input
+                  type="tel"
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(e.target.value)}
+                  placeholder="e.g. 7569630270 or 555-0142"
+                  className="flex-1 px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] text-xs font-medium text-[#17172B] dark:text-white outline-none focus:border-[#7357FF]"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-[#65677A] dark:text-[#A6A8C0]">
+                Contact Email (Account Default)
+              </label>
+              <input
+                type="email"
+                value={user?.email || ''}
+                disabled
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#F7F8FC] dark:bg-[#111122] border border-[#E8EAF4] dark:border-[#2A2A46] text-xs text-[#65677A] opacity-75 font-mono cursor-not-allowed"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION 4: AI SYNTHESIS PREVIEW (FREE PREVIEW ACTION) */}
         <div className="space-y-4 pt-4 border-t border-[#F0F2F9] dark:border-[#202038]">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="w-6 h-6 rounded-lg bg-[#EEE9FF] dark:bg-[#252445] text-[#7357FF] flex items-center justify-center font-bold text-xs font-mono">
-                03
+                04
               </span>
               <div>
                 <h3 className="font-display font-bold text-base text-[#17172B] dark:text-white">
