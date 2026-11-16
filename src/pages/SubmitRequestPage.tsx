@@ -28,6 +28,8 @@ export const SubmitRequestPage: React.FC = () => {
   const [clientCountryCode, setClientCountryCode] = useState(user?.countryCode || '+91');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadMetadata, setUploadMetadata] = useState<{ originalName: string; size: string; mimeType: string; storagePath: string } | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [fileUploadError, setFileUploadError] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (user?.phone) setClientPhone(user.phone);
@@ -110,26 +112,30 @@ export const SubmitRequestPage: React.FC = () => {
     }
 
     setUploadedFile(file);
+    setIsUploadingFile(true);
+    setFileUploadError(null);
 
-    // Upload to server via multer
-    const formData = new FormData();
-    formData.append('file', file);
-    const res = await api.uploadDocument(formData);
-    if (res.success && res.file) {
-      setUploadMetadata(res.file);
-    } else {
-      setUploadMetadata({
-        originalName: file.name,
-        size: (file.size / 1024).toFixed(1) + ' KB',
-        mimeType: file.type,
-        storagePath: ''
-      });
+    try {
+      // Upload to server via multer
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.uploadDocument(formData);
+      if (res.success && res.file) {
+        setUploadMetadata(res.file);
+      } else {
+        setFileUploadError(res.error || 'Failed to upload document to server.');
+      }
+    } catch (err: any) {
+      setFileUploadError(err.message || 'Network error uploading document.');
+    } finally {
+      setIsUploadingFile(false);
     }
   };
 
   const removeFile = () => {
     setUploadedFile(null);
     setUploadMetadata(null);
+    setFileUploadError(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 

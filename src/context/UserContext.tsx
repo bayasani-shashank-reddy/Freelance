@@ -113,12 +113,14 @@ interface UserContextType {
   refreshCredits: () => Promise<void>;
   adjustCreditsByAdmin: (userId: string, amount: number, reason: string) => Promise<boolean>;
 
-  // Private Freelancers (Admin)
+  // Private Freelancers & Client Management (Admin)
   freelancers: User[];
   refreshFreelancers: () => Promise<void>;
   createFreelancerByAdmin: (data: any) => Promise<{ success: boolean; freelancer?: User; error?: string }>;
   updateFreelancerByAdmin: (id: string, data: any) => Promise<boolean>;
   deleteFreelancerByAdmin: (id: string) => Promise<boolean>;
+  createClientByAdmin: (data: any) => Promise<{ success: boolean; user?: User; error?: string }>;
+  deleteUserByAdmin: (id: string) => Promise<{ success: boolean; error?: string }>;
 
   // Document Shares (Freelancer & Admin)
   freelancerShares: DocumentShare[];
@@ -473,6 +475,24 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return false;
   };
 
+  const createClientByAdmin = async (data: any) => {
+    const res = await api.createUser({ ...data, role: data.role || 'client' });
+    if (res.success && res.user) {
+      await refreshFreelancers();
+      return { success: true, user: res.user };
+    }
+    return { success: false, error: res.error || 'Failed to create user' };
+  };
+
+  const deleteUserByAdmin = async (id: string) => {
+    const res = await api.deleteUser(id);
+    if (res.success) {
+      await refreshFreelancers();
+      return { success: true };
+    }
+    return { success: false, error: res.error || 'Failed to delete user' };
+  };
+
   // Refresh freelancer shares
   const refreshFreelancerShares = useCallback(async () => {
     if (!user) return;
@@ -602,6 +622,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createFreelancerByAdmin,
         updateFreelancerByAdmin,
         deleteFreelancerByAdmin,
+        createClientByAdmin,
+        deleteUserByAdmin,
         freelancerShares,
         refreshFreelancerShares,
         shareDocumentWithFreelancers,

@@ -711,3 +711,114 @@ authRouter.patch('/users/:id/toggle-verify', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// POST /api/auth/users — Admin creates a new user (Client or Freelancer)
+authRouter.post('/users', async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      password,
+      role = 'client',
+      phone,
+      countryCode = '+91',
+      company,
+      title,
+      skills,
+      hourlyRate,
+      credits
+    } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email, and password are required.' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (existing) {
+      return res.status(400).json({ error: 'A user with this email already exists.' });
+    }
+
+    const customId = `usr-${role}-${Date.now()}`;
+    const initialCredits = Number(credits) || (role === 'client' ? 500 : 1000);
+
+    const newUser = new User({
+      customId,
+      name: name.trim(),
+      email: normalizedEmail,
+      password: password.trim(),
+      role: role === 'freelancer' ? 'freelancer' : (role === 'admin' ? 'admin' : 'client'),
+      phone: phone ? phone.trim() : '',
+      countryCode: countryCode.trim(),
+      company: company ? company.trim() : '',
+      title: title ? title.trim() : (role === 'freelancer' ? 'Specialist Engineer' : 'Enterprise Client'),
+      skills: Array.isArray(skills) ? skills : (skills ? skills.split(',').map(s => s.trim()) : (role === 'freelancer' ? ['React', 'Node.js'] : [])),
+      hourlyRate: Number(hourlyRate) || (role === 'freelancer' ? 75 : 0),
+      credits: initialCredits,
+      status: 'active',
+      approvalStatus: 'approved',
+      isEmailVerified: true,
+      isPhoneVerified: Boolean(phone),
+      createdByAdmin: true,
+      avatar: role === 'freelancer'
+        ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80'
+        : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'
+    });
+
+    await newUser.save();
+    res.status(201).json({ success: true, user: newUser });
+  } catch (err) {
+    console.error('Error creating user via admin:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/auth/users/:id — Admin permanently removes any user (Client or Freelancer)
+authRouter.delete('/users/:id', async (req, res) => {
+  try {
+    const filter = getFilterById(req.params.id);
+    const targetUser = await User.findOne(filter);
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found in database.' });
+    }
+
+    // Safety guard: prevent deleting the master super-admin
+    if (targetUser.email === 'admin@nexuscraft.com') {
+      return res.status(403).json({ error: 'Master Admin account cannot be deleted.' });
+    }
+
+    const deletedId = targetUser.customId || targetUser._id;
+    await User.deleteOne({ _id: targetUser._id });
+
+    res.json({
+      success: true,
+      message: `User ${targetUser.name} (${targetUser.email}) permanently removed.`,
+      deletedId
+    });
+  } catch (err) {
+    console.error('Error removing user:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/auth/users/purge-demo — Admin purges all demo accounts with 1 click
+authRouter.post('/users/purge-demo', async (req, res) => {
+  try {
+    const demoEmails = [
+      'client@example.com',
+      'specialist@example.com',
+      'alex.rivera@client.com',
+      'elena@nexuscraft.com'
+    ];
+
+    const result = await User.deleteMany({ email: { $in: demoEmails } });
+    res.json({
+      success: true,
+      deletedCount: result.deletedCount,
+      message: `Successfully purged ${result.deletedCount} demo accounts.`
+    });
+  } catch (err) {
+    console.error('Error purging demo accounts:', err);
+    res.status(500).json({ error: err.message });
+  }
+});

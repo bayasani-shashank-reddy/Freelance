@@ -76,6 +76,41 @@ export const api = {
     }
   },
 
+  async createUser(userData: any) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async deleteUser(userId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/users/${userId}`, {
+        method: 'DELETE'
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async purgeDemoUsers() {
+    try {
+      const res = await fetch(`${API_BASE}/auth/users/purge-demo`, {
+        method: 'POST'
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
   async getProfile(userId: string) {
     try {
       const res = await fetch(`${API_BASE}/auth/profile/${userId}`);

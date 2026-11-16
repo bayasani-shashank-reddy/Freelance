@@ -23,6 +23,8 @@ import {
   FileText,
   CheckCircle2,
   Link as LinkIcon,
+  Trash2,
+  UserPlus,
   X
 } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
@@ -69,6 +71,9 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
     freelancers,
     refreshFreelancers,
     createFreelancerByAdmin,
+    deleteFreelancerByAdmin,
+    createClientByAdmin,
+    deleteUserByAdmin,
     adjustCreditsByAdmin
   } = useUser();
 
@@ -202,6 +207,16 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
     skills: 'React, Node.js, WebGPU, Cloud',
     hourlyRate: 1200,
     availability: 'Available Now'
+  });
+  const [addClientModal, setAddClientModal] = useState(false);
+  const [clientForm, setClientForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    phone: '',
+    countryCode: '+91',
+    company: '',
+    credits: 500
   });
   const [creditGrantModal, setCreditGrantModal] = useState(false);
   const [creditGrantForm, setCreditGrantForm] = useState({ userId: '', amount: 100, reason: 'Administrative Grant' });
@@ -388,6 +403,66 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
     });
     refreshFreelancers();
     confetti({ particleCount: 40, spread: 40 });
+  };
+
+  // Add Client
+  const handleCreateClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clientForm.name || !clientForm.email || !clientForm.password) {
+      alert('Name, email, and password are required.');
+      return;
+    }
+    const res = await createClientByAdmin(clientForm);
+    if (res.success) {
+      setAddClientModal(false);
+      setClientForm({
+        name: '',
+        email: '',
+        password: '',
+        phone: '',
+        countryCode: '+91',
+        company: '',
+        credits: 500
+      });
+      const usersRes = await api.getUsers();
+      if (Array.isArray(usersRes)) setAllUsers(usersRes);
+      confetti({ particleCount: 35, spread: 35 });
+      alert(`Client ${clientForm.name} successfully registered.`);
+    } else {
+      alert(res.error || 'Failed to create client account.');
+    }
+  };
+
+  // Remove / Delete User (Client or Freelancer)
+  const handleDeleteUser = async (userId: string, userName: string, role: string) => {
+    if (!confirm(`Are you sure you want to permanently delete ${role} "${userName}"? This cannot be undone.`)) {
+      return;
+    }
+    const res = await deleteUserByAdmin(userId);
+    if (res.success) {
+      setAllUsers(prev => prev.filter(u => u.customId !== userId && u.id !== userId && u._id !== userId));
+      refreshFreelancers();
+      confetti({ particleCount: 20, spread: 25 });
+    } else {
+      alert(res.error || 'Failed to delete user.');
+    }
+  };
+
+  // Purge Demo Accounts
+  const handlePurgeDemoAccounts = async () => {
+    if (!confirm('Are you sure you want to purge all demo test accounts (client@example.com, specialist@example.com, etc.)?')) {
+      return;
+    }
+    const res = await api.purgeDemoUsers();
+    if (res.success) {
+      alert(`Purged ${res.deletedCount || 0} demo accounts.`);
+      const usersRes = await api.getUsers();
+      if (Array.isArray(usersRes)) setAllUsers(usersRes);
+      refreshFreelancers();
+      confetti({ particleCount: 25, spread: 30 });
+    } else {
+      alert(res.error || 'Failed to purge demo accounts.');
+    }
   };
 
   // Grant NCX Credits
@@ -1989,33 +2064,82 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
       ───────────────────────────────────────────────────────────── */}
       {activeTab === 'freelancers' && (
         <div className="p-6 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-[#E8EAF4] dark:border-[#2A2A46]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#E8EAF4] dark:border-[#2A2A46]">
             <div>
               <h3 className="font-display font-bold text-lg text-[#17172B] dark:text-white">
                 Vetted Specialist Directory ({freelancers.length})
               </h3>
               <p className="text-xs text-[#65677A]">Pre-screened domain engineers approved for confidential brief distribution.</p>
             </div>
-            <BoxedButton variant="primary" size="sm" onClick={() => setAddFreelancerModal(true)}>
-              + Authorize Specialist
-            </BoxedButton>
+            <div className="flex items-center gap-2">
+              <BoxedButton variant="primary" size="sm" onClick={() => setAddFreelancerModal(true)}>
+                <UserPlus className="w-3.5 h-3.5 mr-1" />
+                + Authorize Specialist
+              </BoxedButton>
+              <button
+                type="button"
+                onClick={handlePurgeDemoAccounts}
+                className="px-3 py-1.5 rounded-xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-600 hover:text-white text-xs font-bold transition-all cursor-pointer"
+                title="Purge all demo test accounts"
+              >
+                Purge Demo Accounts
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {freelancers.map(f => (
-              <div key={f.customId || f.id} className="p-4 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] space-y-2 text-xs">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-sm text-[#17172B] dark:text-white">{f.name}</h4>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#D5FF68] text-[#17172B]">VETTED</span>
-                </div>
-                <p className="text-[#65677A]">{f.title}</p>
-                <div className="flex flex-wrap gap-1 pt-1">
-                  {(f.skills || []).map((s: string) => (
-                    <span key={s} className="px-2 py-0.5 rounded text-[9px] bg-[#EEE9FF] text-[#7357FF] font-semibold">{s}</span>
-                  ))}
-                </div>
+            {freelancers.length === 0 ? (
+              <div className="col-span-full py-12 text-center text-xs text-[#65677A] border-2 border-dashed border-[#E8EAF4] dark:border-[#2A2A46] rounded-2xl">
+                No freelancers registered yet. Click "+ Authorize Specialist" above to add one.
               </div>
-            ))}
+            ) : (
+              freelancers.map(f => (
+                <div key={f.customId || f.id} className="p-4 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] space-y-3 text-xs flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-sm text-[#17172B] dark:text-white">{f.name}</h4>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#D5FF68] text-[#17172B]">VETTED</span>
+                    </div>
+                    <p className="text-[#65677A] font-medium">{f.title}</p>
+                    <p className="text-[11px] text-[#8F91A3]">{f.email}</p>
+
+                    {f.phone && (
+                      <div className="flex items-center gap-2 text-[11px] font-mono text-[#3978FF]">
+                        <Phone className="w-3 h-3 flex-shrink-0" />
+                        <a href={`tel:${f.phone}`} className="hover:underline">{f.phone}</a>
+                        <a
+                          href={`https://wa.me/${f.phone.replace(/[^0-9]/g, '')}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold hover:bg-emerald-100"
+                        >
+                          WhatsApp
+                        </a>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {(f.skills || []).map((s: string) => (
+                        <span key={s} className="px-2 py-0.5 rounded text-[9px] bg-[#EEE9FF] text-[#7357FF] font-semibold">{s}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-[#E8EAF4] dark:border-[#2A2A46] flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold text-[#7357FF]">₹{f.hourlyRate || 1200}/hr</span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteUser(f.customId || f.id || f._id, f.name, 'freelancer')}
+                      className="px-2 py-1 text-[11px] font-bold rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-600 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+                      title="Permanently remove freelancer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Remove</span>
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -2025,14 +2149,28 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
       ───────────────────────────────────────────────────────────── */}
       {activeTab === 'clients' && (
         <div className="p-6 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-[#E8EAF4] dark:border-[#2A2A46]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#E8EAF4] dark:border-[#2A2A46]">
             <div>
               <h3 className="font-display font-bold text-lg text-[#17172B] dark:text-white">Registered Clients</h3>
               <p className="text-xs text-[#65677A]">Authenticated platform client records.</p>
             </div>
-            <BoxedButton variant="accent" size="sm" onClick={() => setCreditGrantModal(true)}>
-              Grant NCX Credits
-            </BoxedButton>
+            <div className="flex items-center gap-2">
+              <BoxedButton variant="primary" size="sm" onClick={() => setAddClientModal(true)}>
+                <UserPlus className="w-3.5 h-3.5 mr-1" />
+                + Add Client
+              </BoxedButton>
+              <BoxedButton variant="accent" size="sm" onClick={() => setCreditGrantModal(true)}>
+                Grant NCX Credits
+              </BoxedButton>
+              <button
+                type="button"
+                onClick={handlePurgeDemoAccounts}
+                className="px-3 py-1.5 rounded-xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-600 hover:text-white text-xs font-bold transition-all cursor-pointer"
+                title="Purge all demo test accounts"
+              >
+                Purge Demo Accounts
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -2144,15 +2282,36 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
                       </td>
                       <td className="py-3 px-3 font-mono font-bold text-[#7357FF]">{u.credits ?? 500} NCX</td>
                       <td className="py-3 px-3 text-right">
-                        <button
-                          onClick={() => {
-                            setCreditGrantForm({ userId: u.customId || u.id || u._id, amount: 100, reason: 'Administrative Grant' });
-                            setCreditGrantModal(true);
-                          }}
-                          className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-[#F0F2F9] dark:bg-[#202038] hover:bg-[#7357FF] hover:text-white text-[#7357FF] transition-colors cursor-pointer"
-                        >
-                          + Grant NCX
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => {
+                              setCreditGrantForm({ userId: u.customId || u.id || u._id, amount: 100, reason: 'Administrative Grant' });
+                              setCreditGrantModal(true);
+                            }}
+                            className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-[#F0F2F9] dark:bg-[#202038] hover:bg-[#7357FF] hover:text-white text-[#7357FF] transition-colors cursor-pointer"
+                          >
+                            + Grant NCX
+                          </button>
+                          {u.email !== 'admin@nexuscraft.com' && (
+                            <button
+                              onClick={() => handleDeleteUser(u.customId || u.id || u._id, u.name || u.email, u.role || 'client')}
+                              className="px-2 py-1 text-[11px] font-bold rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-600 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+                              title="Permanently remove user account"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>Remove</span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
                       </td>
                     </tr>
                   ))
@@ -2306,32 +2465,67 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
       {addFreelancerModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="w-full max-w-md bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] rounded-2xl p-6 shadow-2xl space-y-4">
-            <h3 className="font-display font-bold text-lg text-[#17172B] dark:text-white">
-              Authorize New Vetted Specialist
-            </h3>
+            <div className="flex items-center justify-between pb-2 border-b border-[#E8EAF4] dark:border-[#2A2A46]">
+              <div>
+                <h3 className="font-display font-bold text-lg text-[#17172B] dark:text-white">
+                  Authorize New Specialist
+                </h3>
+                <p className="text-xs text-[#65677A]">Add a vetted engineer or designer.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddFreelancerModal(false)}
+                className="text-[#65677A] hover:text-[#17172B] dark:hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             <form onSubmit={handleCreateFreelancer} className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold mb-1">Full Name</label>
+                <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">Full Name *</label>
                 <input
                   type="text"
                   required
                   value={freelancerForm.name}
                   onChange={e => setFreelancerForm({ ...freelancerForm, name: e.target.value })}
+                  placeholder="e.g. Elena Rostova"
                   className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold mb-1">Email</label>
+                <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">Email Address *</label>
                 <input
                   type="email"
                   required
                   value={freelancerForm.email}
                   onChange={e => setFreelancerForm({ ...freelancerForm, email: e.target.value })}
+                  placeholder="e.g. elena@nexuscraft.app"
                   className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs"
                 />
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">Phone / WhatsApp</label>
+                  <input
+                    type="tel"
+                    value={freelancerForm.phone}
+                    onChange={e => setFreelancerForm({ ...freelancerForm, phone: e.target.value })}
+                    placeholder="+91 9876543210"
+                    className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">Hourly Rate (₹/hr)</label>
+                  <input
+                    type="number"
+                    value={freelancerForm.hourlyRate}
+                    onChange={e => setFreelancerForm({ ...freelancerForm, hourlyRate: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs font-mono"
+                  />
+                </div>
+              </div>
               <div>
-                <label className="block text-xs font-semibold mb-1">Specialty Title</label>
+                <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">Domain / Title</label>
                 <input
                   type="text"
                   value={freelancerForm.title}
@@ -2339,12 +2533,135 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
                   className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs"
                 />
               </div>
-              <div className="flex justify-end gap-2 pt-2">
+              <div>
+                <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">Technical Skills (comma separated)</label>
+                <input
+                  type="text"
+                  value={freelancerForm.skills}
+                  onChange={e => setFreelancerForm({ ...freelancerForm, skills: e.target.value })}
+                  placeholder="React, Three.js, Node.js, WebGPU"
+                  className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-3 border-t border-[#E8EAF4] dark:border-[#2A2A46]">
                 <BoxedButton variant="secondary" size="sm" onClick={() => setAddFreelancerModal(false)}>
                   Cancel
                 </BoxedButton>
                 <BoxedButton variant="primary" size="sm" type="submit">
                   Save Specialist
+                </BoxedButton>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Client Modal */}
+      {addClientModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-[#E8EAF4] dark:border-[#2A2A46]">
+              <div>
+                <h3 className="font-display font-bold text-lg text-[#17172B] dark:text-white">
+                  Add New Client Account
+                </h3>
+                <p className="text-xs text-[#65677A]">Register an enterprise client profile.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddClientModal(false)}
+                className="text-[#65677A] hover:text-[#17172B] dark:hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateClient} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={clientForm.name}
+                  onChange={e => setClientForm({ ...clientForm, name: e.target.value })}
+                  placeholder="e.g. Johnathan Vance"
+                  className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">Email Address *</label>
+                <input
+                  type="email"
+                  required
+                  value={clientForm.email}
+                  onChange={e => setClientForm({ ...clientForm, email: e.target.value })}
+                  placeholder="e.g. jvance@acme.com"
+                  className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">Initial Password *</label>
+                <input
+                  type="password"
+                  required
+                  value={clientForm.password}
+                  onChange={e => setClientForm({ ...clientForm, password: e.target.value })}
+                  placeholder="At least 6 characters"
+                  className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">Code</label>
+                  <select
+                    value={clientForm.countryCode}
+                    onChange={e => setClientForm({ ...clientForm, countryCode: e.target.value })}
+                    className="w-full px-2 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs font-mono"
+                  >
+                    <option value="+91">+91 (IN)</option>
+                    <option value="+1">+1 (US)</option>
+                    <option value="+44">+44 (UK)</option>
+                    <option value="+61">+61 (AU)</option>
+                    <option value="+971">+971 (UAE)</option>
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">Phone / WhatsApp</label>
+                  <input
+                    type="tel"
+                    value={clientForm.phone}
+                    onChange={e => setClientForm({ ...clientForm, phone: e.target.value })}
+                    placeholder="9876543210"
+                    className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs font-mono"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">Company / Studio</label>
+                  <input
+                    type="text"
+                    value={clientForm.company}
+                    onChange={e => setClientForm({ ...clientForm, company: e.target.value })}
+                    placeholder="Acme Inc."
+                    className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">Starting NCX</label>
+                  <input
+                    type="number"
+                    value={clientForm.credits}
+                    onChange={e => setClientForm({ ...clientForm, credits: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs font-mono"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-3 border-t border-[#E8EAF4] dark:border-[#2A2A46]">
+                <BoxedButton variant="secondary" size="sm" onClick={() => setAddClientModal(false)}>
+                  Cancel
+                </BoxedButton>
+                <BoxedButton variant="primary" size="sm" type="submit">
+                  Create Client
                 </BoxedButton>
               </div>
             </form>

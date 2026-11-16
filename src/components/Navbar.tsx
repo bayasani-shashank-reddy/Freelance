@@ -1,6 +1,19 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Menu, X, ArrowRight, LogIn, LayoutDashboard, Plus, LogOut, Sun, Moon } from 'lucide-react';
+import {
+  Menu,
+  X,
+  ArrowRight,
+  LogIn,
+  LayoutDashboard,
+  Plus,
+  LogOut,
+  Sun,
+  Moon,
+  ChevronDown,
+  User as UserIcon,
+  Bell
+} from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { useTheme } from '../context/ThemeContext';
 import { BoxedButton } from './shared/BoxedButton';
@@ -9,6 +22,7 @@ export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useUser();
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
   const navLinks = [
@@ -106,29 +120,92 @@ export const Navbar: React.FC = () => {
             </div>
           ) : (
             <div className="hidden sm:flex items-center gap-3">
+              {/* Notifications Link */}
               <button
-                onClick={() => navigate(dashboardRoute)}
-                className="px-4 py-1.5 rounded-xl text-xs font-bold bg-[#F5F6FA] text-[#222438] hover:bg-[#E9E3FF] hover:text-[#7357FF] transition-all border border-[#E9EAF0] flex items-center gap-1.5"
+                type="button"
+                onClick={() => navigate('/notifications')}
+                className="relative p-2 rounded-xl text-[#65677A] hover:text-[#7357FF] hover:bg-[#F5F6FA] dark:hover:bg-[#1C1C33] transition-colors cursor-pointer"
+                title="Notifications"
               >
-                <LayoutDashboard className="w-3.5 h-3.5 text-[#7357FF]" />
-                <span>Workspace</span>
+                <Bell className="w-4 h-4" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#FF4D4F]" />
               </button>
 
-              <button
-                onClick={() => navigate('/submit-request')}
-                className="px-4 py-1.5 rounded-xl text-xs font-bold bg-[#7357FF] text-white shadow-sm shadow-[#7357FF]/30 hover:bg-[#5B42D6] transition-all flex items-center gap-1"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Submit Idea</span>
-              </button>
+              {user?.role === 'client' && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/submit-request')}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#7357FF] text-white shadow-sm shadow-[#7357FF]/30 hover:bg-[#5B42D6] transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Submit Idea</span>
+                </button>
+              )}
 
-              <button
-                onClick={handleSignOut}
-                className="p-1.5 rounded-xl text-[#777B8A] hover:text-[#FF4D4F] hover:bg-[#FFF1F0] transition-all"
-                title="Sign Out"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
+              {/* Aurora-style Profile Chip & Dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                  className="flex items-center gap-2 p-1.5 pl-2 pr-3 rounded-full border border-[#E9EAF0] dark:border-[#2A2A46] bg-white dark:bg-[#131326] hover:bg-[#F5F6FA] dark:hover:bg-[#1E1E38] shadow-xs transition-all cursor-pointer"
+                >
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#7357FF] to-[#3978FF] text-white flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-xs">
+                    {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <span className="text-xs font-bold text-[#17172B] dark:text-white max-w-[120px] truncate">
+                    {user?.name || 'User'}
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-[#8F91A3] transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Dropdown Menu */}
+                {profileMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="p-3 border-b border-[#F0F2F9] dark:border-[#202038]">
+                      <div className="font-bold text-xs text-[#17172B] dark:text-white truncate">
+                        {user?.name || 'User'}
+                      </div>
+                      <div className="text-[10px] text-[#8F91A3] truncate mt-0.5">{user?.email}</div>
+                      <div className="mt-1.5">
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-[#EEE9FF] dark:bg-[#252445] text-[#7357FF] uppercase">
+                          {user?.role || 'client'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="py-1">
+                      <button
+                        type="button"
+                        onClick={() => { setProfileMenuOpen(false); navigate(dashboardRoute); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[#17172B] dark:text-white hover:bg-[#F5F6FA] dark:hover:bg-[#1E1E38] transition-colors cursor-pointer text-left"
+                      >
+                        <LayoutDashboard className="w-3.5 h-3.5 text-[#7357FF]" />
+                        <span>Workspace Dashboard</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => { setProfileMenuOpen(false); navigate('/settings'); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[#17172B] dark:text-white hover:bg-[#F5F6FA] dark:hover:bg-[#1E1E38] transition-colors cursor-pointer text-left"
+                      >
+                        <UserIcon className="w-3.5 h-3.5 text-[#3978FF]" />
+                        <span>My Profile & Settings</span>
+                      </button>
+                    </div>
+
+                    <div className="pt-1 border-t border-[#F0F2F9] dark:border-[#202038]">
+                      <button
+                        type="button"
+                        onClick={() => { setProfileMenuOpen(false); handleSignOut(); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer text-left"
+                      >
+                        <LogOut className="w-3.5 h-3.5 text-red-500" />
+                        <span>Sign out</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

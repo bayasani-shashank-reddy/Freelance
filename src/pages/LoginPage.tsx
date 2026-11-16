@@ -139,57 +139,18 @@ export const LoginPage: React.FC = () => {
           </div>
         </form>
 
-        {/* Quick Demo Fill Buttons & Credentials Guide */}
-        <div className="pt-4 border-t border-[#F0F2F9] dark:border-[#202038] space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-mono uppercase text-[#8F91A3] font-bold tracking-wider">
-              1-CLICK DEMO AUTHENTICATION
-            </span>
-            <span className="text-[10px] font-mono text-[#7357FF] dark:text-[#9C8AFF]">
-              PRE-CONFIGURED CREDITS
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
-            <button
-              type="button"
-              onClick={() => handleFillDemo('alex.rivera@client.com', 'client123')}
-              className="p-2.5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] hover:border-[#7357FF] hover:bg-[#EEE9FF]/30 dark:hover:bg-[#201F3E]/40 font-semibold text-left transition-all group"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-[#17172B] dark:text-white group-hover:text-[#7357FF]">Client</span>
-                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#3978FF]/10 text-[#3978FF] font-bold">500 NCX</span>
-              </div>
-              <p className="text-[10px] text-[#8F91A3] truncate mt-0.5">alex.rivera@client.com</p>
-              <p className="text-[9px] font-mono text-[#65677A] dark:text-[#A6A8C0]">pass: client123</p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleFillDemo('admin@nexuscraft.com', 'admin123')}
-              className="p-2.5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] hover:border-[#7357FF] hover:bg-[#EEE9FF]/30 dark:hover:bg-[#201F3E]/40 font-semibold text-left transition-all group"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-[#17172B] dark:text-white group-hover:text-[#7357FF]">Admin</span>
-                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#7357FF]/10 text-[#7357FF] font-bold">9,999 NCX</span>
-              </div>
-              <p className="text-[10px] text-[#8F91A3] truncate mt-0.5">admin@nexuscraft.com</p>
-              <p className="text-[9px] font-mono text-[#65677A] dark:text-[#A6A8C0]">pass: admin123</p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleFillDemo('elena@nexuscraft.com', 'free123')}
-              className="p-2.5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] hover:border-[#7357FF] hover:bg-[#EEE9FF]/30 dark:hover:bg-[#201F3E]/40 font-semibold text-left transition-all group"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-[#17172B] dark:text-white group-hover:text-[#7357FF]">Specialist</span>
-                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#D5FF68]/20 text-[#2B5400] dark:text-[#D5FF68] font-bold">1,000 NCX</span>
-              </div>
-              <p className="text-[10px] text-[#8F91A3] truncate mt-0.5">elena@nexuscraft.com</p>
-              <p className="text-[9px] font-mono text-[#65677A] dark:text-[#A6A8C0]">pass: free123</p>
-            </button>
-          </div>
+        {/* Admin Quick Fill (Optional helper) */}
+        <div className="pt-4 border-t border-[#F0F2F9] dark:border-[#202038] flex items-center justify-between text-[11px]">
+          <button
+            type="button"
+            onClick={() => handleFillDemo('admin@nexuscraft.com', 'Admin@12345')}
+            className="text-[11px] font-mono text-[#7357FF] hover:underline cursor-pointer"
+          >
+            ⚡ Autofill Admin (admin@nexuscraft.com)
+          </button>
+          <Link to="/forgot-password" className="text-[#65677A] hover:underline">
+            Need help?
+          </Link>
         </div>
 
         <p className="text-center text-xs text-[#65677A] dark:text-[#A6A8C0]">
