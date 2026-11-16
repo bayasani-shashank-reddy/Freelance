@@ -58,6 +58,7 @@ export interface ProjectRequest {
   clientPhone?: string;
   clientCountryCode?: string;
   projectTitle: string;
+  title?: string;
   rawIdea: string;
   referenceUrl?: string;
   docFileName?: string | null;

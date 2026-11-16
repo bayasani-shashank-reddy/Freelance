@@ -27,10 +27,24 @@ import StatusPage from './pages/public/StatusPage';
 import LegalPages from './pages/public/LegalPages';
 
 const RoleDashboardRedirect = () => {
-  const { role } = useUser();
+  const { role, user } = useUser();
+  if (!user) return <Navigate to="/login" replace />;
   if (role === 'admin') return <Navigate to="/admin/dashboard" replace />;
   if (role === 'freelancer') return <Navigate to="/freelancer/dashboard" replace />;
   return <Navigate to="/client/dashboard" replace />;
+};
+
+const RequireRole: React.FC<{ allowedRoles: string[]; children: React.ReactNode }> = ({ allowedRoles, children }) => {
+  const { user } = useUser();
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  if (!allowedRoles.includes(user.role)) {
+    if (user.role === 'admin') return <Navigate to="/admin/dashboard" replace />;
+    if (user.role === 'freelancer') return <Navigate to="/freelancer/dashboard" replace />;
+    return <Navigate to="/client/dashboard" replace />;
+  }
+  return <>{children}</>;
 };
 
 function App() {
@@ -65,7 +79,7 @@ function App() {
                 <Route path="/refund-policy" element={<LegalPages initialTab="refund" />} />
 
                 {/* Client & Core Product Intake Routes */}
-                <Route path="/submit-request" element={<SubmitRequestPage />} />
+                <Route path="/submit-request" element={<RequireRole allowedRoles={['client']}><SubmitRequestPage /></RequireRole>} />
                 <Route path="/slides" element={<AiPresentationStudioPage />} />
                 <Route path="/presentation-generator" element={<Navigate to="/slides" replace />} />
                 <Route path="/submit" element={<Navigate to="/submit-request" replace />} />
@@ -81,59 +95,59 @@ function App() {
                 {/* Role Specific Dashboards & Dedicated Sub-Routes */}
                 <Route path="/dashboard" element={<RoleDashboardRedirect />} />
 
-                {/* Admin Dedicated Sub-Routes */}
+                {/* Admin Dedicated Sub-Routes (Strictly Admin Role) */}
                 <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-                <Route path="/admin/dashboard" element={<AdminDashboardPage view="overview" />} />
-                <Route path="/admin/analytics" element={<AdminDashboardPage view="analytics" />} />
-                <Route path="/admin/requests" element={<AdminDashboardPage view="intake" />} />
+                <Route path="/admin/dashboard" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="overview" /></RequireRole>} />
+                <Route path="/admin/analytics" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="analytics" /></RequireRole>} />
+                <Route path="/admin/requests" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="intake" /></RequireRole>} />
                 <Route path="/admin/intake" element={<Navigate to="/admin/requests" replace />} />
-                <Route path="/admin/projects" element={<AdminDashboardPage view="intake" />} />
-                <Route path="/admin/assignments" element={<AdminDashboardPage view="assignments" />} />
-                <Route path="/admin/assessments" element={<AdminDashboardPage view="assessments-quotes" />} />
-                <Route path="/admin/clients" element={<AdminDashboardPage view="clients" />} />
-                <Route path="/admin/freelancers" element={<AdminDashboardPage view="freelancers" />} />
-                <Route path="/admin/ai-intelligence" element={<AdminDashboardPage view="ai-intelligence" />} />
-                <Route path="/admin/cost-intelligence" element={<AdminDashboardPage view="cost-intelligence" />} />
-                <Route path="/admin/document-studio" element={<AdminDashboardPage view="document-studio" />} />
-                <Route path="/admin/deliverables" element={<AdminDashboardPage view="deliverables" />} />
-                <Route path="/admin/audit-logs" element={<AdminDashboardPage view="audit" />} />
+                <Route path="/admin/projects" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="intake" /></RequireRole>} />
+                <Route path="/admin/assignments" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="assignments" /></RequireRole>} />
+                <Route path="/admin/assessments" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="assessments-quotes" /></RequireRole>} />
+                <Route path="/admin/clients" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="clients" /></RequireRole>} />
+                <Route path="/admin/freelancers" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="freelancers" /></RequireRole>} />
+                <Route path="/admin/ai-intelligence" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="ai-intelligence" /></RequireRole>} />
+                <Route path="/admin/cost-intelligence" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="cost-intelligence" /></RequireRole>} />
+                <Route path="/admin/document-studio" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="document-studio" /></RequireRole>} />
+                <Route path="/admin/deliverables" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="deliverables" /></RequireRole>} />
+                <Route path="/admin/audit-logs" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="audit" /></RequireRole>} />
                 <Route path="/admin/audit" element={<Navigate to="/admin/audit-logs" replace />} />
-                <Route path="/admin/tasks" element={<AdminDashboardPage view="tasks" />} />
-                <Route path="/admin/clarifications" element={<AdminDashboardPage view="clarifications" />} />
-                <Route path="/admin/*" element={<AdminDashboardPage />} />
+                <Route path="/admin/tasks" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="tasks" /></RequireRole>} />
+                <Route path="/admin/clarifications" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="clarifications" /></RequireRole>} />
+                <Route path="/admin/*" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage /></RequireRole>} />
 
-                {/* Client Dedicated Sub-Routes */}
+                {/* Client Dedicated Sub-Routes (Strictly Client Role) */}
                 <Route path="/client" element={<Navigate to="/client/dashboard" replace />} />
-                <Route path="/client/dashboard" element={<ClientDashboardPage view="overview" />} />
-                <Route path="/client/vault" element={<ClientDashboardPage view="vault" />} />
-                <Route path="/client/projects" element={<ClientDashboardPage view="workspace" />} />
-                <Route path="/client/workspace" element={<ClientDashboardPage view="workspace" />} />
-                <Route path="/client/documents" element={<ClientDashboardPage view="documents" />} />
-                <Route path="/client/clarifications" element={<ClientDashboardPage view="clarifications" />} />
+                <Route path="/client/dashboard" element={<RequireRole allowedRoles={['client']}><ClientDashboardPage view="overview" /></RequireRole>} />
+                <Route path="/client/vault" element={<RequireRole allowedRoles={['client']}><ClientDashboardPage view="vault" /></RequireRole>} />
+                <Route path="/client/projects" element={<RequireRole allowedRoles={['client']}><ClientDashboardPage view="workspace" /></RequireRole>} />
+                <Route path="/client/workspace" element={<RequireRole allowedRoles={['client']}><ClientDashboardPage view="workspace" /></RequireRole>} />
+                <Route path="/client/documents" element={<RequireRole allowedRoles={['client']}><ClientDashboardPage view="documents" /></RequireRole>} />
+                <Route path="/client/clarifications" element={<RequireRole allowedRoles={['client']}><ClientDashboardPage view="clarifications" /></RequireRole>} />
                 <Route path="/client/budget" element={<Navigate to="/client/projects" replace />} />
-                <Route path="/client/exports" element={<ClientDashboardPage view="exports" />} />
-                <Route path="/client/ai-assistant" element={<ClientDashboardPage view="ai-assistant" />} />
-                <Route path="/client/timeline" element={<ClientDashboardPage view="milestones" />} />
+                <Route path="/client/exports" element={<RequireRole allowedRoles={['client']}><ClientDashboardPage view="exports" /></RequireRole>} />
+                <Route path="/client/ai-assistant" element={<RequireRole allowedRoles={['client']}><ClientDashboardPage view="ai-assistant" /></RequireRole>} />
+                <Route path="/client/timeline" element={<RequireRole allowedRoles={['client']}><ClientDashboardPage view="milestones" /></RequireRole>} />
                 <Route path="/client/milestones" element={<Navigate to="/client/timeline" replace />} />
-                <Route path="/client/scope-changes" element={<ClientDashboardPage view="scope-changes" />} />
-                <Route path="/client/decisions" element={<ClientDashboardPage view="decisions" />} />
-                <Route path="/client/*" element={<ClientDashboardPage />} />
+                <Route path="/client/scope-changes" element={<RequireRole allowedRoles={['client']}><ClientDashboardPage view="scope-changes" /></RequireRole>} />
+                <Route path="/client/decisions" element={<RequireRole allowedRoles={['client']}><ClientDashboardPage view="decisions" /></RequireRole>} />
+                <Route path="/client/*" element={<RequireRole allowedRoles={['client']}><ClientDashboardPage /></RequireRole>} />
 
-                {/* Freelancer Dedicated Sub-Routes */}
+                {/* Freelancer Dedicated Sub-Routes (Strictly Freelancer Role) */}
                 <Route path="/freelancer" element={<Navigate to="/freelancer/dashboard" replace />} />
-                <Route path="/freelancer/dashboard" element={<FreelancerDashboardPage view="timeline" />} />
-                <Route path="/freelancer/projects" element={<FreelancerDashboardPage view="briefs" />} />
-                <Route path="/freelancer/briefs" element={<FreelancerDashboardPage view="briefs" />} />
-                <Route path="/freelancer/assessments" element={<FreelancerDashboardPage view="assessment" />} />
-                <Route path="/freelancer/quotations" element={<FreelancerDashboardPage view="quotation" />} />
-                <Route path="/freelancer/tasks" element={<FreelancerDashboardPage view="tasks" />} />
-                <Route path="/freelancer/calendar" element={<FreelancerDashboardPage view="timeline" />} />
-                <Route path="/freelancer/documents" element={<FreelancerDashboardPage view="documents" />} />
-                <Route path="/freelancer/deliverables" element={<FreelancerDashboardPage view="deliverables" />} />
+                <Route path="/freelancer/dashboard" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="timeline" /></RequireRole>} />
+                <Route path="/freelancer/projects" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="briefs" /></RequireRole>} />
+                <Route path="/freelancer/briefs" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="briefs" /></RequireRole>} />
+                <Route path="/freelancer/assessments" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="assessment" /></RequireRole>} />
+                <Route path="/freelancer/quotations" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="quotation" /></RequireRole>} />
+                <Route path="/freelancer/tasks" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="tasks" /></RequireRole>} />
+                <Route path="/freelancer/calendar" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="timeline" /></RequireRole>} />
+                <Route path="/freelancer/documents" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="documents" /></RequireRole>} />
+                <Route path="/freelancer/deliverables" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="deliverables" /></RequireRole>} />
                 <Route path="/freelancer/zips" element={<Navigate to="/freelancer/deliverables" replace />} />
-                <Route path="/freelancer/revisions" element={<FreelancerDashboardPage view="revisions" />} />
-                <Route path="/freelancer/history" element={<FreelancerDashboardPage view="history" />} />
-                <Route path="/freelancer/*" element={<FreelancerDashboardPage />} />
+                <Route path="/freelancer/revisions" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="revisions" /></RequireRole>} />
+                <Route path="/freelancer/history" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="history" /></RequireRole>} />
+                <Route path="/freelancer/*" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage /></RequireRole>} />
 
                 {/* Deprecated Public Marketplace & Chat Routes (Redirected cleanly) */}
                 <Route path="/designers" element={<Navigate to="/" replace />} />

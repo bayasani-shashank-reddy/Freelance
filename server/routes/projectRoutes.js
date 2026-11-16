@@ -361,8 +361,15 @@ projectRouter.get('/', async (req, res) => {
         { customId: { $regex: search, $options: 'i' } }
       ];
     }
-    const requests = await ProjectRequest.find(query).sort({ timestamp: -1 });
-    res.json(requests);
+    const requests = await ProjectRequest.find(query).sort({ _id: -1 }).lean();
+    const normalized = requests.map(r => ({
+      ...r,
+      projectTitle: r.projectTitle || r.title || 'Untitled Project',
+      title: r.projectTitle || r.title || 'Untitled Project',
+      clientName: r.clientName || 'Direct Client',
+      clientId: r.clientId || r.clientEmail || 'usr-client'
+    }));
+    res.json(normalized);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

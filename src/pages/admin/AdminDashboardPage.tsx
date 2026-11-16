@@ -345,18 +345,20 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
   // Filtered requests list
   const filteredRequests = useMemo(() => {
     return projectRequests.filter(r => {
-      const matchesSearch =
-        r.projectTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (r.clientName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (r.customId || r.id).toLowerCase().includes(searchQuery.toLowerCase());
+      const pTitle = (r.projectTitle || r.title || '').toLowerCase();
+      const cName = (r.clientName || '').toLowerCase();
+      const pId = (r.customId || r.id || '').toLowerCase();
+      const q = searchQuery.toLowerCase().trim();
 
+      const matchesSearch = !q || pTitle.includes(q) || cName.includes(q) || pId.includes(q);
       if (!matchesSearch) return false;
 
+      const rStatus = r.status || '';
       if (filterStatus === 'all') return true;
-      if (filterStatus === 'pending') return r.status === 'Submitted' || r.status === 'New';
-      if (filterStatus === 'review') return r.status.includes('Review');
-      if (filterStatus === 'active') return r.status === 'In Progress' || r.status === 'Specialist Review';
-      if (filterStatus === 'completed') return r.status === 'Completed';
+      if (filterStatus === 'pending') return rStatus === 'Submitted' || rStatus === 'New';
+      if (filterStatus === 'review') return rStatus.includes('Review');
+      if (filterStatus === 'active') return rStatus === 'In Progress' || rStatus === 'Specialist Review';
+      if (filterStatus === 'completed') return rStatus === 'Completed';
       return true;
     });
   }, [projectRequests, searchQuery, filterStatus]);
@@ -943,24 +945,33 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#F0F2F8]">
-                  {projectRequests
-                    .filter(r => {
-                      const matchSearch =
-                        r.projectTitle.toLowerCase().includes(tableSearch.toLowerCase()) ||
-                        (r.clientName || '').toLowerCase().includes(tableSearch.toLowerCase()) ||
-                        (r.customId || r.id).toLowerCase().includes(tableSearch.toLowerCase());
-                      const matchStatus = tableStatusFilter === 'all' || r.status.includes(tableStatusFilter);
-                      const matchPriority = tablePriorityFilter === 'all' || (r.priority || 'Normal') === tablePriorityFilter;
-                      return matchSearch && matchStatus && matchPriority;
-                    })
-                    .slice((tablePage - 1) * 6, tablePage * 6)
-                    .map(r => (
-                      <tr key={r.customId || r.id} className="hover:bg-[#F8F9FC] transition-colors">
-                        <td className="py-3.5 px-3 font-mono font-bold text-[#3978FF]">
-                          {r.customId || r.id}
-                        </td>
-                        <td className="py-3.5 px-3">
-                          <div className="font-bold text-[#222438] text-sm">{r.projectTitle}</div>
+                  {projectRequests.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-xs text-[#777B8A]">
+                        No project requests loaded yet. Click <strong>Sync Database</strong> above to fetch real-time projects from MongoDB Atlas.
+                      </td>
+                    </tr>
+                  ) : (
+                    projectRequests
+                      .filter(r => {
+                        const pTitle = (r.projectTitle || r.title || '').toLowerCase();
+                        const cName = (r.clientName || '').toLowerCase();
+                        const pId = (r.customId || r.id || '').toLowerCase();
+                        const q = tableSearch.toLowerCase().trim();
+
+                        const matchSearch = !q || pTitle.includes(q) || cName.includes(q) || pId.includes(q);
+                        const matchStatus = tableStatusFilter === 'all' || (r.status || '').toLowerCase().includes(tableStatusFilter.toLowerCase());
+                        const matchPriority = tablePriorityFilter === 'all' || (r.priority || 'Normal') === tablePriorityFilter;
+                        return matchSearch && matchStatus && matchPriority;
+                      })
+                      .slice((tablePage - 1) * 6, tablePage * 6)
+                      .map(r => (
+                        <tr key={r.customId || r.id} className="hover:bg-[#F8F9FC] transition-colors">
+                          <td className="py-3.5 px-3 font-mono font-bold text-[#3978FF]">
+                            {r.customId || r.id}
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <div className="font-bold text-[#222438] text-sm">{r.projectTitle || r.title || 'Untitled Project'}</div>
                           <div className="text-[#777B8A] text-[11px] line-clamp-1 max-w-xs">{r.aiSummary || r.rawIdea}</div>
                         </td>
                         <td className="py-3.5 px-3 text-[#222438]">
@@ -1014,7 +1025,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
                           </button>
                         </td>
                       </tr>
-                    ))}
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1863,39 +1875,51 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
             <table className="w-full text-xs text-left">
               <thead>
                 <tr className="border-b border-[#E8EAF4] dark:border-[#2A2A46] font-mono text-[#8F91A3]">
-                  <th className="py-2.5">Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Balance</th>
-                  <th>Actions</th>
+                  <th className="py-2.5 px-3">Client ID</th>
+                  <th className="py-2.5 px-3">Name</th>
+                  <th className="py-2.5 px-3">Email</th>
+                  <th className="py-2.5 px-3">Role</th>
+                  <th className="py-2.5 px-3">Balance</th>
+                  <th className="py-2.5 px-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F0F2F9] dark:divide-[#202038]">
-                {allUsers.map(u => (
-                  <tr key={u.customId || u.id || u._id}>
-                    <td className="py-3 font-semibold text-[#17172B] dark:text-white">{u.name}</td>
-                    <td className="text-[#65677A]">{u.email}</td>
-                    <td>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        u.role === 'admin' ? 'bg-[#D5FF68] text-[#17172B]' : 'bg-[#EEE9FF] text-[#7357FF]'
-                      }`}>
-                        {u.role.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="font-mono font-bold text-[#7357FF]">{u.credits || 500} NCX</td>
-                    <td>
-                      <button
-                        onClick={() => {
-                          setCreditGrantForm({ userId: u.customId || u.id || u._id, amount: 100, reason: 'Administrative Grant' });
-                          setCreditGrantModal(true);
-                        }}
-                        className="text-[11px] font-bold text-[#7357FF] hover:underline"
-                      >
-                        Adjust Credits
-                      </button>
+                {allUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-xs text-[#65677A]">
+                      No client accounts loaded. Ensure MongoDB Atlas connection is active.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  allUsers.map(u => (
+                    <tr key={u.customId || u.id || u._id} className="hover:bg-[#F8F9FC] dark:hover:bg-[#1E1E38] transition-colors">
+                      <td className="py-3 px-3 font-mono font-bold text-[#3978FF]">
+                        {u.customId || u.id || u._id}
+                      </td>
+                      <td className="py-3 px-3 font-semibold text-[#17172B] dark:text-white">{u.name || 'Client Lead'}</td>
+                      <td className="py-3 px-3 text-[#65677A]">{u.email}</td>
+                      <td className="py-3 px-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          u.role === 'admin' ? 'bg-[#D5FF68] text-[#17172B]' : u.role === 'freelancer' ? 'bg-[#E9F1FF] text-[#3978FF]' : 'bg-[#EEE9FF] text-[#7357FF]'
+                        }`}>
+                          {(u.role || 'client').toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 font-mono font-bold text-[#7357FF]">{u.credits ?? 500} NCX</td>
+                      <td className="py-3 px-3 text-right">
+                        <button
+                          onClick={() => {
+                            setCreditGrantForm({ userId: u.customId || u.id || u._id, amount: 100, reason: 'Administrative Grant' });
+                            setCreditGrantModal(true);
+                          }}
+                          className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-[#F0F2F9] dark:bg-[#202038] hover:bg-[#7357FF] hover:text-white text-[#7357FF] transition-colors cursor-pointer"
+                        >
+                          + Grant NCX
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

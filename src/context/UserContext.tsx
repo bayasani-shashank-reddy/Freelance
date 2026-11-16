@@ -304,13 +304,27 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user.role === 'admin') {
       const all = await api.getProjects();
       if (Array.isArray(all)) {
-        setProjectRequests(all.map(r => ({ ...r, id: r.customId || r._id })));
+        setProjectRequests(all.map(r => ({
+          ...r,
+          id: r.customId || r._id,
+          projectTitle: r.projectTitle || r.title || 'Untitled Project',
+          title: r.projectTitle || r.title || 'Untitled Project',
+          clientName: r.clientName || 'Direct Client',
+          clientId: r.clientId || r.clientEmail || 'usr-client'
+        })));
       }
     } else {
       const lookupId = user.customId || user.id || user.email;
       const myRequests = await api.getClientProjects(lookupId);
       if (Array.isArray(myRequests)) {
-        setProjectRequests(myRequests.map(r => ({ ...r, id: r.customId || r._id })));
+        setProjectRequests(myRequests.map(r => ({
+          ...r,
+          id: r.customId || r._id,
+          projectTitle: r.projectTitle || r.title || 'Untitled Project',
+          title: r.projectTitle || r.title || 'Untitled Project',
+          clientName: r.clientName || user.name || 'Client',
+          clientId: r.clientId || user.customId || user.id
+        })));
       }
     }
   }, [user]);
