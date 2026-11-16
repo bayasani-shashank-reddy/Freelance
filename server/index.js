@@ -58,16 +58,18 @@ const allowedOrigins = [
   'http://localhost:5174',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5174',
-  process.env.CLIENT_URL
+  'https://nexuscraft-lcnf.onrender.com',
+  process.env.CLIENT_URL,
+  process.env.FRONTEND_URL
 ].filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin) || origin.startsWith('http://localhost:')) {
+      if (!origin || allowedOrigins.includes(origin) || origin.startsWith('http://localhost:') || origin.endsWith('.onrender.com') || origin.endsWith('.vercel.app')) {
         callback(null, true);
       } else {
-        callback(null, true); // Permissive in dev
+        callback(null, true);
       }
     },
     credentials: true
@@ -125,7 +127,7 @@ app.use('/api/blueprints/generate', aiLimiter);
 // 6. Real-Time Socket.IO Server (ID 125, 127)
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: (origin, callback) => callback(null, true),
     credentials: true
   }
 });

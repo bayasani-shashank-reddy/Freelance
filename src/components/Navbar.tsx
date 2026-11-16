@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Menu, X, ArrowRight, LogIn, LayoutDashboard, Plus, LogOut } from 'lucide-react';
+import { Menu, X, ArrowRight, LogIn, LayoutDashboard, Plus, LogOut, Sun, Moon } from 'lucide-react';
 import { useUser } from '../context/UserContext';
+import { useTheme } from '../context/ThemeContext';
 import { BoxedButton } from './shared/BoxedButton';
 
 export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useUser();
+  const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -70,7 +72,17 @@ export const Navbar: React.FC = () => {
         </nav>
 
         {/* Right Side Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          {/* Quick Theme Switcher */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="p-2 rounded-xl text-[#65677A] dark:text-[#A6A8C0] hover:text-[#7357FF] hover:bg-[#F5F6FA] dark:hover:bg-[#1E1E38] transition-colors cursor-pointer"
+            title={`Switch to ${theme === 'light' ? 'Black (Dark)' : 'White (Light)'} Background`}
+          >
+            {theme === 'light' ? <Moon className="w-4 h-4 text-[#7357FF]" /> : <Sun className="w-4 h-4 text-amber-400" />}
+          </button>
+
           {!isAuthenticated ? (
             <div className="hidden sm:flex items-center gap-3">
               <button

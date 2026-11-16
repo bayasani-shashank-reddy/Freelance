@@ -28,9 +28,12 @@ import {
   Calendar,
   Archive,
   RefreshCw,
-  CheckCircle2
+  CheckCircle2,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { useUser } from '../context/UserContext';
+import { useTheme } from '../context/ThemeContext';
 import { GlobalCommandPalette } from './shared/GlobalCommandPalette';
 
 interface AppShellProps {
@@ -39,6 +42,7 @@ interface AppShellProps {
 
 export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const { user, logout, credits, unreadCount } = useUser();
+  const { theme, setTheme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -259,29 +263,29 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   })).filter(grp => grp.items.length > 0);
 
   return (
-    <div className="min-h-screen bg-[#F4F5F9] text-[#222438] flex font-sans antialiased">
+    <div className="min-h-screen bg-[#F4F5F9] dark:bg-[#0F0F1D] text-[#222438] dark:text-[#F7F8FC] flex font-sans antialiased transition-colors duration-150">
       <GlobalCommandPalette />
       
       {/* ─────────────────────────────────────────────────────────────
           1. PRIMARY & ONLY GLOBAL NAVIGATION: THE LEFT SIDEBAR
       ───────────────────────────────────────────────────────────── */}
       <aside
-        className={`hidden lg:flex flex-col bg-white border-r border-[#E9EAF0] h-screen sticky top-0 z-30 transition-[width] duration-300 ease-in-out select-none flex-shrink-0 ${
+        className={`hidden lg:flex flex-col bg-white dark:bg-[#131326] border-r border-[#E9EAF0] dark:border-[#202038] h-screen sticky top-0 z-30 transition-[width] duration-300 ease-in-out select-none flex-shrink-0 ${
           sidebarCollapsed ? 'w-[76px]' : 'w-[260px]'
         }`}
       >
         {/* Brand Header */}
-        <div className="h-16 px-4 flex items-center justify-between border-b border-[#E9EAF0] flex-shrink-0">
+        <div className="h-16 px-4 flex items-center justify-between border-b border-[#E9EAF0] dark:border-[#202038] flex-shrink-0">
           <NavLink to="/" className="flex items-center gap-3 overflow-hidden">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#7357FF] to-[#3978FF] text-white flex items-center justify-center font-black text-sm shadow-sm flex-shrink-0">
               N
             </div>
             {!sidebarCollapsed && (
               <div className="min-w-0">
-                <span className="font-display font-extrabold text-base text-[#222438] tracking-tight block leading-tight truncate">
+                <span className="font-display font-extrabold text-base text-[#222438] dark:text-white tracking-tight block leading-tight truncate">
                   NexusCraft
                 </span>
-                <span className="text-[10px] font-bold text-[#777B8A] block -mt-0.5 tracking-wider uppercase truncate">
+                <span className="text-[10px] font-bold text-[#777B8A] dark:text-[#A6A8C0] block -mt-0.5 tracking-wider uppercase truncate">
                   {currentRoleLabel}
                 </span>
               </div>
@@ -291,7 +295,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
           {!sidebarCollapsed && (
             <button
               onClick={() => setSidebarCollapsed(true)}
-              className="p-1 rounded-lg text-[#8F91A3] hover:text-[#222438] hover:bg-[#F5F6FA] transition-colors"
+              className="p-1 rounded-lg text-[#8F91A3] hover:text-[#222438] dark:hover:text-white hover:bg-[#F5F6FA] dark:hover:bg-[#1E1E38] transition-colors cursor-pointer"
               title="Collapse sidebar"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -309,9 +313,9 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                 placeholder="Search (Ctrl+K)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-12 py-1.5 bg-[#F5F6FA] border border-[#E9EAF0] rounded-xl text-xs text-[#222438] placeholder-[#8F91A3] focus:outline-none focus:border-[#3978FF] focus:bg-white transition-all"
+                className="w-full pl-8 pr-12 py-1.5 bg-[#F5F6FA] dark:bg-[#1B1B32] border border-[#E9EAF0] dark:border-[#2A2A46] rounded-xl text-xs text-[#222438] dark:text-white placeholder-[#8F91A3] focus:outline-none focus:border-[#3978FF] focus:bg-white dark:focus:bg-[#131326] transition-all"
               />
-              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-mono px-1.5 py-0.5 rounded bg-white border border-[#E9EAF0] text-[#777B8A] select-none pointer-events-none">
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-mono px-1.5 py-0.5 rounded bg-white dark:bg-[#131326] border border-[#E9EAF0] dark:border-[#2A2A46] text-[#777B8A] dark:text-[#A6A8C0] select-none pointer-events-none">
                 ⌘K
               </span>
             </div>
@@ -336,7 +340,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
           {filteredNavGroups.map((grp, gIdx) => (
             <div key={gIdx} className="space-y-1">
               {!sidebarCollapsed && (
-                <div className="px-3 pb-1 text-[10px] font-mono font-bold tracking-wider text-[#8F91A3] uppercase">
+                <div className="px-3 pb-1 text-[10px] font-mono font-bold tracking-wider text-[#8F91A3] dark:text-[#73758C] uppercase">
                   {grp.group}
                 </div>
               )}
@@ -358,14 +362,14 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                     title={sidebarCollapsed ? item.label : undefined}
                     className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 ${
                       isItemActive
-                        ? 'bg-gradient-to-r from-[#E9F1FF] to-[#F4F8FF] text-[#3978FF] shadow-xs font-bold border-l-3 border-[#3978FF] pl-2.5'
+                        ? 'bg-gradient-to-r from-[#E9F1FF] to-[#F4F8FF] dark:from-[#25234A] dark:to-[#1E1E38] text-[#3978FF] dark:text-[#9D8BFF] shadow-xs font-bold border-l-3 border-[#3978FF] dark:border-[#7357FF] pl-2.5'
                         : item.highlight
-                        ? 'bg-[#E9E3FF] text-[#7357FF] hover:bg-[#7357FF] hover:text-white'
-                        : 'text-[#65677A] hover:text-[#222438] hover:bg-[#F5F6FA]'
+                        ? 'bg-[#E9E3FF] dark:bg-[#201F3E] text-[#7357FF] dark:text-[#A798FF] hover:bg-[#7357FF] hover:text-white'
+                        : 'text-[#65677A] dark:text-[#A6A8C0] hover:text-[#222438] dark:hover:text-white hover:bg-[#F5F6FA] dark:hover:bg-[#1E1E38]'
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <Icon className={`w-4 h-4 flex-shrink-0 ${isItemActive ? 'text-[#3978FF]' : 'text-[#777B8A]'}`} />
+                      <Icon className={`w-4 h-4 flex-shrink-0 ${isItemActive ? 'text-[#3978FF] dark:text-[#9D8BFF]' : 'text-[#777B8A] dark:text-[#8F91A3]'}`} />
                       {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
                     </div>
 
@@ -373,7 +377,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                         typeof item.badge === 'number'
                           ? 'bg-[#E45D6D] text-white'
-                          : 'bg-[#E9EAF0] text-[#65677A]'
+                          : 'bg-[#E9EAF0] dark:bg-[#2A2A46] text-[#65677A] dark:text-[#A6A8C0]'
                       }`}>
                         {item.badge}
                       </span>
@@ -385,19 +389,64 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
           ))}
         </div>
 
+        {/* ─────────────────────────────────────────────────────────────
+            THEME SELECTOR (White / Black Background Switcher)
+        ───────────────────────────────────────────────────────────── */}
+        <div className="px-3 pt-2 pb-1 border-t border-[#E9EAF0] dark:border-[#202038] flex-shrink-0">
+          {!sidebarCollapsed ? (
+            <div className="flex items-center p-1 rounded-xl bg-[#F0F2F9] dark:bg-[#1A1A32] border border-[#E9EAF0] dark:border-[#2A2A46]">
+              <button
+                type="button"
+                onClick={() => setTheme('light')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  theme === 'light'
+                    ? 'bg-white text-[#17172B] shadow-xs'
+                    : 'text-[#65677A] dark:text-[#A6A8C0] hover:text-[#17172B] dark:hover:text-white'
+                }`}
+                title="Switch to White (Light) Background"
+              >
+                <Sun className="w-3.5 h-3.5 text-amber-500" />
+                <span>White</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme('dark')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  theme === 'dark'
+                    ? 'bg-[#131326] text-white shadow-xs'
+                    : 'text-[#65677A] dark:text-[#A6A8C0] hover:text-[#17172B] dark:hover:text-white'
+                }`}
+                title="Switch to Black (Dark) Background"
+              >
+                <Moon className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Black</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="w-full flex items-center justify-center p-2 rounded-xl text-[#65677A] dark:text-[#A6A8C0] hover:bg-[#F0F2F9] dark:hover:bg-[#1A1A32] cursor-pointer"
+              title={`Currently ${theme === 'light' ? 'White' : 'Black'}. Click to toggle.`}
+            >
+              {theme === 'light' ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-400" />}
+            </button>
+          )}
+        </div>
+
         {/* Authenticated User Profile & Sign Out Footer */}
-        <div className="p-3 border-t border-[#E9EAF0] bg-white flex-shrink-0">
+        <div className="p-3 border-t border-[#E9EAF0] dark:border-[#202038] bg-white dark:bg-[#131326] flex-shrink-0">
           {!sidebarCollapsed ? (
             <div className="space-y-2">
-              <div className="flex items-center gap-2.5 p-2 rounded-xl bg-[#F8F9FC] border border-[#E9EAF0]">
-                <div className="w-8 h-8 rounded-full bg-[#E9E3FF] text-[#7357FF] font-bold text-xs flex items-center justify-center border border-[#7357FF]/20 flex-shrink-0">
+              <div className="flex items-center gap-2.5 p-2 rounded-xl bg-[#F8F9FC] dark:bg-[#1A1A32] border border-[#E9EAF0] dark:border-[#252545]">
+                <div className="w-8 h-8 rounded-full bg-[#E9E3FF] dark:bg-[#2A2356] text-[#7357FF] dark:text-[#A798FF] font-bold text-xs flex items-center justify-center border border-[#7357FF]/20 flex-shrink-0">
                   {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-bold text-[#222438] truncate leading-tight">
+                  <div className="text-xs font-bold text-[#222438] dark:text-white truncate leading-tight">
                     {user?.name || 'NexusCraft User'}
                   </div>
-                  <div className="text-[10px] text-[#777B8A] font-semibold truncate capitalize leading-tight">
+                  <div className="text-[10px] text-[#777B8A] dark:text-[#A6A8C0] font-semibold truncate capitalize leading-tight">
                     {user?.role === 'admin' ? 'Administrator' : user?.role === 'freelancer' ? 'Specialist' : 'Client'}
                   </div>
                 </div>
@@ -407,7 +456,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
               <button
                 onClick={handleLogout}
                 type="button"
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold text-[#E45D6D] bg-rose-50 hover:bg-rose-100 hover:text-rose-700 transition-colors cursor-pointer"
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold text-[#E45D6D] bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/40 hover:text-rose-700 transition-colors cursor-pointer"
                 title="Sign Out of NexusCraft"
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -416,19 +465,19 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-[#E9E3FF] text-[#7357FF] font-bold text-xs flex items-center justify-center border border-[#7357FF]/20" title={user?.name || 'User'}>
+              <div className="w-8 h-8 rounded-full bg-[#E9E3FF] dark:bg-[#2A2356] text-[#7357FF] dark:text-[#A798FF] font-bold text-xs flex items-center justify-center border border-[#7357FF]/20" title={user?.name || 'User'}>
                 {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
               </div>
               <button
                 onClick={handleLogout}
-                className="p-2 rounded-xl text-[#E45D6D] hover:bg-rose-50 transition-colors"
+                className="p-2 rounded-xl text-[#E45D6D] hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                 title="Sign Out"
               >
                 <LogOut className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setSidebarCollapsed(false)}
-                className="p-1.5 text-[#8F91A3] hover:text-[#222438] transition-colors"
+                className="p-1.5 text-[#8F91A3] hover:text-[#222438] dark:hover:text-white transition-colors cursor-pointer"
                 title="Expand Sidebar"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -444,11 +493,11 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       <div className="flex-1 flex flex-col min-w-0">
         
         {/* Mobile-Only Minimal Header Bar (Hidden on desktop: lg:hidden) */}
-        <div className="lg:hidden h-14 bg-white border-b border-[#E9EAF0] px-4 flex items-center justify-between z-20 flex-shrink-0">
+        <div className="lg:hidden h-14 bg-white dark:bg-[#131326] border-b border-[#E9EAF0] dark:border-[#202038] px-4 flex items-center justify-between z-20 flex-shrink-0">
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => setMobileDrawerOpen(true)}
-              className="p-1.5 rounded-xl text-[#222438] hover:bg-[#F5F6FA]"
+              className="p-1.5 rounded-xl text-[#222438] dark:text-white hover:bg-[#F5F6FA] dark:hover:bg-[#1E1E38]"
               aria-label="Open navigation menu"
             >
               <Menu className="w-5 h-5" />
@@ -457,14 +506,21 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
               <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#7357FF] to-[#3978FF] text-white flex items-center justify-center font-black text-xs">
                 N
               </div>
-              <span className="font-extrabold text-sm text-[#222438]">NexusCraft</span>
+              <span className="font-extrabold text-sm text-[#222438] dark:text-white">NexusCraft</span>
             </NavLink>
           </div>
 
           <div className="flex items-center gap-1.5">
             <button
+              onClick={toggleTheme}
+              className="p-2 text-[#65677A] dark:text-[#A6A8C0] hover:text-[#222438] dark:hover:text-white"
+              title={`Switch to ${theme === 'light' ? 'Black' : 'White'} mode`}
+            >
+              {theme === 'light' ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
+            </button>
+            <button
               onClick={() => navigate('/notifications')}
-              className="relative p-2 text-[#65677A] hover:text-[#222438]"
+              className="relative p-2 text-[#65677A] dark:text-[#A6A8C0] hover:text-[#222438] dark:hover:text-white"
               title="Notifications"
             >
               <Bell className="w-4 h-4" />
@@ -472,7 +528,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             </button>
             <button
               onClick={handleLogout}
-              className="p-2 text-[#777B8A] hover:text-[#E45D6D]"
+              className="p-2 text-[#777B8A] dark:text-[#A6A8C0] hover:text-[#E45D6D]"
               title="Sign Out"
             >
               <LogOut className="w-4 h-4" />
@@ -481,7 +537,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         </div>
 
         {/* Main Dashboard Content - Starts Directly at Top of Viewport */}
-        <main className="flex-1 w-full bg-[#F4F5F9] p-5 sm:p-7 lg:p-8 min-w-0 overflow-y-auto">
+        <main className="flex-1 w-full bg-[#F4F5F9] dark:bg-[#0F0F1D] p-5 sm:p-7 lg:p-8 min-w-0 overflow-y-auto transition-colors duration-150">
           {children}
         </main>
       </div>
@@ -493,26 +549,26 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         <div className="fixed inset-0 z-50 lg:hidden flex">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
             onClick={() => setMobileDrawerOpen(false)}
           />
 
           {/* Drawer content */}
-          <div className="relative w-72 bg-white h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-250">
+          <div className="relative w-72 bg-white dark:bg-[#131326] h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-250 border-r border-[#E9EAF0] dark:border-[#202038]">
             {/* Header */}
-            <div className="h-16 px-5 flex items-center justify-between border-b border-[#E9EAF0]">
+            <div className="h-16 px-5 flex items-center justify-between border-b border-[#E9EAF0] dark:border-[#202038]">
               <NavLink to="/" className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#7357FF] to-[#3978FF] text-white flex items-center justify-center font-black text-sm">
                   N
                 </div>
                 <div>
-                  <span className="font-extrabold text-sm text-[#222438]">NexusCraft</span>
-                  <span className="text-[9px] font-bold text-[#777B8A] block -mt-0.5 uppercase">{currentRoleLabel}</span>
+                  <span className="font-extrabold text-sm text-[#222438] dark:text-white">NexusCraft</span>
+                  <span className="text-[9px] font-bold text-[#777B8A] dark:text-[#A6A8C0] block -mt-0.5 uppercase">{currentRoleLabel}</span>
                 </div>
               </NavLink>
               <button
                 onClick={() => setMobileDrawerOpen(false)}
-                className="p-1.5 rounded-lg text-[#65677A] hover:bg-[#F5F6FA]"
+                className="p-1.5 rounded-lg text-[#65677A] dark:text-[#A6A8C0] hover:bg-[#F5F6FA] dark:hover:bg-[#1E1E38] cursor-pointer"
               >
                 ✕
               </button>
@@ -522,7 +578,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             <div className="flex-1 py-4 px-3 space-y-4 overflow-y-auto">
               {currentNavGroups.map((grp, gIdx) => (
                 <div key={gIdx} className="space-y-1">
-                  <div className="px-3 pb-1 text-[10px] font-mono font-bold tracking-wider text-[#8F91A3] uppercase">
+                  <div className="px-3 pb-1 text-[10px] font-mono font-bold tracking-wider text-[#8F91A3] dark:text-[#73758C] uppercase">
                     {grp.group}
                   </div>
                   {grp.items.map((item: any, iIdx) => {
@@ -540,10 +596,11 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                       <NavLink
                         key={iIdx}
                         to={item.path}
+                        onClick={() => setMobileDrawerOpen(false)}
                         className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold ${
                           isItemActive
-                            ? 'bg-[#E9F1FF] text-[#3978FF]'
-                            : 'text-[#65677A] hover:bg-[#F5F6FA]'
+                            ? 'bg-[#E9F1FF] dark:bg-[#25234A] text-[#3978FF] dark:text-[#9D8BFF] font-bold'
+                            : 'text-[#65677A] dark:text-[#A6A8C0] hover:bg-[#F5F6FA] dark:hover:bg-[#1E1E38]'
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -557,11 +614,34 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
               ))}
             </div>
 
-            {/* Logout footer */}
-            <div className="p-3 border-t border-[#E9EAF0]">
+            {/* Mobile Drawer Theme Selector & Logout */}
+            <div className="p-3 border-t border-[#E9EAF0] dark:border-[#202038] space-y-2">
+              <div className="flex items-center p-1 rounded-xl bg-[#F0F2F9] dark:bg-[#1A1A32] border border-[#E9EAF0] dark:border-[#2A2A46]">
+                <button
+                  type="button"
+                  onClick={() => setTheme('light')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    theme === 'light' ? 'bg-white text-[#17172B] shadow-xs' : 'text-[#65677A] dark:text-[#A6A8C0]'
+                  }`}
+                >
+                  <Sun className="w-3.5 h-3.5 text-amber-500" />
+                  <span>White</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTheme('dark')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    theme === 'dark' ? 'bg-[#131326] text-white shadow-xs' : 'text-[#65677A] dark:text-[#A6A8C0]'
+                  }`}
+                >
+                  <Moon className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Black</span>
+                </button>
+              </div>
+
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-[#E45D6D] bg-rose-50 rounded-xl"
+                className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-[#E45D6D] bg-rose-50 dark:bg-rose-950/30 rounded-xl cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Sign Out</span>

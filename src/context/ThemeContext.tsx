@@ -15,8 +15,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const saved = localStorage.getItem('nexuscraft_theme');
       if (saved === 'dark' || saved === 'light') return saved;
-      // Default to light theme as requested
-      return 'light';
+      return 'light'; // Default to clean white/light theme
     } catch {
       return 'light';
     }
@@ -27,9 +26,13 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (theme === 'dark') {
       root.classList.add('dark');
       root.classList.remove('light');
+      document.body.style.backgroundColor = '#0F0F1D';
+      document.body.style.color = '#F7F8FC';
     } else {
       root.classList.add('light');
       root.classList.remove('dark');
+      document.body.style.backgroundColor = '#F7F8FC';
+      document.body.style.color = '#17172B';
     }
     try {
       localStorage.setItem('nexuscraft_theme', theme);

@@ -3,14 +3,29 @@
  * Connects frontend directly to Express/MongoDB backend.
  */
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+const getApiBase = () => {
+  const envUrl = (import.meta as any).env?.VITE_API_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
+    return envUrl.trim().replace(/\/$/, '');
+  }
+  // In production (Render, Vercel, or unified port), use current host's /api
+  if (typeof window !== 'undefined') {
+    const port = window.location.port;
+    if (port !== '5173' && port !== '5174') {
+      return `${window.location.origin}/api`;
+    }
+  }
+  return 'http://localhost:5000/api';
+};
+
+const API_BASE = getApiBase();
 
 export const api = {
   // Document Download URL Helper
   getDocumentDownloadUrl(storagePath?: string | null) {
     if (!storagePath) return '';
     if (storagePath.startsWith('http://') || storagePath.startsWith('https://')) return storagePath;
-    const base = (import.meta as any).env?.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    const base = API_BASE.replace(/\/api$/, '');
     return `${base}${storagePath.startsWith('/') ? '' : '/'}${storagePath}`;
   },
 
