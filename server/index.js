@@ -47,6 +47,9 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config();
 
+// Prevent 10,000ms buffering hang if database is reconnecting
+mongoose.set('bufferTimeoutMS', 3000);
+
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
