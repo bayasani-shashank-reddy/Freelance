@@ -1634,5 +1634,343 @@ export const api = {
     } catch (err: any) {
       return { success: false, error: err.message };
     }
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // Document Requirements & Templates System
+  // ─────────────────────────────────────────────────────────────
+  async getDocumentTemplates(params?: { category?: string; search?: string }) {
+    try {
+      const q = new URLSearchParams();
+      if (params?.category) q.set('category', params.category);
+      if (params?.search) q.set('search', params.search);
+      const res = await fetch(`${API_BASE}/document-requirements/templates?${q.toString()}`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async createDocumentTemplate(payload: any) {
+    try {
+      const res = await fetch(`${API_BASE}/document-requirements/templates`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async updateDocumentTemplate(id: string, payload: any) {
+    try {
+      const res = await fetch(`${API_BASE}/document-requirements/templates/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async duplicateDocumentTemplate(id: string, createdBy = 'Admin') {
+    try {
+      const res = await fetch(`${API_BASE}/document-requirements/templates/${id}/duplicate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ createdBy })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async deleteDocumentTemplate(id: string) {
+    try {
+      const res = await fetch(`${API_BASE}/document-requirements/templates/${id}`, { method: 'DELETE' });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async assignTemplateToProjects(templateId: string, projectIds: string[], assignedBy = 'Admin') {
+    try {
+      const res = await fetch(`${API_BASE}/document-requirements/templates/${templateId}/assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectIds, assignedBy })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Document Requirements Builder & Management
+  async getDocumentRequirements(params?: { projectId?: string; clientId?: string; status?: string; stage?: string; category?: string; search?: string; submissionStatus?: string }) {
+    try {
+      const q = new URLSearchParams();
+      if (params?.projectId) q.set('projectId', params.projectId);
+      if (params?.clientId) q.set('clientId', params.clientId);
+      if (params?.status) q.set('status', params.status);
+      if (params?.stage) q.set('stage', params.stage);
+      if (params?.category) q.set('category', params.category);
+      if (params?.submissionStatus) q.set('submissionStatus', params.submissionStatus);
+      if (params?.search) q.set('search', params.search);
+      const res = await fetch(`${API_BASE}/document-requirements/requirements?${q.toString()}`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async createDocumentRequirement(payload: any) {
+    try {
+      const res = await fetch(`${API_BASE}/document-requirements/requirements`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async updateDocumentRequirement(id: string, payload: any) {
+    try {
+      const res = await fetch(`${API_BASE}/document-requirements/requirements/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async deleteDocumentRequirement(id: string, actorName = 'Admin') {
+    try {
+      const res = await fetch(`${API_BASE}/document-requirements/requirements/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actorName })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async duplicateDocumentRequirement(id: string) {
+    try {
+      const res = await fetch(`${API_BASE}/document-requirements/requirements/${id}/duplicate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async sendDocumentReminder(id: string, actorName = 'Admin') {
+    try {
+      const res = await fetch(`${API_BASE}/document-requirements/requirements/${id}/remind`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actorName })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Client Document Portal
+  async getClientDocumentRequirements(clientId: string, projectId?: string) {
+    try {
+      const q = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+      const res = await fetch(`${API_BASE}/document-requirements/client/${encodeURIComponent(clientId)}${q}`);
+      return await res.json();
+    } catch {
+      return { metrics: { total: 0, submitted: 0, approved: 0, pending: 0, revision: 0, rejected: 0, overdue: 0, completionPercent: 0 }, requirements: [] };
+    }
+  },
+
+  async uploadClientDocumentSubmission(formData: FormData) {
+    try {
+      const res = await fetch(`${API_BASE}/document-requirements/upload-submission`, {
+        method: 'POST',
+        body: formData
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async getDocumentSubmissionHistory(requirementId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/document-requirements/submissions/${encodeURIComponent(requirementId)}/history`);
+      return await res.json();
+    } catch {
+      return { versions: [], currentVersionNumber: 0, status: 'Not Submitted' };
+    }
+  },
+
+  // Admin Review Workspace
+  async getDocumentReviews(params?: { status?: string; projectId?: string; search?: string }) {
+    try {
+      const q = new URLSearchParams();
+      if (params?.status) q.set('status', params.status);
+      if (params?.projectId) q.set('projectId', params.projectId);
+      if (params?.search) q.set('search', params.search);
+      const res = await fetch(`${API_BASE}/document-requirements/reviews?${q.toString()}`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async approveDocumentReview(id: string, payload: { reviewerId?: string; reviewerName?: string; internalNotes?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/document-requirements/reviews/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async requestDocumentRevision(id: string, payload: { reason: string; instructions: string; revisionDeadline?: string | null; internalNotes?: string; reviewerId?: string; reviewerName?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/document-requirements/reviews/${id}/request-revision`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async rejectDocumentReview(id: string, payload: { reason: string; instructions?: string; internalNotes?: string; reviewerId?: string; reviewerName?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/document-requirements/reviews/${id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Compliance Telemetry & CSV
+  async getDocumentComplianceOverview() {
+    try {
+      const res = await fetch(`${API_BASE}/document-requirements/compliance/overview`);
+      return await res.json();
+    } catch {
+      return { summary: {}, projects: [] };
+    }
+  },
+
+  getDocumentComplianceExportUrl() {
+    return `${API_BASE}/document-requirements/compliance/export-csv`;
+  },
+
+  // Sub-Admins Management & Audit Logs
+  async getSubAdmins(params?: { department?: string; role?: string; status?: string; search?: string }) {
+    try {
+      const q = new URLSearchParams();
+      if (params?.department) q.set('department', params.department);
+      if (params?.role) q.set('role', params.role);
+      if (params?.status) q.set('status', params.status);
+      if (params?.search) q.set('search', params.search);
+      const res = await fetch(`${API_BASE}/sub-admins?${q.toString()}`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async createSubAdmin(payload: any) {
+    try {
+      const res = await fetch(`${API_BASE}/sub-admins`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async updateSubAdminPermissions(id: string, payload: any) {
+    try {
+      const res = await fetch(`${API_BASE}/sub-admins/${id}/permissions`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async toggleSubAdminStatus(id: string, status: string, actorName = 'Super Admin') {
+    try {
+      const res = await fetch(`${API_BASE}/sub-admins/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, actorName })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async deleteSubAdmin(id: string, actorName = 'Super Admin') {
+    try {
+      const res = await fetch(`${API_BASE}/sub-admins/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actorName })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async getAdminActivityLogs(params?: { action?: string; resourceType?: string; search?: string; limit?: number }) {
+    try {
+      const q = new URLSearchParams();
+      if (params?.action) q.set('action', params.action);
+      if (params?.resourceType) q.set('resourceType', params.resourceType);
+      if (params?.search) q.set('search', params.search);
+      if (params?.limit) q.set('limit', String(params.limit));
+      const res = await fetch(`${API_BASE}/sub-admins/logs/activity?${q.toString()}`);
+      return await res.json();
+    } catch {
+      return [];
+    }
   }
 };

@@ -151,6 +151,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       items: [
         { label: 'Clients', path: '/admin/clients', icon: Users, tab: 'clients' },
         { label: 'Freelancers', path: '/admin/freelancers', icon: UserCheck, tab: 'freelancers' },
+        { label: 'Sub-Admins & RBAC', path: '/admin/sub-admins', icon: ShieldCheck, tab: 'sub-admins' },
       ],
     },
     {
@@ -163,13 +164,14 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
     {
       group: 'DOCUMENTS & DELIVERY',
       items: [
-        { label: 'Document Studio', path: '/admin/document-studio', icon: FileText, tab: 'document-studio' },
+        { label: 'Document Requirements', path: '/admin/document-requirements', icon: FileText, tab: 'document-management' },
         { label: 'ZIP Deliverables', path: '/admin/deliverables', icon: PackageCheck, tab: 'deliverables' },
       ],
     },
     {
       group: 'SYSTEM & AUDIT',
       items: [
+        { label: 'Compliance Telemetry', path: '/admin/compliance', icon: CheckCircle2, tab: 'compliance' },
         { label: 'Notifications', path: '/notifications', icon: Bell, badge: unreadCount > 0 ? unreadCount : undefined },
         { label: 'Audit Logs', path: '/admin/audit-logs', icon: ShieldCheck, tab: 'audit' },
         { label: 'Admin Tasks', path: '/admin/tasks', icon: CheckSquare, tab: 'tasks' },
@@ -186,7 +188,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         { label: 'Overview', path: '/client/dashboard', icon: LayoutDashboard, tab: 'overview' },
         { label: 'Idea Vault', path: '/client/vault', icon: Bookmark, tab: 'vault' },
         { label: 'My Projects', path: '/client/projects', icon: Briefcase, tab: 'workspace' },
-        { label: 'Documents & Files', path: '/client/documents', icon: FileText, tab: 'documents' },
+        { label: 'Documents & Requirements', path: '/client/documents', icon: FileText, tab: 'documents' },
         { label: 'Clarifications', path: '/client/clarifications', icon: CheckSquare, tab: 'clarifications' },
         { label: 'Project Exports', path: '/client/exports', icon: Archive, tab: 'exports' },
         { label: 'AI Idea Assistant', path: '/client/ai-assistant', icon: Bot, tab: 'ai-assistant' },

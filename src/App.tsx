@@ -108,7 +108,10 @@ function App() {
                 <Route path="/admin/freelancers" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="freelancers" /></RequireRole>} />
                 <Route path="/admin/ai-intelligence" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="ai-intelligence" /></RequireRole>} />
                 <Route path="/admin/cost-intelligence" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="cost-intelligence" /></RequireRole>} />
-                <Route path="/admin/document-studio" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="document-studio" /></RequireRole>} />
+                <Route path="/admin/document-studio" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="document-management" /></RequireRole>} />
+                <Route path="/admin/document-requirements" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="document-management" /></RequireRole>} />
+                <Route path="/admin/sub-admins" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="sub-admins" /></RequireRole>} />
+                <Route path="/admin/compliance" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="compliance" /></RequireRole>} />
                 <Route path="/admin/deliverables" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="deliverables" /></RequireRole>} />
                 <Route path="/admin/audit-logs" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="audit" /></RequireRole>} />
                 <Route path="/admin/audit" element={<Navigate to="/admin/audit-logs" replace />} />

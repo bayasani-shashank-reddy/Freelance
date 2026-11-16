@@ -158,48 +158,55 @@ export const Navbar: React.FC = () => {
                   <ChevronDown className={`w-3.5 h-3.5 text-[#8F91A3] transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
 
-                {/* Dropdown Menu */}
+                {/* Dropdown Menu (Aurora University Style) */}
                 {profileMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="p-3 border-b border-[#F0F2F9] dark:border-[#202038]">
-                      <div className="font-bold text-xs text-[#17172B] dark:text-white truncate">
-                        {user?.name || 'User'}
+                  <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-2">
+                    {/* Aurora-style User Card Header */}
+                    <div className="flex items-center gap-3 pb-3 border-b border-[#F0F2F9] dark:border-[#202038]">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#7357FF] to-[#3978FF] text-white flex items-center justify-center font-bold text-sm flex-shrink-0 shadow-sm overflow-hidden">
+                        {user?.avatar ? (
+                          <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                        ) : (
+                          user?.name ? user.name.charAt(0).toUpperCase() : 'U'
+                        )}
                       </div>
-                      <div className="text-[10px] text-[#8F91A3] truncate mt-0.5">{user?.email}</div>
-                      <div className="mt-1.5">
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-[#EEE9FF] dark:bg-[#252445] text-[#7357FF] uppercase">
-                          {user?.role || 'client'}
-                        </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-xs text-[#17172B] dark:text-white truncate">
+                          {user?.name || 'NexusCraft Member'}
+                        </div>
+                        <div className="text-[11px] text-[#8F91A3] capitalize mt-0.5">
+                          {user?.role === 'admin' ? 'Administrator' : user?.role === 'freelancer' ? 'Specialist' : 'Client'}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="py-1">
-                      <button
-                        type="button"
-                        onClick={() => { setProfileMenuOpen(false); navigate(dashboardRoute); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[#17172B] dark:text-white hover:bg-[#F5F6FA] dark:hover:bg-[#1E1E38] transition-colors cursor-pointer text-left"
-                      >
-                        <LayoutDashboard className="w-3.5 h-3.5 text-[#7357FF]" />
-                        <span>Workspace Dashboard</span>
-                      </button>
-
+                    <div className="py-1 space-y-1">
                       <button
                         type="button"
                         onClick={() => { setProfileMenuOpen(false); navigate('/settings'); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[#17172B] dark:text-white hover:bg-[#F5F6FA] dark:hover:bg-[#1E1E38] transition-colors cursor-pointer text-left"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#17172B] dark:text-white hover:bg-[#F5F6FA] dark:hover:bg-[#1E1E38] transition-colors cursor-pointer text-left"
                       >
-                        <UserIcon className="w-3.5 h-3.5 text-[#3978FF]" />
-                        <span>My Profile & Settings</span>
+                        <UserIcon className="w-4 h-4 text-[#65677A] dark:text-[#A6A8C0]" />
+                        <span>My Profile</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => { setProfileMenuOpen(false); navigate(dashboardRoute); }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#17172B] dark:text-white hover:bg-[#F5F6FA] dark:hover:bg-[#1E1E38] transition-colors cursor-pointer text-left"
+                      >
+                        <LayoutDashboard className="w-4 h-4 text-[#65677A] dark:text-[#A6A8C0]" />
+                        <span>Workspace</span>
                       </button>
                     </div>
 
-                    <div className="pt-1 border-t border-[#F0F2F9] dark:border-[#202038]">
+                    <div className="pt-2 border-t border-[#F0F2F9] dark:border-[#202038]">
                       <button
                         type="button"
                         onClick={() => { setProfileMenuOpen(false); handleSignOut(); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer text-left"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#65677A] dark:text-[#A6A8C0] hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer text-left"
                       >
-                        <LogOut className="w-3.5 h-3.5 text-red-500" />
+                        <LogOut className="w-4 h-4" />
                         <span>Sign out</span>
                       </button>
                     </div>

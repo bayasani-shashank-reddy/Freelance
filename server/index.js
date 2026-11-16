@@ -36,6 +36,8 @@ import { settingRouter } from './routes/settingRoutes.js';
 import { wireframeRouter } from './routes/wireframeRoutes.js';
 import { invoiceRouter } from './routes/invoiceRoutes.js';
 import { skillRouter } from './routes/skillRoutes.js';
+import { documentRequirementRouter } from './routes/documentRequirementRoutes.js';
+import { subAdminRouter } from './routes/subAdminRoutes.js';
 
 // Models
 import { User } from './models/User.js';
@@ -228,6 +230,8 @@ app.use('/api/settings', settingRouter);
 app.use('/api/wireframes', wireframeRouter);
 app.use('/api/invoices', invoiceRouter);
 app.use('/api/skills', skillRouter);
+app.use('/api/document-requirements', documentRequirementRouter);
+app.use('/api/sub-admins', subAdminRouter);
 
 // Health check route
 app.get('/api/health', (req, res) => {

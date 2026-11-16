@@ -40,6 +40,7 @@ import { exportBlueprintToPdf, exportBlueprintToDocx } from '../../lib/documentE
 import { useUser } from '../../context/UserContext';
 import { BoxedButton } from '../../components/shared/BoxedButton';
 import { api } from '../../lib/api';
+import { ClientDocumentRequirementsPortal } from '../../components/client/ClientDocumentRequirementsPortal';
 import type { IdeaDraft, ProjectBlueprint, ClarificationItem, CostEstimate, DeliverableSubmissionItem } from '../../types';
 import confetti from 'canvas-confetti';
 
@@ -2131,6 +2132,9 @@ ${bp?.suggestedTechnologies?.map((t: any) => `- ${t}`).join('\n') || 'N/A'}
       ───────────────────────────────────────────────────────────── */}
       {activeTab === 'documents' && (
         <div className="space-y-6">
+          {/* Dynamic Document Requirement Management & Client Submission Portal */}
+          <ClientDocumentRequirementsPortal />
+
           <div className="p-6 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-6">
             <div className="flex items-center justify-between pb-4 border-b border-[#E8EAF4] dark:border-[#2A2A46]">
               <div>

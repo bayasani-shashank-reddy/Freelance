@@ -36,6 +36,8 @@ import { AdminAttentionQueue } from '../../components/admin/AdminAttentionQueue'
 import { AdminQuickActionDrawer } from '../../components/admin/AdminQuickActionDrawer';
 import { NexusSlaRadar } from '../../components/admin/NexusSlaRadar';
 import { ScopeChangeAnalyzerModal } from '../../components/admin/ScopeChangeAnalyzerModal';
+import { AdminDocumentManagementSuite } from '../../components/admin/AdminDocumentManagementSuite';
+import { AdminSubAdminManagementSuite } from '../../components/admin/AdminSubAdminManagementSuite';
 import type {
   FeasibilityAssessmentItem,
   FreelancerQuotationItem,
@@ -54,7 +56,10 @@ type AdminModuleTab =
   | 'clarifications'
   | 'freelancers'
   | 'clients'
-  | 'audit';
+  | 'audit'
+  | 'document-management'
+  | 'sub-admins'
+  | 'compliance';
 
 interface AdminDashboardPageProps {
   view?: string;
@@ -113,6 +118,18 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
       setActiveTab('audit');
       return;
     }
+    if (view === 'document-management' || path === '/admin/document-requirements' || path === '/admin/document-studio' || path === '/admin/document-management') {
+      setActiveTab('document-management');
+      return;
+    }
+    if (view === 'sub-admins' || path === '/admin/sub-admins' || path === '/admin/permissions') {
+      setActiveTab('sub-admins');
+      return;
+    }
+    if (view === 'compliance' || path === '/admin/compliance') {
+      setActiveTab('compliance');
+      return;
+    }
     if (view === 'clarifications' || path === '/admin/clarifications') {
       setActiveTab('clarifications');
       return;
@@ -127,9 +144,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
       view === 'tasks' ||
       path === '/admin/tasks' ||
       view === 'ai-intelligence' ||
-      path === '/admin/ai-intelligence' ||
-      view === 'document-studio' ||
-      path === '/admin/document-studio'
+      path === '/admin/ai-intelligence'
     ) {
       setActiveTab('intake');
       return;
@@ -141,11 +156,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
 
     const tabParam = searchParams.get('tab');
     if (tabParam) {
-      if (['overview', 'intake', 'cost-intelligence', 'deliverables', 'assessments-quotes', 'clarifications', 'freelancers', 'clients', 'audit'].includes(tabParam)) {
+      if (['overview', 'intake', 'cost-intelligence', 'deliverables', 'assessments-quotes', 'clarifications', 'freelancers', 'clients', 'audit', 'document-management', 'sub-admins', 'compliance'].includes(tabParam)) {
         setActiveTab(tabParam as AdminModuleTab);
       } else if (tabParam === 'analytics') {
         setActiveTab('overview');
-      } else if (tabParam === 'assignments' || tabParam === 'tasks' || tabParam === 'ai-intelligence' || tabParam === 'document-studio') {
+      } else if (tabParam === 'assignments' || tabParam === 'tasks' || tabParam === 'ai-intelligence') {
         setActiveTab('intake');
       }
     }
@@ -2359,6 +2374,27 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
             </table>
           </div>
         </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODULE 9: DYNAMIC DOCUMENT REQUIREMENT MANAGEMENT & REVIEW
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'document-management' && (
+        <AdminDocumentManagementSuite />
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODULE 10: SUB-ADMIN MANAGEMENT & GRANULAR RBAC
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'sub-admins' && (
+        <AdminSubAdminManagementSuite />
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODULE 11: COMPLIANCE TELEMETRY
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'compliance' && (
+        <AdminDocumentManagementSuite />
       )}
 
       {/* ─────────────────────────────────────────────────────────────
