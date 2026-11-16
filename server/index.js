@@ -154,6 +154,49 @@ app.use((req, res, next) => {
 const uploadsDir = path.join(__dirname, 'uploads');
 app.use('/uploads', express.static(uploadsDir));
 
+// 8. Database Readiness Guard & Auto-Reconnect
+let isConnecting = false;
+const connectWithRetry = async () => {
+  if (mongoose.connection.readyState === 1 || isConnecting) return;
+  isConnecting = true;
+  console.log(`📡 Connecting to MongoDB at: ${MONGODB_URI}`);
+  try {
+    await mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 10000,
+    });
+    console.log('🚀 MongoDB connected successfully!');
+    isConnecting = false;
+  } catch (err) {
+    console.error('⚠️ MongoDB connection notice:', err.message);
+    isConnecting = false;
+    console.log('ℹ️ Retrying MongoDB connection in 5 seconds...');
+    setTimeout(connectWithRetry, 5000);
+  }
+};
+
+mongoose.connection.on('disconnected', () => {
+  console.warn('⚠️ MongoDB disconnected. Attempting auto-reconnect...');
+  setTimeout(connectWithRetry, 3000);
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('⚠️ MongoDB connection error:', err.message);
+});
+
+// Middleware: Prevent unhandled 10,000ms command buffering if DB is reconnecting
+app.use('/api', (req, res, next) => {
+  if (req.path === '/health') return next();
+  if (mongoose.connection.readyState !== 1) {
+    connectWithRetry();
+    return res.status(503).json({
+      error: 'Database is establishing connection to cloud cluster. Please retry in a few moments.',
+      code: 'DATABASE_INITIALIZING'
+    });
+  }
+  next();
+});
+
 // 8. Primary REST Routes
 app.use('/api/auth', authRouter);
 app.use('/api/projects', projectRouter);
@@ -206,14 +249,7 @@ if (fs.existsSync(distDir)) {
 
 // Connect to MongoDB & Start Server
 const startServer = async () => {
-  try {
-    console.log(`📡 Connecting to MongoDB at: ${MONGODB_URI}`);
-    await mongoose.connect(MONGODB_URI);
-    console.log('🚀 MongoDB connected successfully!');
-  } catch (err) {
-    console.error('⚠️ MongoDB connection notice:', err.message);
-    console.log('ℹ️ Server will continue running and retry connection automatically.');
-  }
+  await connectWithRetry();
 
   server.listen(PORT, () => {
     console.log(`🌐 NexusCraft Express API Server running with Socket.IO at http://localhost:${PORT}`);
