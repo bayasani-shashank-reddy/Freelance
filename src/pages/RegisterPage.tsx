@@ -1,46 +1,44 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Mail, Lock, User as UserIcon, ArrowRight, Briefcase, Code, Clock, CheckCircle2, ShieldCheck } from 'lucide-react';
-import type { ViewMode, User, UserRole } from '../types';
-import { useUser, NEW_USER_CREDITS } from '../context/UserContext';
-import { useNavigate, Link } from 'react-router-dom';
-import { NcxCoinIcon, NcxCreditBadge } from '../components/NcxCredit';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { ArrowRight, AlertCircle, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { useUser } from '../context/UserContext';
+import { BoxedButton } from '../components/shared/BoxedButton';
+import confetti from 'canvas-confetti';
 
-const MotionDiv = motion.div as any;
-
-interface RegisterPageProps {
-  onNavigate?: (view: ViewMode) => void;
-  onLogin?: (user: User) => void;
-}
-
-export const RegisterPage: React.FC<RegisterPageProps> = () => {
+export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { registerUser } = useUser();
 
-  const [step, setStep] = useState<1 | 2>(1);
-  const [role, setRole] = useState<UserRole>('client');
+  const queryParams = new URLSearchParams(location.search);
+  const redirectTarget = queryParams.get('redirect');
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    countryCode: '+1',
+    phone: '',
+    company: '',
     password: '',
-    confirmPassword: '',
+    confirmPassword: ''
   });
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pendingNotice, setPendingNotice] = useState(false);
-  const [registeredName, setRegisteredName] = useState('');
 
-  const handleNextStep = (selectedRole: UserRole) => {
-    setRole(selectedRole);
-    setStep(2);
-  };
-
-  const handleRegister = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     if (!formData.name.trim() || !formData.email.trim() || !formData.password.trim()) {
-      setError('Please fill out all required fields.');
+      setError('Name, email, and password are required.');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters.');
       return;
     }
 
@@ -49,251 +47,207 @@ export const RegisterPage: React.FC<RegisterPageProps> = () => {
       return;
     }
 
-    const mockUser: User = {
-      id: `usr-${Date.now()}`,
+    setSubmitting(true);
+    const fullPhone = formData.phone ? `${formData.countryCode} ${formData.phone.trim()}` : '';
+
+    const res = await registerUser({
       name: formData.name.trim(),
       email: formData.email.trim(),
+      phone: fullPhone,
+      countryCode: formData.countryCode,
       password: formData.password,
-      role: role,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-      balance: 0,
-      escrowBalance: 0,
-      credits: role === 'client' ? NEW_USER_CREDITS : 0,
-      approvalStatus: role === 'freelancer' ? 'pending' : 'approved',
-    };
+      company: formData.company.trim()
+    });
 
-    const res = registerUser(mockUser);
-    if (res.requiresApproval) {
-      setRegisteredName(formData.name);
-      setPendingNotice(true);
+    setSubmitting(false);
+
+    if (res.success) {
+      confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+      if (redirectTarget) {
+        navigate(redirectTarget);
+      } else {
+        navigate('/client/dashboard');
+      }
     } else {
-      navigate('/client/dashboard');
+      setError(res.error || 'Registration failed. Please check your information.');
     }
   };
 
-
-  if (pendingNotice) {
-    return (
-      <div className="min-h-screen pt-28 pb-20 flex items-center justify-center bg-slate-950 p-4">
-        <div className="max-w-md w-full glass-card border border-cyan-500/40 p-8 rounded-3xl text-center space-y-6 bg-slate-900/95 text-slate-200 shadow-2xl">
-          <div className="w-16 h-16 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto border border-cyan-500/40">
-            <Clock className="w-8 h-8 animate-pulse" />
-          </div>
-
-          <h2 className="text-2xl font-extrabold text-white">Freelancer Application Registered!</h2>
-          <p className="text-slate-300 text-xs leading-relaxed">
-            Your freelancer profile has been submitted and is currently <strong className="text-cyan-300">Pending Admin Review & Approval</strong>. Once approved by the Platform Admin, you can log in to view opportunities and submit proposals.
-          </p>
-
-          <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-left text-xs space-y-2 font-mono">
-            <div className="flex justify-between">
-              <span className="text-slate-400">APPLICANT NAME:</span>
-              <span className="text-white font-bold">{registeredName}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-400">EMAIL:</span>
-              <span className="text-cyan-300">{formData.email}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-400">APPROVAL STATUS:</span>
-              <span className="text-amber-400 font-bold">● PENDING ADMIN REVIEW</span>
-            </div>
-          </div>
-
-          <button
-            onClick={() => navigate('/')}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-500 text-white font-bold text-xs shadow-lg"
-          >
-            Return to Home Page
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen pt-28 pb-20 bg-slate-950 flex items-center justify-center p-4 text-slate-200">
-      <MotionDiv
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-xl glass-card border border-slate-800 p-8 rounded-3xl space-y-6 shadow-2xl bg-slate-900/95"
-      >
+    <div className="min-h-[90vh] flex items-center justify-center p-4">
+      <div className="w-full max-w-lg p-8 sm:p-10 rounded-3xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-xl space-y-6">
+        
+        {/* Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-            <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
-            <span>NEXUSCRAFT ONBOARDING</span>
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#7357FF] to-[#3978FF] text-white font-black text-xl flex items-center justify-center mx-auto shadow-sm shadow-[#7357FF]/30">
+            N
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
-            {step === 1 ? 'Choose Account Type' : `Register as ${role === 'freelancer' ? 'Freelancer' : 'Client / User'}`}
+          <span className="text-[10px] font-mono uppercase tracking-widest font-bold text-[#7357FF] block">
+            CLIENT ONBOARDING PROTOCOL
+          </span>
+          <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-[#17172B] dark:text-white">
+            Create Client Account
           </h1>
-          <p className="text-xs text-slate-400">
-            {step === 1 ? 'Select whether you are joining to post projects or provide freelance services.' : 'Enter your details to create your account.'}
+          <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+            Get started with <span className="font-bold text-[#7357FF]">500 NCX Starter Credits</span> automatically credited upon sign-up.
           </p>
         </div>
 
-        {/* STEP 1: ROLE SELECTION */}
-        {step === 1 && (
-          <div className="space-y-4">
-            <div
-              onClick={() => handleNextStep('client')}
-              className="p-6 rounded-2xl border-2 border-slate-800 bg-slate-950 hover:border-cyan-500/60 hover:bg-slate-900 transition-all cursor-pointer group flex items-center justify-between"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Briefcase className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold text-white group-hover:text-cyan-300 transition-colors">
-                      Client / Project Owner
-                    </h3>
-                    <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono text-[10px] font-bold border border-indigo-500/30 flex items-center gap-1">
-                      <NcxCoinIcon size="xs" />
-                      +500 NCX Gift
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Get 500 free NCX digital credits to test & submit ideas directly to admin.
-                  </p>
-                </div>
-              </div>
-              <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
-            </div>
-
-            <div
-              onClick={() => handleNextStep('freelancer')}
-              className="p-6 rounded-2xl border-2 border-slate-800 bg-slate-950 hover:border-indigo-500/60 hover:bg-slate-900 transition-all cursor-pointer group flex items-center justify-between"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Code className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-white group-hover:text-indigo-300 transition-colors">
-                    Freelancer / Specialist
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    I want to apply for jobs, submit proposals, and earn milestone payouts.
-                  </p>
-                </div>
-              </div>
-              <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
-            </div>
+        {error && (
+          <div className="p-3.5 rounded-xl border border-[#FF826E]/40 bg-[#FFF0ED] dark:bg-[#2A1717] text-xs text-[#FF826E] font-medium flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
-        {/* STEP 2: USER DETAILS FORM */}
-        {step === 2 && (
-          <form onSubmit={handleRegister} className="space-y-4 text-xs">
-            {role === 'client' && (
-              <div className="p-3.5 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center gap-3">
-                <NcxCoinIcon size="md" className="shrink-0 animate-bounce" />
-                <div>
-                  <div className="font-bold text-white flex items-center gap-1.5">
-                    <span>Includes</span>
-                    <NcxCreditBadge amount={NEW_USER_CREDITS} size="xs" />
-                    <span>Free Digital Credits</span>
-                  </div>
-                  <p className="text-[11px] text-slate-400">Instantly test project idea submissions upon sign up!</p>
-                </div>
-              </div>
-            )}
+        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+          <div>
+            <label className="block text-[#65677A] dark:text-[#A6A8C0] uppercase text-[10px] mb-1 font-bold">
+              Full Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="e.g. Alex Rivera"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] text-[#17172B] dark:text-white placeholder-[#8F91A3] focus:outline-none focus:border-[#7357FF] focus:ring-2 focus:ring-[#7357FF]/15 transition-all text-xs"
+            />
+          </div>
 
-            {error && (
-              <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono text-center font-bold">
-                ⚠ {error}
-              </div>
-            )}
+          <div>
+            <label className="block text-[#65677A] dark:text-[#A6A8C0] uppercase text-[10px] mb-1 font-bold">
+              Work Email Address *
+            </label>
+            <input
+              type="email"
+              required
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              placeholder="alex@company.com"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] text-[#17172B] dark:text-white placeholder-[#8F91A3] focus:outline-none focus:border-[#7357FF] focus:ring-2 focus:ring-[#7357FF]/15 transition-all text-xs"
+            />
+          </div>
 
-            <div>
-              <label className="block font-mono text-slate-300 font-bold mb-1">Full Name</label>
-              <div className="relative">
-                <UserIcon className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Alex Rivera"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500/50"
-                />
-              </div>
+          <div>
+            <label className="block text-[#65677A] dark:text-[#A6A8C0] uppercase text-[10px] mb-1 font-bold">
+              Mobile Phone (Optional)
+            </label>
+            <div className="flex gap-2">
+              <select
+                value={formData.countryCode}
+                onChange={(e) => setFormData({ ...formData, countryCode: e.target.value })}
+                className="w-24 px-2 py-2.5 rounded-xl bg-white dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] text-xs font-semibold focus:outline-none"
+              >
+                <option value="+1">+1 (US)</option>
+                <option value="+91">+91 (IN)</option>
+                <option value="+44">+44 (UK)</option>
+                <option value="+61">+61 (AU)</option>
+                <option value="+49">+49 (DE)</option>
+                <option value="+971">+971 (AE)</option>
+              </select>
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="555-0142"
+                className="flex-1 px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] text-[#17172B] dark:text-white placeholder-[#8F91A3] focus:outline-none focus:border-[#7357FF] text-xs"
+              />
             </div>
+          </div>
 
-            <div>
-              <label className="block font-mono text-slate-300 font-bold mb-1">Email Address</label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="alex@company.com"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500/50"
-                />
-              </div>
-            </div>
+          <div>
+            <label className="block text-[#65677A] dark:text-[#A6A8C0] uppercase text-[10px] mb-1 font-bold">
+              Company or Studio (Optional)
+            </label>
+            <input
+              type="text"
+              value={formData.company}
+              onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+              placeholder="e.g. Aura Dynamics LLC"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] text-[#17172B] dark:text-white placeholder-[#8F91A3] focus:outline-none focus:border-[#7357FF] text-xs"
+            />
+          </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block font-mono text-slate-300 font-bold mb-1">Password</label>
+              <label className="block text-[#65677A] dark:text-[#A6A8C0] uppercase text-[10px] mb-1 font-bold">
+                Password *
+              </label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   placeholder="••••••••••••"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500/50"
+                  className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-white dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] text-[#17172B] dark:text-white text-xs focus:outline-none focus:border-[#7357FF]"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8F91A3] hover:text-[#17172B] dark:hover:text-white"
+                >
+                  {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
               </div>
             </div>
 
             <div>
-              <label className="block font-mono text-slate-300 font-bold mb-1">Confirm Password</label>
+              <label className="block text-[#65677A] dark:text-[#A6A8C0] uppercase text-[10px] mb-1 font-bold">
+                Confirm Password *
+              </label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                 <input
-                  type="password"
+                  type={showConfirmPassword ? 'text' : 'password'}
                   required
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                   placeholder="••••••••••••"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500/50"
+                  className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-white dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] text-[#17172B] dark:text-white text-xs focus:outline-none focus:border-[#7357FF]"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8F91A3] hover:text-[#17172B] dark:hover:text-white"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
               </div>
             </div>
+          </div>
 
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 font-bold hover:bg-slate-900"
-              >
-                Back
-              </button>
-              <button
-                type="submit"
-                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white font-extrabold text-xs shadow-lg flex items-center justify-center gap-2"
-              >
-                <span>Complete Registration</span>
-                <CheckCircle2 className="w-4 h-4 text-cyan-300" />
-              </button>
-            </div>
-          </form>
-        )}
+          {/* Bonus Incentive Tag */}
+          <div className="p-3 rounded-xl bg-[#EBF8EB] dark:bg-[#142E1B] border border-[#BCE8BD] dark:border-[#22572D] flex items-center justify-between text-xs">
+            <span className="flex items-center gap-1.5 text-[#1B7020] dark:text-[#4ADE80] font-semibold">
+              <Sparkles className="w-4 h-4" />
+              <span>Complimentary Starter Allocation</span>
+            </span>
+            <span className="font-mono font-bold text-[#1B7020] dark:text-[#4ADE80]">+500 NCX Credits</span>
+          </div>
 
-        <div className="text-center pt-2 text-xs border-t border-slate-800">
-          <p className="text-slate-400">
-            Already registered?{' '}
-            <Link to="/login" className="text-cyan-400 font-bold hover:underline">
-              Sign In Here
-            </Link>
-          </p>
-        </div>
-      </MotionDiv>
+          <div className="pt-2">
+            <BoxedButton
+              type="submit"
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={submitting}
+              icon={<ArrowRight className="w-4 h-4" />}
+            >
+              Create Client Account
+            </BoxedButton>
+          </div>
+        </form>
+
+        <p className="text-center text-xs text-[#65677A] dark:text-[#A6A8C0]">
+          Already have an account?{' '}
+          <Link to="/login" className="text-[#7357FF] font-bold hover:underline">
+            Sign In
+          </Link>
+        </p>
+
+      </div>
     </div>
   );
 };

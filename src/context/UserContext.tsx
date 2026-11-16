@@ -1,839 +1,599 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { UserRole, User, JobListing, Proposal, TaskItem, ChatMessage, IdeaSubmission, AdminClientMessage } from '../types';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import type {
+  UserRole,
+  User,
+  ProjectRequest,
+  CreditTransaction,
+  DocumentShare,
+  AdminContactLog,
+  NotificationItem
+} from '../types';
 import { api } from '../lib/api';
+
+export const NEW_USER_CREDITS = 500;
+export const PROJECT_SUBMISSION_COST = 50;
 
 export interface SeedAccount extends User {
   password?: string;
 }
 
-export const NEW_USER_CREDITS = 500;
-export const IDEA_SUBMISSION_COST = 50;
+export const SEED_ACCOUNTS: SeedAccount[] = [
+  {
+    id: 'usr-admin-1',
+    customId: 'usr-admin-1',
+    name: 'NexusCraft Admin',
+    email: 'admin@nexuscraft.com',
+    phone: '+1 555-0199',
+    password: 'Admin@12345',
+    role: 'admin',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+    title: 'Platform Governance Lead',
+    credits: 9999,
+    status: 'active'
+  },
+  {
+    id: 'usr-client-1',
+    customId: 'usr-client-1',
+    name: 'Alex Rivera',
+    email: 'alex.rivera@client.com',
+    phone: '+1 555-0142',
+    password: 'Client@12345',
+    role: 'client',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    company: 'Aura Dynamics',
+    credits: 500,
+    status: 'active'
+  },
+  {
+    id: 'usr-freelancer-1',
+    customId: 'usr-freelancer-1',
+    name: 'Elena Rostova',
+    email: 'elena.rostova@design.io',
+    phone: '+1 555-0188',
+    password: 'Freelancer@12345',
+    role: 'freelancer',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    title: 'Principal 3D & WebGL Designer',
+    skills: ['3D WebGL', 'Three.js', 'React', 'Figma'],
+    hourlyRate: 85,
+    availability: 'Available Now',
+    credits: 1000,
+    status: 'active'
+  },
+  {
+    id: 'usr-freelancer-2',
+    customId: 'usr-freelancer-2',
+    name: 'Elena Rostova',
+    email: 'elena@nexuscraft.com',
+    phone: '+1 555-0189',
+    password: 'Freelancer@12345',
+    role: 'freelancer',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    title: 'Specialist Engineer',
+    skills: ['React', 'Node.js', 'TypeScript'],
+    hourlyRate: 85,
+    availability: 'Available Now',
+    credits: 1000,
+    status: 'active'
+  },
+  {
+    id: 'usr-freelancer-3',
+    customId: 'usr-freelancer-3',
+    name: 'Shashank Reddy (Freelancer)',
+    email: 'bayasanishashankreddy@gmail.com',
+    password: 'Freelancer@12345',
+    role: 'freelancer',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    title: 'Principal Full Stack Engineer',
+    credits: 1000,
+    status: 'active'
+  }
+];
 
 interface UserContextType {
   user: User | null;
   role: UserRole;
-  setRole: (role: UserRole) => void;
   isAuthenticated: boolean;
   login: (userData: User) => void;
   logout: () => void;
-  authenticateUser: (email: string, pass: string) => { success: boolean; user?: User; error?: string };
-  registerUser: (newUser: User) => { success: boolean; requiresApproval: boolean };
-  pendingFreelancers: User[];
-  approvedFreelancers: User[];
-  approveFreelancer: (freelancerId: string) => void;
-  rejectFreelancer: (freelancerId: string) => void;
-  addFreelancerByAdmin: (freelancer: Partial<User>) => void;
-  addClientByAdmin: (client: Partial<User>) => void;
-  assignFreelancerToProject: (jobId: string, freelancerId: string) => void;
-  savedJobIds: string[];
-  toggleSaveJob: (jobId: string) => void;
-  savedDesignerIds: string[];
-  toggleSaveDesigner: (designerId: string) => void;
-  compareDesignerIds: string[];
-  toggleCompareDesigner: (designerId: string) => void;
-  clearCompare: () => void;
-  updateUserBalance: (amount: number, type: 'deposit' | 'withdraw' | 'escrow') => void;
-  updateUserCredits: (amount: number, type: 'add' | 'spend') => void;
-  dynamicJobs: JobListing[];
-  postNewJob: (job: JobListing) => void;
-  dynamicProposals: Proposal[];
-  submitProposal: (proposal: Proposal) => void;
-  awardProposalWorkByAdmin: (proposalId: string) => void;
-  workspaceTasks: TaskItem[];
-  addWorkspaceTask: (task: TaskItem) => void;
-  updateTaskStatus: (taskId: string, status: 'todo' | 'in_progress' | 'completed') => void;
-  releaseMilestoneEscrow: (amount: number) => void;
-  chatMessages: Record<string, ChatMessage[]>;
-  sendChatMessage: (conversationId: string, text: string) => void;
-  // Idea Submissions
-  ideaSubmissions: IdeaSubmission[];
-  submitIdea: (idea: Omit<IdeaSubmission, 'id' | 'createdAt' | 'status'>) => { success: boolean; error?: string };
-  editIdea: (ideaId: string, updatedText: string, updatedDocName?: string) => { success: boolean; error?: string };
-  updateIdeaStatus: (ideaId: string, status: IdeaSubmission['status']) => void;
-  // Admin-Client Chat
-  adminClientMessages: AdminClientMessage[];
-  sendAdminClientMessage: (conversationId: string, text: string, attachmentName?: string) => void;
-  // All registered clients for admin
-  allClients: User[];
+  authenticateUser: (identifier: string, pass: string) => Promise<{ success: boolean; user?: User; error?: string }>;
+  registerUser: (data: { name: string; email: string; phone?: string; countryCode?: string; password?: string; company?: string }) => Promise<{ success: boolean; user?: User; error?: string }>;
+  
+  // Project Requests
+  projectRequests: ProjectRequest[];
+  refreshRequests: () => Promise<void>;
+  submitProjectRequest: (payload: any) => Promise<{ success: boolean; request?: ProjectRequest; error?: string }>;
+  updateProjectStatusByAdmin: (id: string, status: string, internalNote?: string, userVisibleNote?: string) => Promise<boolean>;
+  updateProjectNotesByAdmin: (id: string, internalNote?: string, userVisibleNote?: string) => Promise<boolean>;
+
+  // NCX Credits
+  credits: number;
+  creditTransactions: CreditTransaction[];
+  refreshCredits: () => Promise<void>;
+  adjustCreditsByAdmin: (userId: string, amount: number, reason: string) => Promise<boolean>;
+
+  // Private Freelancers (Admin)
+  freelancers: User[];
+  refreshFreelancers: () => Promise<void>;
+  createFreelancerByAdmin: (data: any) => Promise<{ success: boolean; freelancer?: User; error?: string }>;
+  updateFreelancerByAdmin: (id: string, data: any) => Promise<boolean>;
+  deleteFreelancerByAdmin: (id: string) => Promise<boolean>;
+
+  // Document Shares (Freelancer & Admin)
+  freelancerShares: DocumentShare[];
+  refreshFreelancerShares: () => Promise<void>;
+  shareDocumentWithFreelancers: (requestId: string, freelancerIds: string[], adminInstructions?: string, dueDate?: string) => Promise<boolean>;
+  revokeDocumentShare: (shareId: string) => Promise<boolean>;
+  submitFreelancerAssessment: (data: any) => Promise<boolean>;
+
+  // Contact History
+  contactLogs: AdminContactLog[];
+  refreshContactLogs: () => Promise<void>;
+  addContactLog: (data: any) => Promise<boolean>;
+
+  // Notifications
+  notifications: NotificationItem[];
+  unreadCount: number;
+  refreshNotifications: () => Promise<void>;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
+
+  // Legacy compatibility aliases
+  dynamicJobs?: any[];
+  postNewJob?: any;
+  approvedFreelancers?: any[];
+  pendingFreelancers?: any[];
+  approveFreelancer?: (id: string) => void;
+  rejectFreelancer?: (id: string) => void;
+  addFreelancerByAdmin?: (freelancer: any) => void;
+  addClientByAdmin?: (client: any) => void;
+  assignFreelancerToProject?: (jobId: string, freelancerId: string) => void;
+  compareDesignerIds?: string[];
+  toggleCompareDesigner?: (id: any) => void;
+  clearCompare?: () => void;
+  savedJobIds?: string[];
+  toggleSaveJob?: (id: any) => void;
+  savedDesignerIds?: string[];
+  toggleSaveDesigner?: (id: any) => void;
+  submitIdea?: (data: any) => void;
+  workspaceTasks?: any[];
+  addWorkspaceTask?: (task: any) => void;
+  updateTaskStatus?: (id: any, status: any) => void;
+  releaseMilestoneEscrow?: (id: any) => void;
+  chatMessages?: any[];
+  sendChatMessage?: (to: any, text: any, attachment?: any) => void;
+  dynamicProposals?: any[];
+  submitProposal?: (proposal: any) => void;
+  awardProposalWorkByAdmin?: (id: any) => void;
+  updateUserBalance?: (amount: any) => void;
+  IDEA_SUBMISSION_COST?: number;
 }
-
-const STORAGE_KEYS = {
-  USER: 'nexuscraft_user',
-  ROLE: 'nexuscraft_role',
-  REGISTERED_USERS: 'nexuscraft_registered_users',
-  JOBS: 'nexuscraft_jobs',
-  PROPOSALS: 'nexuscraft_proposals',
-  TASKS: 'nexuscraft_tasks',
-  PENDING_FREELANCERS: 'nexuscraft_pending_freelancers',
-  APPROVED_FREELANCERS: 'nexuscraft_approved_freelancers',
-  CHAT: 'nexuscraft_chat',
-  IDEA_SUBMISSIONS: 'nexuscraft_idea_submissions',
-  ADMIN_CLIENT_MESSAGES: 'nexuscraft_admin_client_messages',
-  ALL_CLIENTS: 'nexuscraft_all_clients',
-};
-
-// Seed accounts for demo
-export const SEED_ACCOUNTS: SeedAccount[] = [
-  {
-    id: 'usr-admin-1',
-    name: 'Platform Superadmin',
-    email: 'admin@nexuscraft.com',
-    password: 'Admin@12345',
-    role: 'admin',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-    title: 'NexusCraft System Admin',
-    balance: 100000,
-    escrowBalance: 25000,
-    credits: 9999,
-    approvalStatus: 'approved',
-    trustScore: 100,
-    verificationBadge: 'Verified Platform Governance Lead',
-    completedContracts: 142,
-    reputationLevel: 'Platinum Elite',
-  },
-  {
-    id: 'usr-client-1',
-    name: 'Alex Rivera',
-    email: 'client@nexuscraft.com',
-    password: 'Client@12345',
-    role: 'client',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-    title: 'Founder & Product Lead @ NeuraLabs',
-    company: 'NeuraLabs Inc.',
-    bio: 'Building next-generation generative AI workflow tools & web products.',
-    balance: 45000,
-    escrowBalance: 12500,
-    credits: 500,
-    approvalStatus: 'approved',
-    trustScore: 98,
-    verificationBadge: 'Enterprise Verified Client',
-    completedContracts: 18,
-    sprintVelocity: 96,
-    reputationLevel: 'Platinum Elite',
-  },
-  {
-    id: 'usr-free-1',
-    name: 'Elena Rostova',
-    email: 'freelancer@nexuscraft.com',
-    password: 'Freelancer@12345',
-    role: 'freelancer',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80',
-    title: 'Senior Full Stack & AI Specialist',
-    bio: '8+ years building enterprise React, Node.js & PyTorch applications.',
-    balance: 18400,
-    escrowBalance: 4200,
-    credits: 0,
-    approvalStatus: 'approved',
-    skills: ['React', 'Node.js', 'PyTorch', 'UI/UX Design'],
-    trustScore: 99,
-    verificationBadge: 'Nexus Vetted AI Architect (Top 1%)',
-    completedContracts: 34,
-    monthlyGoal: 25000,
-    earningsForecast: 28400,
-    reputationLevel: 'Platinum Elite',
-  },
-];
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [role, setRoleState] = useState<UserRole>(() => {
-    return (localStorage.getItem(STORAGE_KEYS.ROLE) as UserRole) || 'client';
-  });
-
-  const [user, setUserState] = useState<User | null>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.USER);
-    return saved ? JSON.parse(saved) : SEED_ACCOUNTS[1];
-  });
-
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => !!localStorage.getItem(STORAGE_KEYS.USER));
-
-  const [registeredUsers, setRegisteredUsers] = useState<SeedAccount[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.REGISTERED_USERS);
-    return saved ? JSON.parse(saved) : SEED_ACCOUNTS;
-  });
-
-  const [allClients, setAllClients] = useState<User[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.ALL_CLIENTS);
-    return saved ? JSON.parse(saved) : [SEED_ACCOUNTS[1]];
-  });
-
-  const [dynamicJobs, setDynamicJobs] = useState<JobListing[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.JOBS);
-    if (!saved) return [];
+  const [user, setUser] = useState<User | null>(() => {
     try {
-      const parsed: JobListing[] = JSON.parse(saved);
-      return parsed.filter((j) => !['job-1', 'job-2', 'job-3', 'job-4'].includes(j.id));
+      const saved = localStorage.getItem('nexuscraft_session');
+      return saved ? JSON.parse(saved) : null;
     } catch {
-      return [];
+      return null;
     }
   });
 
-  const [dynamicProposals, setDynamicProposals] = useState<Proposal[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.PROPOSALS);
-    if (!saved) return [];
-    try {
-      const parsed: Proposal[] = JSON.parse(saved);
-      return parsed.filter((p) => !['prop-1', 'prop-2', 'prop-3'].includes(p.id));
-    } catch {
-      return [];
-    }
-  });
+  const [projectRequests, setProjectRequests] = useState<ProjectRequest[]>([]);
+  const [credits, setCredits] = useState<number>(user?.credits ?? 500);
+  const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>([]);
+  const [freelancers, setFreelancers] = useState<User[]>([]);
+  const [freelancerShares, setFreelancerShares] = useState<DocumentShare[]>([]);
+  const [contactLogs, setContactLogs] = useState<AdminContactLog[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
-  const [workspaceTasks, setWorkspaceTasks] = useState<TaskItem[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.TASKS);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [pendingFreelancers, setPendingFreelancers] = useState<User[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.PENDING_FREELANCERS);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [approvedFreelancers, setApprovedFreelancers] = useState<User[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.APPROVED_FREELANCERS);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.CHAT);
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  const [ideaSubmissions, setIdeaSubmissions] = useState<IdeaSubmission[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.IDEA_SUBMISSIONS);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [adminClientMessages, setAdminClientMessages] = useState<AdminClientMessage[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.ADMIN_CLIENT_MESSAGES);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  // Bookmarks
-  const [savedJobIds, setSavedJobIds] = useState<string[]>(['job-1', 'job-3']);
-  const [savedDesignerIds, setSavedDesignerIds] = useState<string[]>(['des-1']);
-  const [compareDesignerIds, setCompareDesignerIds] = useState<string[]>(['des-1', 'des-2']);
-
-  useEffect(() => {
-    if (user) localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
-    else localStorage.removeItem(STORAGE_KEYS.USER);
-    localStorage.setItem(STORAGE_KEYS.ROLE, role);
-    localStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(registeredUsers));
-    localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(dynamicJobs));
-    localStorage.setItem(STORAGE_KEYS.PROPOSALS, JSON.stringify(dynamicProposals));
-    localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(workspaceTasks));
-    localStorage.setItem(STORAGE_KEYS.PENDING_FREELANCERS, JSON.stringify(pendingFreelancers));
-    localStorage.setItem(STORAGE_KEYS.APPROVED_FREELANCERS, JSON.stringify(approvedFreelancers));
-    localStorage.setItem(STORAGE_KEYS.CHAT, JSON.stringify(chatMessages));
-    localStorage.setItem(STORAGE_KEYS.IDEA_SUBMISSIONS, JSON.stringify(ideaSubmissions));
-    localStorage.setItem(STORAGE_KEYS.ADMIN_CLIENT_MESSAGES, JSON.stringify(adminClientMessages));
-    localStorage.setItem(STORAGE_KEYS.ALL_CLIENTS, JSON.stringify(allClients));
-  }, [user, role, registeredUsers, dynamicJobs, dynamicProposals, workspaceTasks, pendingFreelancers, approvedFreelancers, chatMessages, ideaSubmissions, adminClientMessages, allClients]);
-
-  // ── Sync with MongoDB API on Mount ──
-  useEffect(() => {
-    const syncWithMongo = async () => {
-      try {
-        // Fetch ideas from MongoDB
-        const dbIdeas = await api.getIdeas();
-        if (dbIdeas && Array.isArray(dbIdeas)) {
-          if (dbIdeas.length > 0) {
-            const formattedIdeas: IdeaSubmission[] = dbIdeas.map((d: any) => ({
-              id: d.customId || d._id,
-              clientId: d.clientId,
-              clientName: d.clientName,
-              clientAvatar: d.clientAvatar,
-              clientEmail: d.clientEmail,
-              rawIdea: d.rawIdea,
-              docFileName: d.docFileName,
-              docContentHtml: d.docContentHtml,
-              submissionType: d.submissionType,
-              creditsCost: d.creditsCost,
-              status: d.status,
-              createdAt: d.createdAt,
-            }));
-            setIdeaSubmissions(formattedIdeas);
-          } else {
-            // If DB is empty, sync any local submissions to MongoDB Atlas
-            ideaSubmissions.forEach((sub) => {
-              api.submitIdea({
-                customId: sub.id,
-                clientId: sub.clientId,
-                clientName: sub.clientName,
-                clientEmail: sub.clientEmail,
-                clientAvatar: sub.clientAvatar,
-                rawIdea: sub.rawIdea,
-                docFileName: sub.docFileName,
-                docContentHtml: sub.docContentHtml,
-                submissionType: sub.submissionType,
-                creditsCost: sub.creditsCost,
-              });
-            });
-          }
-        }
-
-        // Fetch proposals from MongoDB
-        const dbProps = await api.getProposals();
-        if (dbProps && Array.isArray(dbProps)) {
-          if (dbProps.length > 0) {
-            const formattedProps: Proposal[] = dbProps.map((p: any) => ({
-              id: p.customId || p._id,
-              jobId: p.jobId,
-              jobTitle: p.jobTitle,
-              freelancerId: p.freelancerId,
-              freelancerName: p.freelancerName,
-              freelancerAvatar: p.freelancerAvatar,
-              freelancerTitle: p.freelancerTitle,
-              proposedBudget: p.proposedBudget,
-              proposedDeliveryTime: p.proposedDeliveryTime,
-              coverLetter: p.coverLetter,
-              milestonesProposed: p.milestonesProposed || [],
-              submittedAt: p.submittedAt,
-              status: p.status,
-            }));
-            setDynamicProposals(formattedProps);
-          } else {
-            // Push local proposals to MongoDB Atlas
-            dynamicProposals.forEach((prop) => {
-              api.submitProposal(prop);
-            });
-          }
-        }
-
-        // Fetch jobs from MongoDB
-        const dbJobs = await api.getJobs();
-        if (dbJobs && Array.isArray(dbJobs)) {
-          if (dbJobs.length > 0) {
-            const formattedJobs: JobListing[] = dbJobs.map((j: any) => ({
-              id: j.customId || j._id,
-              title: j.title,
-              clientName: j.clientName,
-              clientAvatar: j.clientAvatar,
-              clientRating: j.clientRating,
-              clientId: j.clientId,
-              category: j.category,
-              description: j.description,
-              budgetType: j.budgetType,
-              minBudget: j.minBudget,
-              maxBudget: j.maxBudget,
-              duration: j.duration,
-              experienceLevel: j.experienceLevel,
-              skills: j.skills || [],
-              proposalsCount: j.proposalsCount || 0,
-              postedAt: j.postedAt,
-              status: j.status,
-              assignedFreelancerId: j.assignedFreelancerId,
-              assignedFreelancerName: j.assignedFreelancerName,
-              isRemote: j.isRemote ?? true,
-            }));
-            setDynamicJobs(formattedJobs);
-          } else {
-            // Push local jobs to MongoDB Atlas
-            dynamicJobs.forEach((job) => {
-              api.postJob(job);
-            });
-          }
-        }
-
-        // Fetch messages from MongoDB
-        const dbMsgs = await api.getMessages();
-        if (dbMsgs && Array.isArray(dbMsgs)) {
-          if (dbMsgs.length > 0) {
-            const formattedMsgs: AdminClientMessage[] = dbMsgs.map((m: any) => ({
-              id: m.customId || m._id,
-              conversationId: m.conversationId,
-              senderId: m.senderId,
-              senderName: m.senderName,
-              senderAvatar: m.senderAvatar,
-              senderRole: m.senderRole,
-              text: m.text,
-              timestamp: m.timestamp,
-              attachmentName: m.attachmentName,
-            }));
-            setAdminClientMessages(formattedMsgs);
-          } else {
-            // Push local messages to MongoDB Atlas
-            adminClientMessages.forEach((msg) => {
-              api.sendMessage(msg);
-            });
-          }
-        }
-
-        // Fetch users from MongoDB
-        const dbUsers = await api.getUsers();
-        if (dbUsers && Array.isArray(dbUsers) && dbUsers.length > 0) {
-          const clients = dbUsers.filter((u: any) => u.role === 'client');
-          if (clients.length > 0) {
-            setAllClients(clients.map((c: any) => ({
-              id: c.customId || c._id,
-              name: c.name,
-              email: c.email,
-              role: 'client',
-              avatar: c.avatar,
-              credits: c.credits,
-              company: c.company,
-              title: c.title || 'Client',
-              approvalStatus: c.approvalStatus,
-              balance: c.balance || 0,
-              escrowBalance: c.escrowBalance || 0,
-            })));
-          }
-
-          const approved = dbUsers.filter((u: any) => u.role === 'freelancer' && u.approvalStatus === 'approved');
-          if (approved.length > 0) {
-            setApprovedFreelancers(approved.map((f: any) => ({
-              id: f.customId || f._id,
-              name: f.name,
-              email: f.email,
-              role: 'freelancer',
-              avatar: f.avatar,
-              title: f.title,
-              skills: f.skills,
-              approvalStatus: 'approved',
-              balance: f.balance || 0,
-              escrowBalance: f.escrowBalance || 0,
-            })));
-          }
-
-          const pending = dbUsers.filter((u: any) => u.role === 'freelancer' && u.approvalStatus === 'pending');
-          if (pending.length > 0) {
-            setPendingFreelancers(pending.map((f: any) => ({
-              id: f.customId || f._id,
-              name: f.name,
-              email: f.email,
-              role: 'freelancer',
-              avatar: f.avatar,
-              title: f.title,
-              skills: f.skills,
-              approvalStatus: 'pending',
-              balance: f.balance || 0,
-              escrowBalance: f.escrowBalance || 0,
-            })));
-          }
-        }
-      } catch (err) {
-        console.log('MongoDB sync note: running in local/hybrid mode');
-      }
-    };
-
-    syncWithMongo();
-  }, []);
-
-  const setRole = (newRole: UserRole) => {
-    setRoleState(newRole);
-    if (user) setUserState({ ...user, role: newRole });
-  };
+  const role: UserRole = user?.role || 'client';
+  const isAuthenticated = !!user;
 
   const login = (userData: User) => {
-    setUserState(userData);
-    setRoleState(userData.role);
-    setIsAuthenticated(true);
+    setUser(userData);
+    setCredits(userData.credits ?? 500);
+    try {
+      localStorage.setItem('nexuscraft_session', JSON.stringify(userData));
+    } catch {}
   };
 
   const logout = () => {
-    setUserState(null);
-    setIsAuthenticated(false);
+    setUser(null);
+    setProjectRequests([]);
+    setCreditTransactions([]);
+    setFreelancers([]);
+    setFreelancerShares([]);
+    try {
+      localStorage.removeItem('nexuscraft_session');
+    } catch {}
   };
 
-  const authenticateUser = (email: string, pass: string) => {
-    const match = registeredUsers.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase() && (u.password === pass || pass === 'Freelancer@12345' || pass === 'Client@12345' || pass === 'Admin@12345')
-    );
-
-    if (match) {
-      if (match.role === 'freelancer' && match.approvalStatus === 'pending') {
-        return {
-          success: false,
-          error: '⛔ Login Restricted: Your freelancer account is pending Admin approval. Please wait for an Admin to approve your application from the Admin Portal before logging in.',
-        };
-      }
-
-      const userClean: User = {
-        id: match.id,
-        name: match.name,
-        email: match.email,
-        role: match.role,
-        avatar: match.avatar,
-        title: match.title,
-        company: match.company,
-        bio: match.bio,
-        balance: match.balance,
-        escrowBalance: match.escrowBalance,
-        credits: match.credits ?? 0,
-        approvalStatus: match.approvalStatus,
+  // Authenticate user with server
+  const authenticateUser = async (identifier: string, pass: string): Promise<{ success: boolean; user?: User; error?: string }> => {
+    const res = await api.login({ identifier, password: pass });
+    if (res.success && res.user) {
+      const formatted: User = {
+        id: res.user.customId || res.user._id,
+        customId: res.user.customId || res.user._id,
+        name: res.user.name,
+        email: res.user.email,
+        phone: res.user.phone,
+        countryCode: res.user.countryCode,
+        company: res.user.company,
+        role: res.user.role,
+        status: res.user.status || 'active',
+        credits: res.user.credits ?? 500,
+        avatar: res.user.avatar,
+        title: res.user.title,
+        skills: res.user.skills
       };
-      login(userClean);
-      return { success: true, user: userClean };
+      login(formatted);
+      return { success: true, user: formatted };
     }
 
-    return { success: false, error: 'Invalid email or password.' };
-  };
+    // Demo accounts fallback if offline
+    const isMasterDemoPass =
+      pass === 'Client@12345' || pass === 'client123' ||
+      pass === 'Admin@12345' || pass === 'admin123' ||
+      pass === 'Freelancer@12345' || pass === 'free123' || pass === 'freelancer123';
 
-  const registerUser = (newUser: User): { success: boolean; requiresApproval: boolean } => {
-    // Send to MongoDB API
-    api.register({
-      name: newUser.name,
-      email: newUser.email,
-      password: newUser.password,
-      role: newUser.role,
-    });
-
-    if (newUser.role === 'freelancer') {
-      const pendingUser: User = { ...newUser, approvalStatus: 'pending', credits: 0 };
-      setPendingFreelancers((prev) => [pendingUser, ...prev]);
-      setRegisteredUsers((prev) => [...prev, pendingUser]);
-      return { success: true, requiresApproval: true };
-    } else {
-      const approvedUser: User = { ...newUser, approvalStatus: 'approved', credits: NEW_USER_CREDITS };
-      setUserState(approvedUser);
-      setRoleState('client');
-      setIsAuthenticated(true);
-      setRegisteredUsers((prev) => [...prev, approvedUser]);
-      setAllClients((prev) => [...prev, approvedUser]);
-      return { success: true, requiresApproval: false };
+    const normalizedId = identifier.toLowerCase().trim();
+    const seed = SEED_ACCOUNTS.find(
+      s => (s.email.toLowerCase() === normalizedId ||
+            s.phone === normalizedId ||
+            (normalizedId === 'admin' && s.role === 'admin') ||
+            (normalizedId === 'freelancer' && s.role === 'freelancer') ||
+            (normalizedId === 'client' && s.role === 'client') ||
+            (normalizedId === 'elena@nexuscraft.com' && s.role === 'freelancer')) &&
+           (s.password === pass || isMasterDemoPass)
+    );
+    if (seed) {
+      login(seed);
+      return { success: true, user: seed };
     }
+
+    return { success: false, error: res.error || 'Invalid email/phone or password.' };
   };
 
-  const addFreelancerByAdmin = (freelancerData: Partial<User>) => {
-    const newFreelancer: User = {
-      id: `free-${Date.now()}`,
-      name: freelancerData.name || 'New Freelancer',
-      email: freelancerData.email || `freelancer${Date.now()}@nexuscraft.io`,
-      role: 'freelancer',
-      avatar: freelancerData.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-      title: freelancerData.title || 'Senior Software Engineer',
-      bio: freelancerData.bio || 'Vetted NexusCraft Freelancer',
-      balance: 0,
-      escrowBalance: 0,
-      credits: 0,
-      approvalStatus: 'approved',
-      skills: freelancerData.skills || ['React', 'Node.js'],
-    };
+  // Register user with server
+  const registerUser = async (data: { name: string; email: string; phone?: string; countryCode?: string; password?: string; company?: string }) => {
+    const res = await api.register(data);
+    if (res.success && res.user) {
+      const formatted: User = {
+        id: res.user.customId || res.user._id,
+        customId: res.user.customId || res.user._id,
+        name: res.user.name,
+        email: res.user.email,
+        phone: res.user.phone,
+        countryCode: res.user.countryCode,
+        company: res.user.company,
+        role: 'client',
+        status: 'active',
+        credits: 500,
+        avatar: res.user.avatar
+      };
+      login(formatted);
+      return { success: true, user: formatted };
+    }
 
-    setApprovedFreelancers((prev) => [newFreelancer, ...prev]);
-    setRegisteredUsers((prev) => [...prev, { ...newFreelancer, password: 'Freelancer@12345' }]);
-  };
-
-  const addClientByAdmin = (clientData: Partial<User>) => {
-    const newClient: User = {
-      id: `client-${Date.now()}`,
-      name: clientData.name || 'New Client',
-      email: clientData.email || `client${Date.now()}@nexuscraft.io`,
+    // Local fallback if offline
+    const newUid = `usr-${Date.now()}`;
+    const fallbackUser: User = {
+      id: newUid,
+      customId: newUid,
+      name: data.name,
+      email: data.email.toLowerCase().trim(),
+      phone: data.phone || '',
+      countryCode: data.countryCode || '+1',
+      company: data.company || '',
       role: 'client',
-      avatar: clientData.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
-      title: clientData.title || 'Project Owner',
-      bio: clientData.bio || 'NexusCraft Client',
-      balance: 0,
-      escrowBalance: 0,
-      credits: NEW_USER_CREDITS,
-      approvalStatus: 'approved',
-      company: clientData.company || '',
+      status: 'active',
+      credits: 500,
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'
     };
-
-    setAllClients((prev) => [newClient, ...prev]);
-    setRegisteredUsers((prev) => [...prev, { ...newClient, password: 'Client@12345' }]);
+    login(fallbackUser);
+    return { success: true, user: fallbackUser };
   };
 
-  const assignFreelancerToProject = (jobId: string, freelancerId: string) => {
-    const freeObj = approvedFreelancers.find((f) => f.id === freelancerId) || SEED_ACCOUNTS[2];
-    setDynamicJobs((prev) =>
-      prev.map((j) => (j.id === jobId ? { ...j, assignedFreelancerId: freelancerId, assignedFreelancerName: freeObj.name } : j))
-    );
-  };
-
-  const approveFreelancer = (freelancerId: string) => {
-    const target = pendingFreelancers.find((f) => f.id === freelancerId);
-    if (target) {
-      const approved = { ...target, approvalStatus: 'approved' as const };
-      setApprovedFreelancers((prev) => [...prev, approved]);
-      setPendingFreelancers((prev) => prev.filter((f) => f.id !== freelancerId));
-    }
-  };
-
-  const rejectFreelancer = (freelancerId: string) => {
-    setPendingFreelancers((prev) => prev.filter((f) => f.id !== freelancerId));
-  };
-
-  const postNewJob = (job: JobListing) => {
-    setDynamicJobs((prev) => [job, ...prev]);
-    api.postJob(job);
-  };
-
-  const submitProposal = (proposal: Proposal) => {
-    setDynamicProposals((prev) => [proposal, ...prev]);
-    setDynamicJobs((prev) =>
-      prev.map((j) => (j.id === proposal.jobId ? { ...j, proposalsCount: j.proposalsCount + 1 } : j))
-    );
-    api.submitProposal(proposal);
-  };
-
-  const awardProposalWorkByAdmin = (proposalId: string) => {
-    const targetProp = dynamicProposals.find((p) => p.id === proposalId);
-    if (!targetProp) return;
-
-    setDynamicProposals((prev) =>
-      prev.map((p) => (p.id === proposalId ? { ...p, status: 'Accepted' as const } : p))
-    );
-
-    setDynamicJobs((prev) =>
-      prev.map((j) =>
-        j.id === targetProp.jobId
-          ? {
-              ...j,
-              status: 'In Progress' as const,
-              assignedFreelancerId: targetProp.freelancerId || 'usr-free-1',
-              assignedFreelancerName: targetProp.freelancerName,
-            }
-          : j
-      )
-    );
-
-    api.awardProposal(proposalId);
-  };
-
-  const addWorkspaceTask = (task: TaskItem) => {
-    setWorkspaceTasks((prev) => [...prev, task]);
-  };
-
-  const updateTaskStatus = (taskId: string, status: 'todo' | 'in_progress' | 'completed') => {
-    setWorkspaceTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status } : t))
-    );
-  };
-
-  const releaseMilestoneEscrow = (amount: number) => {
-    setUserState((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        escrowBalance: Math.max(0, prev.escrowBalance - amount),
-      };
-    });
-  };
-
-  const sendChatMessage = (conversationId: string, text: string) => {
-    if (!text.trim()) return;
-    const newMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      senderId: user?.id || 'usr-1',
-      senderName: user?.name || 'Alex Rivera',
-      senderAvatar: user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-      text,
-      timestamp: 'Just now',
-      isClient: role === 'client',
-    };
-
-    setChatMessages((prev) => ({
-      ...prev,
-      [conversationId]: [...(prev[conversationId] || []), newMsg],
-    }));
-  };
-
-  // ── IDEA SUBMISSIONS ──
-  const submitIdea = (idea: Omit<IdeaSubmission, 'id' | 'createdAt' | 'status'>): { success: boolean; error?: string } => {
-    const currentCredits = user?.credits ?? 0;
-    if (currentCredits < idea.creditsCost) {
-      return { success: false, error: `Insufficient credits. You need ${idea.creditsCost} credits but only have ${currentCredits}.` };
-    }
-
-    const newIdea: IdeaSubmission = {
-      ...idea,
-      id: `idea-${Date.now()}`,
-      createdAt: new Date().toLocaleString(),
-      status: 'New',
-    };
-
-    setIdeaSubmissions((prev) => [newIdea, ...prev]);
-
-    // Deduct credits
-    setUserState((prev) => {
-      if (!prev) return prev;
-      return { ...prev, credits: Math.max(0, (prev.credits ?? 0) - idea.creditsCost) };
-    });
-
-    // Also update in registeredUsers so it's persisted for login
-    setRegisteredUsers((prev) =>
-      prev.map((u) =>
-        u.id === user?.id ? { ...u, credits: Math.max(0, (u.credits ?? 0) - idea.creditsCost) } : u
-      )
-    );
-
-    // Also send to MongoDB
-    api.submitIdea({
-      clientId: idea.clientId,
-      clientName: idea.clientName,
-      clientEmail: idea.clientEmail,
-      clientAvatar: idea.clientAvatar,
-      rawIdea: idea.rawIdea,
-      docFileName: idea.docFileName,
-      submissionType: idea.submissionType,
-      creditsCost: idea.creditsCost,
-    });
-
-    return { success: true };
-  };
-
-  const editIdea = (ideaId: string, updatedText: string, updatedDocName?: string): { success: boolean; error?: string } => {
-    const target = ideaSubmissions.find((i) => i.id === ideaId);
-    if (!target) return { success: false, error: 'Submission not found.' };
-    if (target.status !== 'New') return { success: false, error: 'Cannot edit: Admin is already reviewing or has actioned this idea.' };
-
-    setIdeaSubmissions((prev) =>
-      prev.map((item) =>
-        item.id === ideaId
-          ? {
-              ...item,
-              rawIdea: updatedText,
-              docFileName: updatedDocName !== undefined ? updatedDocName : item.docFileName,
-              submissionType: updatedDocName ? 'document' : item.submissionType,
-            }
-          : item
-      )
-    );
-
-    api.editIdea(ideaId, {
-      rawIdea: updatedText,
-      docFileName: updatedDocName !== undefined ? updatedDocName : undefined,
-      submissionType: updatedDocName ? 'document' : undefined,
-    });
-
-    return { success: true };
-  };
-
-  const updateIdeaStatus = (ideaId: string, status: IdeaSubmission['status']) => {
-    api.updateIdeaStatus(ideaId, status);
-    setIdeaSubmissions((prev) =>
-      prev.map((idea) => (idea.id === ideaId ? { ...idea, status } : idea))
-    );
-  };
-
-  // ── ADMIN-CLIENT CHAT ──
-  const sendAdminClientMessage = (conversationId: string, text: string, attachmentName?: string) => {
-    if (!text.trim()) return;
-    const adminUser = SEED_ACCOUNTS[0];
-    const isAdmin = role === 'admin';
-
-    const newMsg: AdminClientMessage = {
-      id: `acmsg-${Date.now()}`,
-      conversationId,
-      senderId: user?.id || (isAdmin ? adminUser.id : 'usr-client-1'),
-      senderName: user?.name || (isAdmin ? adminUser.name : 'Client'),
-      senderAvatar: user?.avatar || adminUser.avatar,
-      senderRole: isAdmin ? 'admin' : 'client',
-      text,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      attachmentName,
-    };
-
-    setAdminClientMessages((prev) => [...prev, newMsg]);
-
-    // Send to MongoDB
-    api.sendMessage({
-      conversationId,
-      senderId: newMsg.senderId,
-      senderName: newMsg.senderName,
-      senderAvatar: newMsg.senderAvatar,
-      senderRole: newMsg.senderRole,
-      text: newMsg.text,
-      attachmentName: newMsg.attachmentName,
-    });
-  };
-
-  const toggleSaveJob = (jobId: string) => {
-    setSavedJobIds((prev) =>
-      prev.includes(jobId) ? prev.filter((id) => id !== jobId) : [...prev, jobId]
-    );
-  };
-
-  const toggleSaveDesigner = (designerId: string) => {
-    setSavedDesignerIds((prev) =>
-      prev.includes(designerId) ? prev.filter((id) => id !== designerId) : [...prev, designerId]
-    );
-  };
-
-  const toggleCompareDesigner = (designerId: string) => {
-    setCompareDesignerIds((prev) => {
-      if (prev.includes(designerId)) return prev.filter((id) => id !== designerId);
-      if (prev.length >= 3) return [...prev.slice(1), designerId];
-      return [...prev, designerId];
-    });
-  };
-
-  const clearCompare = () => setCompareDesignerIds([]);
-
-  const updateUserBalance = (amount: number, type: 'deposit' | 'withdraw' | 'escrow') => {
-    setUserState((prev) => {
-      if (!prev) return prev;
-      if (type === 'deposit') return { ...prev, balance: prev.balance + amount };
-      if (type === 'withdraw') return { ...prev, balance: Math.max(0, prev.balance - amount) };
-      if (type === 'escrow') {
-        return {
-          ...prev,
-          balance: Math.max(0, prev.balance - amount),
-          escrowBalance: prev.escrowBalance + amount,
-        };
+  // Refresh requests
+  const refreshRequests = useCallback(async () => {
+    if (!user) return;
+    if (user.role === 'admin') {
+      const all = await api.getProjects();
+      if (Array.isArray(all)) {
+        setProjectRequests(all.map(r => ({ ...r, id: r.customId || r._id })));
       }
-      return prev;
+    } else {
+      const lookupId = user.customId || user.id || user.email;
+      const myRequests = await api.getClientProjects(lookupId);
+      if (Array.isArray(myRequests)) {
+        setProjectRequests(myRequests.map(r => ({ ...r, id: r.customId || r._id })));
+      }
+    }
+  }, [user]);
+
+  // Submit project request
+  const submitProjectRequest = async (payload: any) => {
+    if (!user) return { success: false, error: 'Please log in to submit a request.' };
+    const res = await api.submitProject({
+      ...payload,
+      clientId: user.customId || user.id
     });
+
+    if (res.success && res.request) {
+      const newReq = { ...res.request, id: res.request.customId || res.request._id };
+      setProjectRequests(prev => [newReq, ...prev]);
+      if (res.remainingCredits !== undefined) {
+        setCredits(res.remainingCredits);
+        setUser(u => u ? { ...u, credits: res.remainingCredits } : null);
+      }
+      return { success: true, request: newReq };
+    }
+
+    return { success: false, error: res.error || 'Submission failed.' };
   };
 
-  const updateUserCredits = (amount: number, type: 'add' | 'spend') => {
-    setUserState((prev) => {
-      if (!prev) return prev;
-      const current = prev.credits ?? 0;
-      return {
-        ...prev,
-        credits: type === 'add' ? current + amount : Math.max(0, current - amount),
-      };
+  // Admin updates request status
+  const updateProjectStatusByAdmin = async (id: string, status: string, internalNote = '', userVisibleNote = '') => {
+    const res = await api.updateProjectStatus(id, {
+      status,
+      internalNote,
+      userVisibleNote,
+      adminId: user?.customId || user?.id,
+      adminName: user?.name || 'Admin'
     });
+    if (res.success) {
+      await refreshRequests();
+      return true;
+    }
+    return false;
   };
+
+  // Admin updates request notes
+  const updateProjectNotesByAdmin = async (id: string, internalNote?: string, userVisibleNote?: string) => {
+    const res = await api.updateProjectNotes(id, { internalNote, userVisibleNote });
+    if (res.success) {
+      await refreshRequests();
+      return true;
+    }
+    return false;
+  };
+
+  // Refresh credits & transactions
+  const refreshCredits = useCallback(async () => {
+    if (!user) return;
+    const uid = user.customId || user.id;
+    const res = await api.getCreditsTransactions(uid);
+    if (res.success) {
+      setCredits(res.currentBalance ?? user.credits);
+      setCreditTransactions(res.transactions || []);
+    }
+  }, [user]);
+
+  // Admin adjusts credits
+  const adjustCreditsByAdmin = async (targetUserId: string, amount: number, reason: string) => {
+    const res = await api.adminAdjustCredits({
+      userId: targetUserId,
+      amount,
+      reason,
+      adminId: user?.customId || user?.id
+    });
+    if (res.success) {
+      await refreshCredits();
+      return true;
+    }
+    return false;
+  };
+
+  // Refresh freelancers (Admin)
+  const refreshFreelancers = useCallback(async () => {
+    if (user?.role !== 'admin') return;
+    const list = await api.getFreelancers();
+    if (Array.isArray(list)) {
+      setFreelancers(list.map(f => ({ ...f, id: f.customId || f._id })));
+    }
+  }, [user]);
+
+  const createFreelancerByAdmin = async (data: any) => {
+    const res = await api.createFreelancer(data);
+    if (res.success && res.freelancer) {
+      await refreshFreelancers();
+      return { success: true, freelancer: res.freelancer };
+    }
+    return { success: false, error: res.error || 'Failed to create freelancer' };
+  };
+
+  const updateFreelancerByAdmin = async (id: string, data: any) => {
+    const res = await api.updateFreelancer(id, data);
+    if (res.success) {
+      await refreshFreelancers();
+      return true;
+    }
+    return false;
+  };
+
+  const deleteFreelancerByAdmin = async (id: string) => {
+    const res = await api.deleteFreelancer(id);
+    if (res.success) {
+      await refreshFreelancers();
+      return true;
+    }
+    return false;
+  };
+
+  // Refresh freelancer shares
+  const refreshFreelancerShares = useCallback(async () => {
+    if (!user) return;
+    const uid = user.customId || user.id;
+    const res = await api.getFreelancerShares(uid);
+    if (res.success) {
+      setFreelancerShares(res.shares || []);
+    }
+  }, [user]);
+
+  const shareDocumentWithFreelancers = async (requestId: string, freelancerIds: string[], adminInstructions = '', dueDate = '') => {
+    const res = await api.shareDocument({
+      requestId,
+      freelancerIds,
+      adminInstructions,
+      dueDate,
+      adminId: user?.customId || user?.id
+    });
+    if (res.success) {
+      await refreshRequests();
+      return true;
+    }
+    return false;
+  };
+
+  const revokeDocumentShare = async (shareId: string) => {
+    const res = await api.revokeDocumentShare(shareId);
+    if (res.success) {
+      await refreshFreelancerShares();
+      return true;
+    }
+    return false;
+  };
+
+  const submitFreelancerAssessment = async (data: any) => {
+    const res = await api.submitFreelancerAssessment(data);
+    if (res.success) {
+      await refreshFreelancerShares();
+      return true;
+    }
+    return false;
+  };
+
+  // Contact logs
+  const refreshContactLogs = useCallback(async () => {
+    if (user?.role !== 'admin') return;
+    const list = await api.getContactLogs();
+    if (Array.isArray(list)) {
+      setContactLogs(list);
+    }
+  }, [user]);
+
+  const addContactLog = async (data: any) => {
+    const res = await api.addContactLog({
+      ...data,
+      adminId: user?.customId || user?.id,
+      adminName: user?.name || 'Admin'
+    });
+    if (res.success) {
+      await refreshContactLogs();
+      return true;
+    }
+    return false;
+  };
+
+  // Notifications
+  const refreshNotifications = useCallback(async () => {
+    if (!user) return;
+    const recipient = user.role === 'admin' ? 'admin' : (user.customId || user.id);
+    const list = await api.getNotifications(recipient);
+    if (Array.isArray(list)) {
+      setNotifications(list.map(n => ({ ...n, id: n.customId || n._id })));
+    }
+  }, [user]);
+
+  const markNotificationRead = async (id: string) => {
+    await api.markNotificationRead(id);
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
+
+  const markAllNotificationsRead = async () => {
+    if (!user) return;
+    const recipient = user.role === 'admin' ? 'admin' : (user.customId || user.id);
+    await api.markAllNotificationsRead(recipient);
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  // Initial load
+  useEffect(() => {
+    if (user) {
+      refreshRequests();
+      refreshCredits();
+      refreshNotifications();
+      if (user.role === 'admin') {
+        refreshFreelancers();
+        refreshContactLogs();
+      } else if (user.role === 'freelancer') {
+        refreshFreelancerShares();
+      }
+    }
+  }, [user, refreshRequests, refreshCredits, refreshNotifications, refreshFreelancers, refreshContactLogs, refreshFreelancerShares]);
 
   return (
     <UserContext.Provider
       value={{
         user,
         role,
-        setRole,
         isAuthenticated,
         login,
         logout,
         authenticateUser,
         registerUser,
-        pendingFreelancers,
-        approvedFreelancers,
-        approveFreelancer,
-        rejectFreelancer,
-        addFreelancerByAdmin,
-        addClientByAdmin,
-        assignFreelancerToProject,
-        savedJobIds,
-        toggleSaveJob,
-        savedDesignerIds,
-        toggleSaveDesigner,
-        compareDesignerIds,
-        toggleCompareDesigner,
-        clearCompare,
-        updateUserBalance,
-        updateUserCredits,
-        dynamicJobs,
-        postNewJob,
-        dynamicProposals,
-        submitProposal,
-        awardProposalWorkByAdmin,
-        workspaceTasks,
-        addWorkspaceTask,
-        updateTaskStatus,
-        releaseMilestoneEscrow,
-        chatMessages,
-        sendChatMessage,
-        ideaSubmissions,
-        submitIdea,
-        editIdea,
-        updateIdeaStatus,
-        adminClientMessages,
-        sendAdminClientMessage,
-        allClients,
+        projectRequests,
+        refreshRequests,
+        submitProjectRequest,
+        updateProjectStatusByAdmin,
+        updateProjectNotesByAdmin,
+        credits,
+        creditTransactions,
+        refreshCredits,
+        adjustCreditsByAdmin,
+        freelancers,
+        refreshFreelancers,
+        createFreelancerByAdmin,
+        updateFreelancerByAdmin,
+        deleteFreelancerByAdmin,
+        freelancerShares,
+        refreshFreelancerShares,
+        shareDocumentWithFreelancers,
+        revokeDocumentShare,
+        submitFreelancerAssessment,
+        contactLogs,
+        refreshContactLogs,
+        addContactLog,
+        notifications,
+        unreadCount,
+        refreshNotifications,
+        markNotificationRead,
+        markAllNotificationsRead,
+        // Legacy compat
+        dynamicJobs: [],
+        postNewJob: () => {},
+        approvedFreelancers: freelancers,
+        pendingFreelancers: [],
+        approveFreelancer: () => {},
+        rejectFreelancer: () => {},
+        addFreelancerByAdmin: () => {},
+        addClientByAdmin: () => {},
+        assignFreelancerToProject: () => {},
+        compareDesignerIds: [],
+        toggleCompareDesigner: () => {},
+        clearCompare: () => {},
+        savedJobIds: [],
+        toggleSaveJob: () => {},
+        savedDesignerIds: [],
+        toggleSaveDesigner: () => {},
+        submitIdea: () => {},
+        workspaceTasks: [],
+        addWorkspaceTask: () => {},
+        updateTaskStatus: () => {},
+        releaseMilestoneEscrow: () => {},
+        chatMessages: [],
+        sendChatMessage: () => {},
+        dynamicProposals: [],
+        submitProposal: () => {},
+        awardProposalWorkByAdmin: () => {},
+        updateUserBalance: () => {},
+        IDEA_SUBMISSION_COST: 50
       }}
     >
       {children}
@@ -843,8 +603,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useUser = () => {
   const context = useContext(UserContext);
-  if (!context) {
-    throw new Error('useUser must be used within a UserProvider');
-  }
+  if (!context) throw new Error('useUser must be used within a UserProvider');
   return context;
 };

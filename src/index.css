@@ -1,159 +1,197 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-coral: #FF6B6B;
-  --color-brand-violet: #7C3AED;
-  --color-brand-blue: #2563EB;
+  --color-stitch-navy: #17172B;
+  --color-stitch-violet: #7357FF;
+  --color-stitch-violet-hover: #6142FA;
+  --color-stitch-blue: #3978FF;
+  --color-stitch-lime: #D5FF68;
+  --color-stitch-lime-hover: #C5F54F;
+  --color-stitch-lavender: #EEE9FF;
+  --color-stitch-lavender-light: #F5F2FF;
+  --color-stitch-bg: #F7F8FC;
+  --color-stitch-card: #FFFFFF;
+  --color-stitch-coral: #FF826E;
+  --color-stitch-muted: #65677A;
+  --color-stitch-border: #E5E7F2;
+}
+
+:root {
+  --fs: min(19.6vh, 13.2vw);
+  
+  /* Google Stitch Primary Brand Colors */
+  --stitch-navy: #17172B;
+  --stitch-violet: #7357FF;
+  --stitch-violet-hover: #6142FA;
+  --stitch-blue: #3978FF;
+  --stitch-lime: #D5FF68;
+  --stitch-lavender: #EEE9FF;
+  --stitch-lavender-soft: #F5F2FF;
+  --stitch-bg: #F7F8FC;
+  --stitch-surface: #FFFFFF;
+  --stitch-coral: #FF826E;
+  --stitch-text-dark: #17172B;
+  --stitch-text-muted: #65677A;
+  --stitch-text-subtle: #8F91A3;
+  --stitch-border: #E5E7F2;
+  --stitch-border-subtle: #EEF0F8;
+
+  /* Theme variable defaults (Light Mode - Stitch Off-White / Lavender) */
+  --bg-canvas: #F7F8FC;
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #FFFFFF;
+  --bg-subtle: #F0F2FA;
+  --bg-sidebar: #FFFFFF;
+  --bg-navy-header: #17172B;
+  --text-main: #17172B;
+  --text-secondary: #65677A;
+  --text-muted: #8F91A3;
+  --border-main: #E5E7F2;
+  --border-subtle: #F0F2F9;
+  --card-border: #E8EAF4;
+  --card-shadow: 0 4px 20px rgba(23, 23, 43, 0.04), 0 1px 3px rgba(23, 23, 43, 0.02);
+  --card-shadow-hover: 0 10px 25px rgba(115, 87, 255, 0.08), 0 2px 6px rgba(23, 23, 43, 0.04);
+}
+
+.dark {
+  --bg-canvas: #0F0F1D;
+  --bg-surface: #17172B;
+  --bg-surface-elevated: #1F1F38;
+  --bg-subtle: #1C1C33;
+  --bg-sidebar: #131326;
+  --bg-navy-header: #0B0B14;
+  --text-main: #F7F8FC;
+  --text-secondary: #A6A8C0;
+  --text-muted: #73758C;
+  --border-main: #2A2A46;
+  --border-subtle: #202038;
+  --card-border: #2A2A46;
+  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  --card-shadow-hover: 0 10px 25px rgba(115, 87, 255, 0.2);
 }
 
 @layer base {
   html {
     scroll-behavior: smooth;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
   
   body {
-    @apply bg-slate-950 text-slate-100 antialiased selection:bg-brand-violet/20 selection:text-brand-violet font-sans overflow-x-hidden;
+    background-color: var(--bg-canvas);
+    color: var(--text-main);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
-  @media (hover: hover) and (pointer: fine) {
-    body, button, a {
-      cursor: none !important;
-    }
-  }
-}
-
-:root {
-  --mesh-hue: 0deg;
-  --mesh-scroll-y: 0px;
-}
-
-.living-mesh {
-  position: relative;
-  isolation: isolate;
-}
-
-.living-mesh::before {
-  content: '';
-  position: fixed;
-  inset: -20%;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 18% calc(12% + var(--mesh-scroll-y)), rgba(99, 102, 241, 0.24), transparent 28%),
-    radial-gradient(circle at 78% calc(22% + var(--mesh-scroll-y)), rgba(34, 211, 238, 0.18), transparent 26%),
-    radial-gradient(circle at 42% calc(82% + var(--mesh-scroll-y)), rgba(244, 114, 182, 0.12), transparent 30%);
-  filter: hue-rotate(var(--mesh-hue)) blur(18px);
-  transform: translate3d(0, calc(var(--mesh-scroll-y) * -0.35), 0);
-  will-change: filter, transform;
-}
-
-.section-divider path {
-  filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.35));
-}
-
-.testimonial-carousel {
-  scroll-padding-inline: 1rem;
-}
-
-.testimonial-card {
-  user-select: none;
-}
-
-@media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
-  .living-mesh::before {
-    filter: blur(16px);
-    transform: none;
-    will-change: auto;
-  }
-
-  .testimonial-carousel {
-    -webkit-overflow-scrolling: touch;
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Inter', system-ui, sans-serif;
+    letter-spacing: -0.025em;
+    font-weight: 700;
   }
 }
 
+/* Google Stitch Custom Utilities */
 @layer utilities {
-  .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#FF6B6B] via-[#7C3AED] to-[#2563EB];
+  .stitch-card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--card-border);
+    border-radius: 1rem;
+    box-shadow: var(--card-shadow);
+    transition: all 0.2s ease;
   }
-  .bg-gradient-mesh {
-    @apply bg-gradient-to-br from-[#FAFAFA] via-[#F3F4F6] to-[#FAFAFA];
-  }
-  .glass-card {
-    @apply bg-slate-900/95 backdrop-blur-xl border border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.5)] rounded-2xl text-slate-100;
-  }
-  .glass-panel {
-    @apply bg-slate-950/90 backdrop-blur-lg border border-slate-800/80 shadow-md rounded-xl text-slate-100;
-  }
-  .glass-button {
-    @apply bg-slate-900 hover:bg-slate-800 backdrop-blur-md border border-slate-700 text-white shadow-sm transition-all duration-300;
-  }
-}
 
-/* Custom Animations */
-@keyframes floatSlow {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-20px) scale(1.02); }
-}
-@keyframes floatFast {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
-}
-@keyframes pulseGlow {
-  0%, 100% { opacity: 0.6; transform: scale(1); filter: blur(40px); }
-  50% { opacity: 0.9; transform: scale(1.1); filter: blur(50px); }
-}
-@keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes bounce3D {
-  0%, 100% { transform: translateY(0) rotateX(0); }
-  50% { transform: translateY(-15px) rotateX(10deg); }
-}
-@keyframes rotateOrb {
-  0% { transform: rotate(0deg) translate(50px) rotate(0deg); }
-  100% { transform: rotate(360deg) translate(50px) rotate(-360deg); }
-}
-@keyframes particleFloat {
-  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
-}
+  .stitch-card:hover {
+    box-shadow: var(--card-shadow-hover);
+  }
 
-.animate-float-slow { animation: floatSlow 6s ease-in-out infinite; }
-.animate-float-fast { animation: floatFast 3s ease-in-out infinite; }
-.animate-pulse-glow { animation: pulseGlow 4s ease-in-out infinite; }
-.animate-slide-up { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-.animate-fade-in { animation: fadeIn 0.6s ease-out forwards; }
-.animate-bounce-3d { animation: bounce3D 3s ease-in-out infinite; }
-.animate-rotate-orb { animation: rotateOrb 15s linear infinite; }
-.animate-particle { animation: particleFloat 4s linear infinite; }
+  .stitch-card-elevated {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-main);
+    border-radius: 1.25rem;
+    box-shadow: 0 10px 30px rgba(23, 23, 43, 0.06);
+  }
 
-/* Custom Scrollbar for Light Theme */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-track {
-  background: #f1f1f1; 
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1; 
-  border-radius: 5px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8; 
-}
+  .stitch-panel {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-main);
+    border-radius: 1rem;
+  }
 
-html {
-  scroll-behavior: smooth;
+  .stitch-navy-header {
+    background-color: var(--bg-navy-header);
+    color: #FFFFFF;
+    border-radius: 1.25rem;
+  }
+
+  .stitch-badge-violet {
+    background-color: #EEE9FF;
+    color: #7357FF;
+    font-weight: 600;
+  }
+
+  .dark .stitch-badge-violet {
+    background-color: rgba(115, 87, 255, 0.2);
+    color: #9C8AFF;
+  }
+
+  .stitch-badge-lime {
+    background-color: #D5FF68;
+    color: #17172B;
+    font-weight: 700;
+  }
+
+  .stitch-badge-blue {
+    background-color: #E8F0FE;
+    color: #3978FF;
+    font-weight: 600;
+  }
+
+  .dark .stitch-badge-blue {
+    background-color: rgba(57, 120, 255, 0.2);
+    color: #7AA7FF;
+  }
+
+  .stitch-badge-coral {
+    background-color: #FFF0ED;
+    color: #FF826E;
+    font-weight: 600;
+  }
+
+  .stitch-input {
+    background-color: var(--bg-surface);
+    border: 1.5px solid var(--border-main);
+    color: var(--text-main);
+    border-radius: 0.75rem;
+    padding: 0.625rem 0.875rem;
+    outline: none;
+    transition: all 0.15s ease;
+  }
+
+  .stitch-input:focus {
+    border-color: #7357FF;
+    box-shadow: 0 0 0 3px rgba(115, 87, 255, 0.15);
+  }
+
+  /* Stitch Custom Progress Pipeline Bar */
+  .stitch-progress-track {
+    background-color: #E8EAF4;
+    border-radius: 9999px;
+    height: 6px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .dark .stitch-progress-track {
+    background-color: #252542;
+  }
+
+  .stitch-progress-fill {
+    background: linear-gradient(90deg, #7357FF 0%, #3978FF 100%);
+    height: 100%;
+    border-radius: 9999px;
+    transition: width 0.4s ease;
+  }
 }

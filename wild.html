@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Wild — Travel Rental Service</title>
+  <meta name="description" content="Embark on a wild ride around the world with our travel rental service.">
+
+  <!-- Inter Variable Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..800;1,14..32,400..800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --fs: min(19.6vh, 13.2vw);
+      --c-page-start: #ffffff;
+      --c-paper: #f2f2f1;
+      --c-ink: #1d1d1d;
+      --c-secondary: #3a3a3a;
+      --c-rule: #a9a9a6;
+      --c-btn: #1b1b1b;
+      --c-pill-ph: #d8d3cf;
+      --c-hairline: #b9b9b9;
+      --pill-h: calc(1.81 * var(--fs));
+      --pill-w-final: calc(3.62 * var(--fs));
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      background-color: var(--c-page-start);
+      color: var(--c-ink);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      position: relative;
+    }
+
+    /* Background Paper Layer with Flowing SVG Lines */
+    .bg-paper-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background-color: var(--c-paper);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 1;
+      transition: opacity 0.2s ease;
+    }
+
+    .bg-paper-layer svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* TOP NAVIGATION */
+    .nav-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: calc(0.14 * var(--fs)) calc(0.27 * var(--fs));
+      font-size: max(12px, calc(0.072 * var(--fs)));
+      font-weight: 450;
+      color: var(--c-ink);
+      z-index: 20;
+      transform: translateY(-140%);
+      opacity: 0;
+      will-change: transform, opacity;
+    }
+
+    .nav-links, .nav-socials {
+      display: flex;
+      align-items: center;
+      gap: 0.7em;
+    }
+
+    .nav-item {
+      color: var(--c-ink);
+      text-decoration: none;
+      transition: opacity 0.2s ease;
+      cursor: pointer;
+    }
+
+    .nav-item:hover {
+      opacity: 0.65;
+    }
+
+    .nav-dot {
+      color: var(--c-rule);
+      font-size: 0.85em;
+      line-height: 1;
+    }
+
+    /* BOTTOM FOOTER */
+    .footer-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding: calc(0.18 * var(--fs)) calc(0.27 * var(--fs));
+      z-index: 20;
+      transform: translateY(160%);
+      opacity: 0;
+      will-change: transform, opacity;
+    }
+
+    .footer-desc {
+      width: calc(1.42 * var(--fs));
+      font-size: calc(0.066 * var(--fs));
+      line-height: 1.45;
+      color: var(--c-secondary);
+      font-weight: 400;
+    }
+
+    .drop-cap {
+      float: left;
+      font-size: 2.35em;
+      font-weight: 650;
+      line-height: 0.82;
+      margin-right: 0.08em;
+      margin-top: 0.04em;
+      color: var(--c-ink);
+      font-family: inherit;
+    }
+
+    .footer-rule-wrap {
+      flex: 1;
+      padding: 0 calc(0.18 * var(--fs));
+      margin-bottom: calc(0.038 * var(--fs));
+    }
+
+    .footer-rule {
+      width: 100%;
+      height: 1px;
+      background-color: var(--c-rule);
+      transform: scaleX(0);
+      transform-origin: center;
+      will-change: transform;
+    }
+
+    .footer-action {
+      flex-shrink: 0;
+    }
+
+    .btn-wild {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--c-btn);
+      color: #ffffff;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      border-radius: 9999px;
+      padding: calc(0.075 * var(--fs)) calc(0.18 * var(--fs));
+      font-size: calc(0.072 * var(--fs));
+      font-weight: 500;
+      font-family: inherit;
+      letter-spacing: -0.01em;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+      transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .btn-wild:hover {
+      background-color: #000000;
+      transform: translateY(-1px) scale(1.02);
+    }
+
+    .btn-wild:active {
+      transform: translateY(1px) scale(0.98);
+    }
+
+    /* HERO CENTER */
+    .hero-container {
+      position: absolute;
+      top: 43%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      width: 100%;
+      pointer-events: none;
+    }
+
+    .hero-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+      gap: 0.026em;
+      font-size: var(--fs);
+      line-height: 0.8;
+      letter-spacing: -0.045em;
+      font-weight: 800;
+      will-change: gap;
+    }
+
+    .word-part {
+      color: var(--c-ink);
+      flex-shrink: 0;
+      line-height: 0.8;
+      letter-spacing: -0.045em;
+      font-weight: 800;
+    }
+
+    /* THE PILL */
+    .pill {
+      position: relative;
+      height: var(--pill-h);
+      width: calc(0.012 * var(--fs)); /* Starts as hairline */
+      background-color: var(--c-pill-ph);
+      border-radius: 9999px;
+      overflow: hidden;
+      flex-shrink: 0;
+      clip-path: inset(50% 0); /* Draws from center vertically */
+      will-change: width, clip-path;
+    }
+
+    /* Video inside Pill */
+    .pill-video {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      height: 100%;
+      min-width: calc(4.2 * var(--fs));
+      width: 100%;
+      object-fit: cover;
+      object-position: center top;
+      opacity: 1; /* Always fully opaque */
+      display: block;
+      pointer-events: none;
+    }
+
+    /* Hairline Overlay */
+    .pill-overlay {
+      position: absolute;
+      inset: 0;
+      background-color: var(--c-hairline);
+      opacity: 1;
+      pointer-events: none;
+      z-index: 2;
+      will-change: opacity;
+    }
+
+    /* Pill Icons */
+    .pill-icon {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: calc(0.12 * var(--fs));
+      height: calc(0.12 * var(--fs));
+      color: #ffffff;
+      opacity: 0;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: opacity 0.25s ease, transform 0.2s ease;
+      will-change: opacity;
+    }
+
+    .pill-icon svg {
+      width: 100%;
+      height: 100%;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .pill-icon-left {
+      left: calc(0.16 * var(--fs));
+      pointer-events: none;
+    }
+
+    .pill-icon-right {
+      right: calc(0.16 * var(--fs));
+      pointer-events: auto;
+    }
+
+    .pill-icon-right:hover {
+      transform: translateY(-50%) scale(1.1);
+    }
+
+    .sound-wave {
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .sound-wave.muted {
+      opacity: 0;
+      transform: scale(0.5);
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       PHONE LAYOUT (≤ 720px)
+    ───────────────────────────────────────────────────────────── */
+    @media (max-width: 720px) {
+      :root {
+        --fs: min(34vw, 16.5vh);
+        --side-pad: 20px;
+        --pill-phone-w: calc(100vw - 40px);
+        --pill-phone-h: calc((100vw - 40px) / 1.85);
+      }
+
+      .bg-paper-layer {
+        background-color: var(--c-paper);
+      }
+
+      .nav-bar {
+        padding: 20px var(--side-pad);
+        font-size: 12.5px;
+      }
+
+      .nav-socials {
+        display: none !important;
+      }
+
+      .nav-links {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .hero-container {
+        top: 47%;
+      }
+
+      .hero-row {
+        flex-direction: column;
+        gap: 0.03em;
+        width: 100%;
+        padding: 0 var(--side-pad);
+      }
+
+      .pill {
+        width: var(--pill-phone-w) !important;
+        height: 1.5px; /* Starts as 1.5px hairline */
+        clip-path: inset(0 50%); /* Draws horizontally outwards */
+        border-radius: 9999px;
+      }
+
+      .pill-video {
+        width: 100%;
+        min-width: 100%;
+        height: var(--pill-phone-h);
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        object-fit: cover;
+        object-position: center top;
+      }
+
+      .pill-icon {
+        width: 18px;
+        height: 18px;
+      }
+
+      .pill-icon-left {
+        left: 18px;
+      }
+
+      .pill-icon-right {
+        right: 18px;
+      }
+
+      .footer-bar {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 20px var(--side-pad);
+        gap: 14px;
+      }
+
+      .footer-desc {
+        width: 100%;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .footer-bottom-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        width: 100%;
+      }
+
+      .footer-rule-wrap {
+        padding: 0;
+        margin-bottom: 0;
+      }
+
+      .btn-wild {
+        height: 38px;
+        padding: 0 20px;
+        font-size: 13px;
+      }
+    }
+
+    /* Reduced Motion */
+    @media (prefers-reduced-motion: reduce) {
+      .bg-paper-layer { opacity: 1 !important; }
+      .nav-bar { transform: translateY(0) !important; opacity: 1 !important; }
+      .footer-bar { transform: translateY(0) !important; opacity: 1 !important; }
+      .footer-rule { transform: scaleX(1) !important; }
+      .pill-overlay { opacity: 0 !important; }
+      .pill-icon { opacity: 0.85 !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BACKGROUND PAPER & 15 FLOWING SVG S-CURVES -->
+  <div class="bg-paper-layer" id="bgPaper">
+    <svg viewBox="0 0 1440 960" fill="none" preserveAspectRatio="none">
+      <!-- 15 long white strokes sweeping up and to the right as soft S-curves (stroke 1.2-3.9px, opacity 0.55-0.85) -->
+      <path d="M-60,980 C260,860 620,740 1500,420" stroke="#ffffff" stroke-width="2.8" stroke-linecap="round" opacity="0.75" />
+      <path d="M-40,910 C320,810 740,680 1520,360" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" opacity="0.62" />
+      <path d="M-100,850 C290,730 680,610 1500,280" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" opacity="0.80" />
+      <path d="M-20,780 C360,670 780,540 1520,210" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round" opacity="0.58" />
+      <path d="M-80,720 C340,600 810,480 1500,160" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" opacity="0.70" />
+      <path d="M-50,650 C380,530 840,410 1520,110" stroke="#ffffff" stroke-width="3.8" stroke-linecap="round" opacity="0.82" />
+      <path d="M-120,590 C320,470 820,350 1500,60" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" opacity="0.64" />
+      <path d="M-40,520 C390,410 870,290 1520,10" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" opacity="0.74" />
+      <path d="M-90,460 C370,340 890,230 1510,-40" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" opacity="0.56" />
+      <path d="M-60,390 C420,280 920,180 1530,-90" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" opacity="0.78" />
+      <path d="M-110,330 C400,220 950,120 1500,-140" stroke="#ffffff" stroke-width="1.9" stroke-linecap="round" opacity="0.68" />
+      <path d="M-30,270 C440,160 980,60 1520,-190" stroke="#ffffff" stroke-width="2.9" stroke-linecap="round" opacity="0.84" />
+      <path d="M-70,200 C460,100 1020,10 1540,-240" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.60" />
+      <path d="M-100,140 C480,40 1060,-40 1500,-290" stroke="#ffffff" stroke-width="3.6" stroke-linecap="round" opacity="0.72" />
+      <path d="M-50,80 C510,-20 1100,-90 1530,-340" stroke="#ffffff" stroke-width="2.1" stroke-linecap="round" opacity="0.66" />
+    </svg>
+  </div>
+
+  <!-- TOP NAVIGATION BAR -->
+  <header class="nav-bar" id="navBar">
+    <nav class="nav-links">
+      <a href="#home" class="nav-item">Home</a>
+      <span class="nav-dot">·</span>
+      <a href="#features" class="nav-item">Features</a>
+      <span class="nav-dot">·</span>
+      <a href="#templates" class="nav-item">Templates</a>
+      <span class="nav-dot">·</span>
+      <a href="#contact" class="nav-item">Contact Us</a>
+    </nav>
+    <div class="nav-socials">
+      <a href="#instagram" class="nav-item">Instagram</a>
+      <span class="nav-dot">·</span>
+      <a href="#facebook" class="nav-item">Facebook</a>
+    </div>
+  </header>
+
+  <!-- HERO CENTER: WI · PILL · LD -->
+  <main class="hero-container">
+    <div class="hero-row" id="heroRow">
+      <span class="word-part" id="partWI">WI</span>
+
+      <!-- THE EXPANDING STADIUM PILL -->
+      <div class="pill" id="pill">
+        
+        <!-- Seamless Hard-Looping Video -->
+        <video
+          id="pillVideo"
+          class="pill-video"
+          src="https://d2ol7oe51mr4n9.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/175fbbcd-e50a-480c-bab2-ca16d4678322.mp4"
+          poster="https://d2ol7oe51mr4n9.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/726b168c-da47-4682-a255-cc3e02f89bae.jpg"
+          autoplay
+          muted
+          loop
+          playsinline
+          preload="auto"
+        ></video>
+
+        <!-- Hairline Grey Overlay (Fades out 14% -> 30%) -->
+        <div class="pill-overlay" id="pillOverlay"></div>
+
+        <!-- Left breeze/wind line icon -->
+        <div class="pill-icon pill-icon-left" id="iconBreeze" title="Breeze">
+          <svg viewBox="0 0 24 24">
+            <path d="M4 8h11a3 3 0 1 0-3-3" />
+            <path d="M2 13h16a3 3 0 1 1-3 3" />
+            <path d="M5 18h7a2.5 2.5 0 1 0-2.5-2.5" />
+          </svg>
+        </div>
+
+        <!-- Right speaker audio toggle icon -->
+        <div class="pill-icon pill-icon-right" id="iconSpeaker" title="Toggle audio waves">
+          <svg viewBox="0 0 24 24">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <path class="sound-wave" id="wave1" d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            <path class="sound-wave" id="wave2" d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+          </svg>
+        </div>
+
+      </div>
+
+      <span class="word-part" id="partLD">LD</span>
+    </div>
+  </main>
+
+  <!-- BOTTOM FOOTER BAR -->
+  <footer class="footer-bar" id="footerBar">
+    <div class="footer-desc">
+      <span class="drop-cap">E</span>mbark on a wild ride around the world with our travel rental service. Discover breathtaking landscapes and hidden gems on your unforgettable journey.
+    </div>
+
+    <!-- Middle expanding 1px rule (desktop) / Bottom row container (phone) -->
+    <div class="footer-rule-wrap" id="footerRuleWrap">
+      <div class="footer-rule" id="footerRule"></div>
+    </div>
+
+    <div class="footer-action">
+      <button class="btn-wild" id="btnWild">
+        Let's Get Wild
+      </button>
+    </div>
+  </footer>
+
+  <script>
+    (function() {
+      // Elements
+      const pill = document.getElementById('pill');
+      const pillVideo = document.getElementById('pillVideo');
+      const pillOverlay = document.getElementById('pillOverlay');
+      const heroRow = document.getElementById('heroRow');
+      const bgPaper = document.getElementById('bgPaper');
+      const navBar = document.getElementById('navBar');
+      const footerBar = document.getElementById('footerBar');
+      const footerRule = document.getElementById('footerRule');
+      const footerRuleWrap = document.getElementById('footerRuleWrap');
+      const iconBreeze = document.getElementById('iconBreeze');
+      const iconSpeaker = document.getElementById('iconSpeaker');
+      const wave1 = document.getElementById('wave1');
+      const wave2 = document.getElementById('wave2');
+      const btnWild = document.getElementById('btnWild');
+
+      // State
+      let isPhone = window.innerWidth <= 720;
+      let animationActive = null;
+      let isRevealed = false;
+      let speakerMuted = false;
+
+      // Adjust mobile DOM for footer bottom row if needed
+      function adjustPhoneLayoutDOM() {
+        isPhone = window.innerWidth <= 720;
+        if (isPhone) {
+          if (!document.getElementById('footerBottomRow')) {
+            const bottomRow = document.createElement('div');
+            bottomRow.className = 'footer-bottom-row';
+            bottomRow.id = 'footerBottomRow';
+            footerBar.appendChild(bottomRow);
+            bottomRow.appendChild(footerRuleWrap);
+            bottomRow.appendChild(document.querySelector('.footer-action'));
+          }
+        } else {
+          const bottomRow = document.getElementById('footerBottomRow');
+          if (bottomRow) {
+            footerBar.appendChild(footerRuleWrap);
+            footerBar.appendChild(document.querySelector('.footer-action'));
+            bottomRow.remove();
+          }
+        }
+      }
+
+      adjustPhoneLayoutDOM();
+
+      // Ensure video is playing seamlessly
+      pillVideo.play().catch(() => {
+        // Autoplay may wait for user interaction
+        document.addEventListener('click', () => pillVideo.play(), { once: true });
+      });
+
+      // Speaker Toggle
+      iconSpeaker.addEventListener('click', (e) => {
+        e.stopPropagation();
+        speakerMuted = !speakerMuted;
+        wave1.classList.toggle('muted', speakerMuted);
+        wave2.classList.toggle('muted', speakerMuted);
+      });
+
+      // Calculate unit values
+      function getUnitValues() {
+        const vh = window.innerHeight;
+        const vw = window.innerWidth;
+        const fs = isPhone ? Math.min(vw * 0.34, vh * 0.165) : Math.min(vh * 0.196, vw * 0.132);
+        return {
+          fs,
+          desktopPillW: fs * 3.62,
+          desktopHairlineW: fs * 0.012,
+          desktopSlitW: fs * 0.16,
+          desktopCircleW: fs * 1.81,
+          phonePillW: vw - 40,
+          phonePillH: (vw - 40) / 1.85,
+        };
+      }
+
+      /* ─────────────────────────────────────────────────────────────
+         WEB ANIMATIONS TIMELINE (2.1s = 2100ms)
+      ───────────────────────────────────────────────────────────── */
+      function createRevealAnimations() {
+        const u = getUnitValues();
+        const duration = 2100;
+        const animations = [];
+
+        if (!isPhone) {
+          // DESKTOP TIMELINE
+          // 1. Pill Width
+          const pillWidthAnim = pill.animate([
+            { width: `${u.desktopHairlineW}px`, offset: 0, easing: 'step-end' },
+            { width: `${u.desktopHairlineW}px`, offset: 0.14, easing: 'cubic-bezier(.5,0,.3,1)' },
+            { width: `${u.desktopSlitW}px`, offset: 0.30, easing: 'cubic-bezier(.45,0,.3,1)' },
+            { width: `${u.desktopCircleW}px`, offset: 0.58, easing: 'cubic-bezier(.4,0,.2,1)' },
+            { width: `${u.desktopPillW}px`, offset: 1.0 }
+          ], { duration, fill: 'forwards' });
+          animations.push(pillWidthAnim);
+
+          // 2. Pill Clip (Hairline draws vertically from middle out 0 -> 14%)
+          const pillClipAnim = pill.animate([
+            { clipPath: 'inset(50% 0)', offset: 0, easing: 'linear' },
+            { clipPath: 'inset(0% 0)', offset: 0.14 },
+            { clipPath: 'inset(0% 0)', offset: 1.0 }
+          ], { duration, fill: 'forwards' });
+          animations.push(pillClipAnim);
+
+          // 3. Word Gap
+          const gapAnim = heroRow.animate([
+            { gap: '0.026em', offset: 0 },
+            { gap: '0.026em', offset: 0.14, easing: 'linear' },
+            { gap: '0.05em', offset: 0.58, easing: 'cubic-bezier(.4,0,.2,1)' },
+            { gap: '0.085em', offset: 1.0 }
+          ], { duration, fill: 'forwards' });
+          animations.push(gapAnim);
+
+        } else {
+          // PHONE TIMELINE (≤ 720px)
+          // Opens vertically: horizontal hairline draws outwards, height expands
+          const pillHeightAnim = pill.animate([
+            { height: '1.5px', offset: 0, easing: 'step-end' },
+            { height: '1.5px', offset: 0.14, easing: 'cubic-bezier(.5,0,.3,1)' },
+            { height: `${u.phonePillH * 0.10}px`, offset: 0.30, easing: 'cubic-bezier(.45,0,.3,1)' },
+            { height: `${u.phonePillH * 0.55}px`, offset: 0.58, easing: 'cubic-bezier(.4,0,.2,1)' },
+            { height: `${u.phonePillH}px`, offset: 1.0 }
+          ], { duration, fill: 'forwards' });
+          animations.push(pillHeightAnim);
+
+          const pillClipPhoneAnim = pill.animate([
+            { clipPath: 'inset(0 50%)', offset: 0, easing: 'linear' },
+            { clipPath: 'inset(0 0%)', offset: 0.14 },
+            { clipPath: 'inset(0 0%)', offset: 1.0 }
+          ], { duration, fill: 'forwards' });
+          animations.push(pillClipPhoneAnim);
+
+          const phoneGapAnim = heroRow.animate([
+            { gap: '0.03em', offset: 0 },
+            { gap: '0.03em', offset: 0.14 },
+            { gap: '0.06em', offset: 0.58 },
+            { gap: '0.10em', offset: 1.0 }
+          ], { duration, fill: 'forwards' });
+          animations.push(phoneGapAnim);
+        }
+
+        // 4. Pill Hairline Grey Overlay (Fades out 14% -> 30%)
+        const overlayAnim = pillOverlay.animate([
+          { opacity: 1, offset: 0 },
+          { opacity: 1, offset: 0.14, easing: 'cubic-bezier(.4,0,.2,1)' },
+          { opacity: 0, offset: 0.30 },
+          { opacity: 0, offset: 1.0 }
+        ], { duration, fill: 'forwards' });
+        animations.push(overlayAnim);
+
+        // 5. Background Paper & Lines (fades in between 45% and 78%)
+        const bgAnim = bgPaper.animate([
+          { opacity: 0, offset: 0 },
+          { opacity: 0, offset: 0.45, easing: 'cubic-bezier(.3,0,.2,1)' },
+          { opacity: 1, offset: 0.78 },
+          { opacity: 1, offset: 1.0 }
+        ], { duration, fill: 'forwards' });
+        animations.push(bgAnim);
+
+        // 6. Nav (slides down from -140% between 50% and 86%, easing .2,.8,.2,1)
+        const navAnim = navBar.animate([
+          { transform: 'translateY(-140%)', opacity: 0, offset: 0 },
+          { transform: 'translateY(-140%)', opacity: 0, offset: 0.50, easing: 'cubic-bezier(.2,.8,.2,1)' },
+          { transform: 'translateY(0)', opacity: 1, offset: 0.86 },
+          { transform: 'translateY(0)', opacity: 1, offset: 1.0 }
+        ], { duration, fill: 'forwards' });
+        animations.push(navAnim);
+
+        // 7. Footer (rises from +160% between 52% and 90%)
+        const footerAnim = footerBar.animate([
+          { transform: 'translateY(160%)', opacity: 0, offset: 0 },
+          { transform: 'translateY(160%)', opacity: 0, offset: 0.52, easing: 'cubic-bezier(.2,.8,.2,1)' },
+          { transform: 'translateY(0)', opacity: 1, offset: 0.90 },
+          { transform: 'translateY(0)', opacity: 1, offset: 1.0 }
+        ], { duration, fill: 'forwards' });
+        animations.push(footerAnim);
+
+        // 8. Rule (draws from center scaleX 0 -> 1 between 40% and 95%)
+        const ruleAnim = footerRule.animate([
+          { transform: 'scaleX(0)', offset: 0 },
+          { transform: 'scaleX(0)', offset: 0.40, easing: 'cubic-bezier(.4,0,.2,1)' },
+          { transform: 'scaleX(1)', offset: 0.95 },
+          { transform: 'scaleX(1)', offset: 1.0 }
+        ], { duration, fill: 'forwards' });
+        animations.push(ruleAnim);
+
+        // 9. Pill Icons (fade in after 80%)
+        const iconLeftAnim = iconBreeze.animate([
+          { opacity: 0, offset: 0 },
+          { opacity: 0, offset: 0.80, easing: 'linear' },
+          { opacity: 0.85, offset: 1.0 }
+        ], { duration, fill: 'forwards' });
+        animations.push(iconLeftAnim);
+
+        const iconRightAnim = iconSpeaker.animate([
+          { opacity: 0, offset: 0 },
+          { opacity: 0, offset: 0.80, easing: 'linear' },
+          { opacity: 0.85, offset: 1.0 }
+        ], { duration, fill: 'forwards' });
+        animations.push(iconRightAnim);
+
+        return animations;
+      }
+
+      function runForwardAnimation() {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          applyFinalState();
+          return;
+        }
+
+        animationActive = createRevealAnimations();
+        Promise.all(animationActive.map(a => a.finished)).then(() => {
+          isRevealed = true;
+        });
+      }
+
+      function applyFinalState() {
+        const u = getUnitValues();
+        bgPaper.style.opacity = '1';
+        navBar.style.transform = 'translateY(0)';
+        navBar.style.opacity = '1';
+        footerBar.style.transform = 'translateY(0)';
+        footerBar.style.opacity = '1';
+        footerRule.style.transform = 'scaleX(1)';
+        pillOverlay.style.opacity = '0';
+        iconBreeze.style.opacity = '0.85';
+        iconSpeaker.style.opacity = '0.85';
+
+        if (!isPhone) {
+          pill.style.width = `${u.desktopPillW}px`;
+          pill.style.clipPath = 'inset(0)';
+          heroRow.style.gap = '0.085em';
+        } else {
+          pill.style.height = `${u.phonePillH}px`;
+          pill.style.clipPath = 'inset(0)';
+          heroRow.style.gap = '0.10em';
+        }
+        isRevealed = true;
+      }
+
+      // Replay collapse and reveal on "Let's Get Wild" button click
+      btnWild.addEventListener('click', () => {
+        if (!animationActive) {
+          runForwardAnimation();
+          return;
+        }
+
+        // Reverse all animations smoothly
+        btnWild.disabled = true;
+        animationActive.forEach(anim => {
+          anim.playbackRate = -1.35; // Slightly faster collapse
+          anim.play();
+        });
+
+        Promise.all(animationActive.map(a => a.finished)).then(() => {
+          // Reopen after collapse
+          setTimeout(() => {
+            animationActive.forEach(anim => {
+              anim.playbackRate = 1.0;
+              anim.play();
+            });
+            Promise.all(animationActive.map(a => a.finished)).then(() => {
+              btnWild.disabled = false;
+              isRevealed = true;
+            });
+          }, 180);
+        });
+      });
+
+      // Handle Resize
+      window.addEventListener('resize', () => {
+        const newPhone = window.innerWidth <= 720;
+        if (newPhone !== isPhone) {
+          isPhone = newPhone;
+          adjustPhoneLayoutDOM();
+        }
+        if (animationActive) {
+          animationActive.forEach(a => a.finish());
+          applyFinalState();
+        }
+      });
+
+      // Start once fonts are loaded
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => {
+          // Check recording mode (?rec=1)
+          const params = new URLSearchParams(window.location.search);
+          const isRec = params.get('rec') === '1';
+
+          runForwardAnimation();
+
+          if (isRec) {
+            // Recording API for frame-by-frame recorder
+            window.__recVideo = (t) => {
+              const dur = pillVideo.duration || 4.25;
+              return (t % dur) + (1 / 120);
+            };
+
+            // Reverse collapse at 4.9s
+            setTimeout(() => {
+              if (animationActive) {
+                animationActive.forEach(anim => {
+                  anim.playbackRate = -1.0;
+                  anim.play();
+                });
+              }
+            }, 4900);
+          }
+        });
+      } else {
+        window.addEventListener('load', () => runForwardAnimation());
+      }
+
+    })();
+  </script>
+</body>
+</html>

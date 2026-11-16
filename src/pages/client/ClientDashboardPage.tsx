@@ -1,757 +1,2387 @@
-import React, { useState } from 'react';
-
+import React, { useEffect, useState, useMemo } from 'react';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { ProjectReadinessChecklist } from '../../components/client/ProjectReadinessChecklist';
+import { DecisionCenterCard } from '../../components/client/DecisionCenterCard';
+import { ScopeChangeRequestModal } from '../../components/client/ScopeChangeRequestModal';
+import { HandoverAcceptanceModal } from '../../components/client/HandoverAcceptanceModal';
 import {
-  LayoutDashboard,
-  MessageSquare,
-  Sparkles,
-  CheckCircle2,
-  Send,
-  FileText,
-  Paperclip,
   Plus,
-  Clock,
-  Users,
+  Coins,
+  Sparkles,
+  Lightbulb,
+  Bookmark,
+  Trash2,
+  Edit3,
+  CheckCircle2,
+  HelpCircle,
+  Download,
+  RefreshCw,
+  ExternalLink,
+  ChevronRight,
+  Palette,
+  Code2,
+  Server,
+  Database,
+  Cpu,
   ShieldCheck,
-  Zap,
-  Briefcase,
-  FileCheck,
-  Activity,
-  Upload,
-  FileUp,
-  ClipboardList,
-  BadgeCheck,
-  MessageCircle,
+  Cloud,
+  Lock,
+  FileText,
+  FileCode,
+  Table,
+  DollarSign,
+  Layers,
+  FileDown
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { exportBlueprintToPdf, exportBlueprintToDocx } from '../../lib/documentExport';
 import { useUser } from '../../context/UserContext';
-import { useToast } from '../../context/ToastContext';
-import {
-  NcxCoinIcon,
-  NcxCreditBadge,
-} from '../../components/NcxCredit';
-import { DocumentViewerModal } from '../../components/DocumentViewerModal';
+import { BoxedButton } from '../../components/shared/BoxedButton';
+import { api } from '../../lib/api';
+import type { IdeaDraft, ProjectBlueprint, ClarificationItem, CostEstimate, DeliverableSubmissionItem } from '../../types';
+import confetti from 'canvas-confetti';
 
-const MotionDiv = motion.div as any;
+type ClientTab = 'overview' | 'vault' | 'ai-assistant' | 'workspace' | 'milestones' | 'clarifications' | 'budget' | 'documents' | 'exports';
 
-const ACTIVITY_FEED = [
-  {
-    id: 'act-1',
-    type: 'milestone',
-    icon: <CheckCircle2 className="w-4 h-4" />,
-    color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
-    title: 'Idea Received',
-    description: 'Admin has received your project idea and is reviewing it.',
-    time: '2 hours ago',
-    isNew: true,
-  },
-  {
-    id: 'act-2',
-    type: 'upload',
-    icon: <Upload className="w-4 h-4" />,
-    color: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30',
-    title: 'Account Active',
-    description: 'Your account is verified. You have 500 starter credits to submit ideas.',
-    time: '4 hours ago',
-    isNew: true,
-  },
-  {
-    id: 'act-3',
-    type: 'proposal',
-    icon: <MessageCircle className="w-4 h-4" />,
-    color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/30',
-    title: 'Admin Message',
-    description: 'Admin reviewed your brief and sent you a proposal update.',
-    time: 'Yesterday',
-    isNew: false,
-  },
-  {
-    id: 'act-4',
-    type: 'payment',
-    icon: <NcxCoinIcon size="xs" />,
-    color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/30',
-    title: 'NCX Digital Credits Awarded',
-    description: '500 NCX starter credits were added to your account on registration.',
-    time: 'When registered',
-    isNew: false,
-  },
-];
+interface ClientDashboardPageProps {
+  view?: string;
+}
 
-export const ClientDashboardPage: React.FC = () => {
+export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({ view }) => {
   const navigate = useNavigate();
-  const { user, dynamicJobs, ideaSubmissions, editIdea, adminClientMessages, sendAdminClientMessage } = useUser();
-  const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState<'projects' | 'messages' | 'submissions'>('projects');
-  const [newMessageText, setNewMessageText] = useState('');
-  const [activeDocView, setActiveDocView] = useState<{ fileName: string; rawText?: string; docContentHtml?: string } | null>(null);
+  const location = useLocation();
+  const [scopeChangeModalOpen, setScopeChangeModalOpen] = useState(false);
+  const [handoverModalOpen, setHandoverModalOpen] = useState(false);
+  const { user, credits, projectRequests, refreshRequests } = useUser();
 
-  // Edit Idea State
-  const [editingSubmission, setEditingSubmission] = useState<{ id: string; rawIdea: string; docFileName?: string } | null>(null);
-  const [editIdeaText, setEditIdeaText] = useState('');
-  const [editDocName, setEditDocName] = useState('');
+  const [activeTab, setActiveTab] = useState<ClientTab>('overview');
+  const [filter, setFilter] = useState<'all' | 'review' | 'completed'>('all');
+  const [budgetCurrency, setBudgetCurrency] = useState<'INR' | 'USD'>('INR');
+  const [workspaceSubTab, setWorkspaceSubTab] = useState<'blueprint' | 'budget' | 'milestones'>('blueprint');
+  const [searchParams] = useSearchParams();
 
-  // Get the client's idea submissions
-  const mySubmissions = ideaSubmissions.filter((s) => s.clientId === user?.id);
-
-  // Admin-client messages for this user
-  const myAdminMessages = adminClientMessages.filter(
-    (m) => m.conversationId === user?.id
-  );
-
-  // Real-time dynamic jobs belonging to this client
-  const clientJobs = dynamicJobs.filter(
-    (j) =>
-      j.clientName.toLowerCase() === (user?.name || '').toLowerCase() ||
-      j.clientName.toLowerCase() === (user?.email || '').toLowerCase() ||
-      j.clientId === user?.id
-  );
-
-  // Credits
-  const userCredits = user?.credits ?? 0;
-
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessageText.trim() || !user?.id) return;
-    sendAdminClientMessage(user.id, newMessageText);
-    setNewMessageText('');
-    showToast({ type: 'success', title: 'Message Sent', message: 'Sent directly to NexusCraft Admin.' });
-  };
-
-  const handleSaveEditedIdea = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingSubmission) return;
-    if (!editIdeaText.trim()) {
-      showToast({ type: 'error', title: 'Empty Content', message: 'Please provide idea details or requirements.' });
+  // Sync active tab with direct dedicated route or URL query parameter
+  useEffect(() => {
+    const path = location.pathname;
+    if (view === 'vault' || path === '/client/vault') {
+      setActiveTab('vault');
+      return;
+    }
+    if (view === 'workspace' || path === '/client/projects' || path === '/client/workspace') {
+      setActiveTab('workspace');
+      return;
+    }
+    if (view === 'documents' || path === '/client/documents') {
+      setActiveTab('documents');
+      return;
+    }
+    if (view === 'clarifications' || path === '/client/clarifications') {
+      setActiveTab('clarifications');
+      return;
+    }
+    if (view === 'budget' || path === '/client/budget') {
+      setActiveTab('workspace');
+      setWorkspaceSubTab('budget');
+      return;
+    }
+    if (view === 'exports' || path === '/client/exports') {
+      setActiveTab('exports');
+      return;
+    }
+    if (view === 'ai-assistant' || path === '/client/ai-assistant') {
+      setActiveTab('ai-assistant');
+      return;
+    }
+    if (view === 'milestones' || path === '/client/timeline' || path === '/client/milestones') {
+      setActiveTab('milestones');
+      return;
+    }
+    if (view === 'overview' || path === '/client/dashboard' || path === '/client') {
+      setActiveTab('overview');
       return;
     }
 
-    const res = editIdea(editingSubmission.id, editIdeaText, editDocName || undefined);
-    if (res.success) {
-      showToast({ type: 'success', title: 'Idea Updated!', message: 'Your updated project idea was saved and sent to Admin for review.' });
-      setEditingSubmission(null);
-    } else {
-      showToast({ type: 'error', title: 'Update Failed', message: res.error || 'Could not update idea.' });
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['overview', 'vault', 'ai-assistant', 'workspace', 'milestones', 'clarifications', 'budget', 'documents', 'exports'].includes(tabParam)) {
+      setActiveTab(tabParam as ClientTab);
+    }
+  }, [view, location.pathname, searchParams]);
+
+  // Selected project for workspace / passport / blueprint / clarifications
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+
+  // Idea Vault State
+  const [drafts, setDrafts] = useState<IdeaDraft[]>([]);
+  const [draftTitle, setDraftTitle] = useState('');
+  const [draftIdea, setDraftIdea] = useState('');
+  const [draftBudget, setDraftBudget] = useState('');
+  const [draftTimeline, setDraftTimeline] = useState('');
+  const [draftCategory, setDraftCategory] = useState('Web Application');
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  const [vaultLoading, setVaultLoading] = useState(false);
+
+  // AI Assistant State (12 Tools)
+  const [selectedAITool, setSelectedAITool] = useState<string>('enhance_idea');
+  const [aiToolInput, setAiToolInput] = useState('');
+  const [aiToolResult, setAiToolResult] = useState('');
+  const [aiToolLoading, setAiToolLoading] = useState(false);
+
+  // Project Blueprint & AI Blueprint Editor State (Section B)
+  const [blueprint, setBlueprint] = useState<ProjectBlueprint | null>(null);
+  const [blueprintLoading, setBlueprintLoading] = useState(false);
+  const [isEditingBlueprint, setIsEditingBlueprint] = useState(false);
+  const [draftModules, setDraftModules] = useState<string[]>([]);
+  const [draftFeatures, setDraftFeatures] = useState<string[]>([]);
+  const [draftMilestones, setDraftMilestones] = useState<any[]>([]);
+  const [aiSuggestLoading, setAiSuggestLoading] = useState(false);
+  const [blueprintSaving, setBlueprintSaving] = useState(false);
+
+  // Milestone Progress Tracking State (Section B)
+  const [projectMilestones, setProjectMilestones] = useState<any[]>([]);
+
+  // Clarifications State
+  const [clarifications, setClarifications] = useState<ClarificationItem[]>([]);
+  const [answeringId, setAnsweringId] = useState<string | null>(null);
+  const [answerText, setAnswerText] = useState('');
+
+  // Cost & Budget State
+  const [costEstimate, setCostEstimate] = useState<CostEstimate | null>(null);
+
+  // Deliverables State (Client sees only released deliverables)
+  const [deliverables, setDeliverables] = useState<DeliverableSubmissionItem[]>([]);
+
+  useEffect(() => {
+    refreshRequests();
+  }, [refreshRequests]);
+
+  // Set default selected project
+  useEffect(() => {
+    if (projectRequests.length > 0 && !selectedProjectId) {
+      setSelectedProjectId(projectRequests[0].customId || projectRequests[0].id);
+    }
+  }, [projectRequests, selectedProjectId]);
+
+  // Load drafts for client
+  const loadDrafts = async () => {
+    if (!user) return;
+    setVaultLoading(true);
+    const clientId = user.customId || user.id || (user as any)._id;
+    const res = await api.getClientDrafts(clientId);
+    setDrafts(res);
+    setVaultLoading(false);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'vault') {
+      loadDrafts();
+    }
+  }, [activeTab, user]);
+
+  // Load project details when selected project changes
+  useEffect(() => {
+    if (!selectedProjectId) return;
+
+    // Load Blueprint
+    setBlueprintLoading(true);
+    api.getBlueprint(selectedProjectId).then(res => {
+      setBlueprint(res);
+      setBlueprintLoading(false);
+      if (res) {
+        setDraftModules(res.mainModules || []);
+        setDraftFeatures(res.essentialFeatures || []);
+        const initialMilestones = [
+          { title: 'Phase 1: Architecture & UX Blueprint', duration: '1-2 Weeks', priority: 1, status: 'In Progress' },
+          { title: 'Phase 2: Core Engineering & Integrations', duration: '2-3 Weeks', priority: 2, status: 'Not Started' },
+          { title: 'Phase 3: QA, Security Hardening & Release', duration: '1 Week', priority: 3, status: 'Not Started' }
+        ];
+        setDraftMilestones(initialMilestones);
+      }
+    });
+
+    // Load Clarifications
+    api.getProjectClarifications(selectedProjectId).then(res => {
+      setClarifications(res);
+    });
+
+    // Load Cost
+    api.getProjectCost(selectedProjectId).then(res => {
+      setCostEstimate(res);
+    });
+
+    // Load Deliverables (role='client' ensures only released packages are returned)
+    api.getProjectDeliverables(selectedProjectId, 'client').then(res => {
+      setDeliverables(res);
+    });
+
+    // Load Tasks & Milestones
+    api.getProjectTasks(selectedProjectId).then(res => {
+      setProjectMilestones(res || []);
+    });
+  }, [selectedProjectId]);
+
+  // Request AI Suggestions for Blueprint
+  const handleRequestAiSuggestions = async () => {
+    if (!blueprint) return;
+    setAiSuggestLoading(true);
+    const bId = (blueprint as any)._id || blueprint.customId;
+    const res = await api.aiSuggestBlueprint(bId, 'milestones');
+    setAiSuggestLoading(false);
+    if (res?.suggestions) {
+      alert(`AI Suggestion Engine: ${res.suggestions.summary || 'Generated optimization recommendation.'}`);
+      if (res.suggestions.suggestedModules) {
+        setDraftModules(Array.from(new Set([...draftModules, ...res.suggestions.suggestedModules])));
+      }
     }
   };
 
-
-  const statusColor = (status: string) => {
-    if (status === 'New') return 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30';
-    if (status === 'Reviewed') return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
-    if (status === 'Actioned') return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
-    return 'bg-slate-800 text-slate-400';
+  // Reorder Milestone
+  const handleReorderMilestone = (index: number, direction: 'up' | 'down') => {
+    const newItems = [...draftMilestones];
+    const target = direction === 'up' ? index - 1 : index + 1;
+    if (target < 0 || target >= newItems.length) return;
+    const temp = newItems[index];
+    newItems[index] = newItems[target];
+    newItems[target] = temp;
+    setDraftMilestones(newItems);
   };
 
-  const submissionTypeIcon = (type: string) => {
-    if (type === 'document') return <FileUp className="w-4 h-4" />;
-    if (type === 'text') return <Zap className="w-4 h-4" />;
-    return <FileText className="w-4 h-4" />;
+  // Save Client Draft Blueprint
+  const handleSaveDraftBlueprint = async (submitForReview = false) => {
+    if (!blueprint) return;
+    setBlueprintSaving(true);
+    const bId = (blueprint as any)._id || blueprint.customId;
+    const res = await api.clientEditBlueprint(bId, {
+      clientId: user?.customId || user?.id,
+      clientName: user?.name,
+      draftModules,
+      draftFeatures,
+      proposedMilestones: draftMilestones,
+      submitForAdminReview: submitForReview
+    });
+    setBlueprintSaving(false);
+    if (res?.success) {
+      confetti({ particleCount: 50, spread: 60 });
+      alert(submitForReview
+        ? 'Draft blueprint revisions submitted to administration for review.'
+        : 'Draft blueprint changes saved in private workspace.');
+      setIsEditingBlueprint(false);
+      // reload blueprint
+      const updated = await api.getBlueprint(selectedProjectId);
+      setBlueprint(updated);
+    } else {
+      alert(`Could not save draft: ${res?.error || 'Unknown error'}`);
+    }
   };
+
+  const activeProject = useMemo(() => {
+    return projectRequests.find(r => (r.customId || r.id) === selectedProjectId) || projectRequests[0];
+  }, [projectRequests, selectedProjectId]);
+
+  // Handlers for Idea Vault
+  const handleSaveDraft = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!draftTitle.trim() || !user) return;
+
+    const clientId = user.customId || user.id || (user as any)._id;
+    if (editingDraftId) {
+      await api.updateDraft(editingDraftId, {
+        title: draftTitle,
+        rawIdea: draftIdea,
+        category: draftCategory,
+        expectedBudget: draftBudget,
+        preferredTimeline: draftTimeline
+      });
+      setEditingDraftId(null);
+    } else {
+      await api.createDraft({
+        clientId,
+        title: draftTitle,
+        rawIdea: draftIdea,
+        category: draftCategory,
+        expectedBudget: draftBudget,
+        preferredTimeline: draftTimeline
+      });
+    }
+
+    setDraftTitle('');
+    setDraftIdea('');
+    setDraftBudget('');
+    setDraftTimeline('');
+    loadDrafts();
+  };
+
+  const handleDeleteDraft = async (id: string) => {
+    await api.deleteDraft(id);
+    loadDrafts();
+  };
+
+  const handleEditDraft = (draft: IdeaDraft) => {
+    setEditingDraftId(draft.customId);
+    setDraftTitle(draft.title);
+    setDraftIdea(draft.rawIdea);
+    setDraftCategory(draft.category || 'Web Application');
+    setDraftBudget(draft.expectedBudget || '');
+    setDraftTimeline(draft.preferredTimeline || '');
+  };
+
+  const handleToggleFavoriteDraft = async (draft: IdeaDraft) => {
+    await api.updateDraft(draft.customId, { isFavorite: !draft.isFavorite });
+    loadDrafts();
+  };
+
+  // Run AI Tool
+  const handleRunAITool = async () => {
+    if (!aiToolInput.trim()) return;
+    setAiToolLoading(true);
+    setAiToolResult('');
+    const res = await api.runAITool(selectedAITool, {
+      title: activeProject?.projectTitle || 'Project Initiative',
+      input: aiToolInput,
+      category: activeProject?.aiCategory || 'Web Application',
+      context: { budget: activeProject?.rawIdea?.match(/\d+/g)?.[0] || '₹1,50,000' }
+    });
+    setAiToolLoading(false);
+    if (res?.result) {
+      setAiToolResult(res.result);
+    } else {
+      setAiToolResult('AI processing completed. Scoping guidelines updated.');
+    }
+  };
+
+  // Submit Answer to Clarification
+  const handleAnswerClarification = async (clarificationId: string) => {
+    if (!answerText.trim() || !user) return;
+    const res = await api.answerClarification(clarificationId, {
+      answer: answerText,
+      answeredBy: { id: user.customId || user.id, name: user.name, role: 'client' }
+    });
+    if (res?.success) {
+      setAnsweringId(null);
+      setAnswerText('');
+      const updated = await api.getProjectClarifications(selectedProjectId);
+      setClarifications(updated);
+      confetti({ particleCount: 30, spread: 40 });
+    }
+  };
+
+  // Export Project Summary CSV
+  const handleExportCSV = () => {
+    if (!activeProject) return;
+    const headers = ['Project ID', 'Title', 'Category', 'Status', 'NCX Cost', 'Created At'];
+    const row = [
+      activeProject.customId || activeProject.id,
+      `"${activeProject.projectTitle.replace(/"/g, '""')}"`,
+      activeProject.aiCategory,
+      activeProject.status,
+      activeProject.creditsCost || 50,
+      activeProject.createdAt
+    ];
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), row.join(',')].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `NexusCraft-${activeProject.customId || 'project'}-Passport.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Effective blueprint accessor with graceful fallbacks
+  const getEffectiveBlueprint = () => {
+    if (blueprint) return blueprint;
+    if (!activeProject) return null;
+    return {
+      projectOverview: activeProject.rawIdea || 'Product development roadmap and technical architecture blueprint initialized under NexusCraft platform.',
+      problemStatement: 'Enterprise-grade digital workflow automation and platform architecture.',
+      proposedSolution: activeProject.rawIdea || 'Modular microservices architecture with real-time state management.',
+      essentialFeatures: ['Role-Based Access Control', 'Interactive Workspaces & Deliverables', 'Real-time WebSockets & Telemetry'],
+      recommendedFeatures: ['Automated Audit Logs', 'Enterprise PDF/Word Document Generator', 'Integrated AI Slide Studio'],
+      mainModules: ['Authentication & Session Management', 'Core Business Logic Engine', 'Storage & Media Pipeline', 'Telemetry & Notifications'],
+      suggestedTechnologies: ['React 18', 'TypeScript', 'Node.js', 'Express', 'MongoDB Atlas', 'Tailwind CSS'],
+      estimatedDevelopmentEffort: '6 Weeks (182 Engineering Hours)',
+      projectComplexity: 'Medium-High',
+      approvedByAdmin: true,
+      version: 1
+    } as any;
+  };
+
+  // Export AI Blueprint Markdown
+  const handleExportBlueprintMarkdown = () => {
+    if (!activeProject) return;
+    const bp = getEffectiveBlueprint();
+    const md = `# NexusCraft Architectural Blueprint: ${activeProject.projectTitle}
+**Project ID:** ${activeProject.customId || activeProject.id}
+**Category:** ${activeProject.aiCategory || 'Web & Mobile Application'}
+**Status:** ${bp?.approvedByAdmin ? 'Admin Approved Specification' : 'Draft Proposal'}
+**Date Generated:** ${new Date().toLocaleDateString()}
+
+---
+
+## 1. Project Overview
+${bp?.projectOverview || 'N/A'}
+
+## 2. Problem Statement
+${bp?.problemStatement || 'N/A'}
+
+## 3. Proposed Solution
+${bp?.proposedSolution || 'N/A'}
+
+## 4. Main Modules
+${bp?.mainModules?.map((m: any) => `- ${m}`).join('\n') || 'N/A'}
+
+## 5. Essential Features (P0 MVP)
+${bp?.essentialFeatures?.map((f: any) => `- ${f}`).join('\n') || 'N/A'}
+
+## 6. Recommended Features (P1)
+${bp?.recommendedFeatures?.map((f: any) => `- ${f}`).join('\n') || 'N/A'}
+
+## 7. Suggested Technologies
+${bp?.suggestedTechnologies?.map((t: any) => `- ${t}`).join('\n') || 'N/A'}
+
+## 8. Estimated Development Effort & Complexity
+- **Effort:** ${bp?.estimatedDevelopmentEffort || '6 Weeks (182 Hours)'}
+- **Complexity:** ${bp?.projectComplexity || 'Medium'}
+
+---
+*Generated by NexusCraft AI Engine. Studio governance assured.*
+`;
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `NexusCraft-${activeProject.customId || 'project'}-Blueprint.md`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    confetti({ particleCount: 25, spread: 40 });
+  };
+
+  // Export AI Blueprint PDF using jsPDF
+  const handleExportBlueprintPDF = () => {
+    if (!activeProject) {
+      alert('Please select or create an active project first.');
+      return;
+    }
+    const bp = getEffectiveBlueprint();
+    exportBlueprintToPdf({
+      title: activeProject.projectTitle || 'NexusCraft Commissioned Project',
+      category: activeProject.aiCategory || 'Web & Mobile Application',
+      version: (bp as any)?.version || 1,
+      projectOverview: bp?.projectOverview || activeProject.rawIdea,
+      problemStatement: bp?.problemStatement,
+      proposedSolution: bp?.proposedSolution,
+      essentialFeatures: bp?.essentialFeatures,
+      mainModules: bp?.mainModules,
+      techStack: bp?.suggestedTechnologies,
+      estimatedDevelopmentEffort: bp?.estimatedDevelopmentEffort || '6 Weeks',
+      developmentPhases: draftMilestones?.length ? draftMilestones : projectMilestones
+    });
+    confetti({ particleCount: 35, spread: 50 });
+  };
+
+  // Export AI Blueprint Word (.docx)
+  const handleExportBlueprintDOCX = async () => {
+    if (!activeProject) {
+      alert('Please select or create an active project first.');
+      return;
+    }
+    const bp = getEffectiveBlueprint();
+    await exportBlueprintToDocx({
+      title: activeProject.projectTitle || 'NexusCraft Commissioned Project',
+      category: activeProject.aiCategory || 'Web & Mobile Application',
+      version: (bp as any)?.version || 1,
+      projectOverview: bp?.projectOverview || activeProject.rawIdea,
+      problemStatement: bp?.problemStatement,
+      proposedSolution: bp?.proposedSolution,
+      essentialFeatures: bp?.essentialFeatures,
+      mainModules: bp?.mainModules,
+      techStack: bp?.suggestedTechnologies
+    });
+    confetti({ particleCount: 35, spread: 50 });
+  };
+
+  // Export Milestones CSV
+  const handleExportMilestonesCSV = () => {
+    if (!activeProject) return;
+    const headers = ['Milestone Title', 'Duration', 'Due Date', 'Status', 'Progress'];
+    const rows = (projectMilestones.length > 0 ? projectMilestones : [
+      { title: 'Milestone 1: Architectural Scoping', expectedDuration: '2 Weeks', dueDate: 'Sprint 1', status: 'Completed', progress: 100 },
+      { title: 'Milestone 2: Core Engineering', expectedDuration: '3 Weeks', dueDate: 'Sprint 2', status: 'In Progress', progress: 65 },
+      { title: 'Milestone 3: QA & Release', expectedDuration: '1 Week', dueDate: 'Sprint 3', status: 'Not Started', progress: 0 }
+    ]).map(m => [
+      `"${(m.title || '').replace(/"/g, '""')}"`,
+      m.expectedDuration || m.duration || 'N/A',
+      m.dueDate ? new Date(m.dueDate).toLocaleDateString() : 'Active',
+      m.status,
+      `${m.progress || 0}%`
+    ]);
+    const csv = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encoded = encodeURI(csv);
+    const link = document.createElement('a');
+    link.setAttribute('href', encoded);
+    link.setAttribute('download', `NexusCraft-${activeProject.customId || 'project'}-Milestones.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Print Dossier
+  const handlePrintDossier = () => {
+    window.print();
+  };
+
+  // Counts
+  const totalRequests = projectRequests.length;
+  const underReview = projectRequests.filter(r =>
+    r.status === 'Submitted' || r.status === 'Under Admin Review' || r.status === 'Specialist Review' || r.status === 'New'
+  ).length;
+  const activeProjects = projectRequests.filter(r => r.status === 'In Progress').length;
+  const completedProjects = projectRequests.filter(r => r.status === 'Completed').length;
+
+  const filteredRequests = projectRequests.filter(r => {
+    if (filter === 'review') return r.status.includes('Review') || r.status === 'Submitted';
+    if (filter === 'completed') return r.status === 'Completed';
+    return true;
+  });
 
   return (
-    <>
-      <div className="pt-28 pb-8 bg-slate-950 min-h-screen text-slate-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
-              <span className="text-xs font-mono font-bold text-cyan-400 uppercase">CLIENT DASHBOARD // DYNAMIC WORKSPACE</span>
+    <div className="space-y-8 max-w-7xl mx-auto pb-16">
+      
+      {/* ─────────────────────────────────────────────────────────────
+          1. WELCOME HERO BANNER (ONLY ON OVERVIEW TAB)
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'overview' && (
+        <div className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6 transition-all">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <img
+                src={user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'}
+                alt={user?.name || 'Client Avatar'}
+                className="w-14 h-14 rounded-2xl object-cover border-2 border-[#7357FF]/30 shadow-md"
+              />
+              <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white dark:border-[#17172B] rounded-full" />
             </div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-              Good morning, <span className="gradient-text">{user?.name || 'New Client'}</span>
-            </h1>
-
-            {/* Client Attributes */}
-            <div className="flex flex-wrap items-center gap-3 mt-2 text-xs font-mono">
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30 flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{user?.verificationBadge || 'Verified Client'}</span>
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-500/30 flex items-center gap-1.5 shadow-sm shadow-indigo-500/20">
-                <NcxCoinIcon size="xs" />
-                <NcxCreditBadge amount={userCredits} size="xs" />
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30 flex items-center gap-1">
-                <Zap className="w-3.5 h-3.5 text-purple-400" />
-                <span>Trust Score: {user?.trustScore || 98}%</span>
-              </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-[#EEE9FF] dark:bg-[#252445] text-[#7357FF]">
+                  CLIENT PORTAL
+                </span>
+                <span className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                  {user?.company || 'NexusCraft Member'}
+                </span>
+              </div>
+              <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-[#17172B] dark:text-white mt-1">
+                Welcome back, {user?.name?.split(' ')[0] || 'Client'}
+              </h1>
+              <p className="text-xs sm:text-sm text-[#65677A] dark:text-[#A6A8C0]">
+                Track your product blueprints, explore the Idea Vault, collaborate via clarifications, and review released deliverables.
+              </p>
             </div>
           </div>
 
+          {/* Action Controls */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate('/brief')}
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 hover:scale-105 text-white text-xs font-extrabold shadow-md flex items-center gap-1.5 transition-all"
+              onClick={() => navigate('/submit-request')}
+              type="button"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#7357FF] to-[#3978FF] hover:from-[#6245F5] hover:to-[#2B6AF5] text-white shadow-sm shadow-[#7357FF]/25 transition-all active:scale-95 cursor-pointer"
             >
-              <Plus className="w-4 h-4 text-cyan-200" />
-              <span>+ Submit Idea</span>
+              <Plus className="w-4 h-4" />
+              <span>Submit New Idea</span>
             </button>
-
             <button
-              onClick={() => navigate('/designers')}
-              className="px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-all"
+              onClick={() => navigate('/credits')}
+              type="button"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-[#F7F8FC] dark:bg-[#1E1E38] hover:bg-[#EAEBF5] dark:hover:bg-[#28284C] text-[#17172B] dark:text-white border border-[#E8EAF4] dark:border-[#2A2A46] shadow-xs transition-all active:scale-95 cursor-pointer"
             >
-              <Users className="w-4 h-4 text-indigo-400" />
-              <span>Find Talent</span>
+              <Coins className="w-4 h-4 text-[#7357FF]" />
+              <span>{credits} NCX</span>
             </button>
           </div>
         </div>
+      )}
 
-
-
-        {/* Dynamic Key Client Metrics */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="glass-card border border-slate-800 p-6 rounded-3xl bg-slate-900/95">
-            <div className="text-xs font-mono text-slate-400 font-bold uppercase mb-1">IDEAS SUBMITTED</div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono">{mySubmissions.length}</div>
-            <div className="text-[10px] font-mono text-cyan-400 font-semibold mt-1">● Sent to admin</div>
-          </div>
-
-          <div className="glass-card border border-indigo-500/30 p-6 rounded-3xl bg-slate-900/95 shadow-lg shadow-indigo-500/5">
-            <div className="text-xs font-mono text-indigo-300 font-bold uppercase mb-1 flex items-center gap-1.5">
-              <NcxCoinIcon size="xs" />
-              <span>NCX DIGITAL BALANCE</span>
+      {/* ─────────────────────────────────────────────────────────────
+          2. FOCUSED SUBPAGE HEADER (WHEN NOT ON OVERVIEW TAB)
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab !== 'overview' && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
+          <div>
+            <div className="flex items-center gap-1.5 text-xs text-[#777B8A] mb-1">
+              <span onClick={() => navigate('/client/dashboard')} className="hover:text-[#3978FF] cursor-pointer">
+                Client Workspace
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-[#A0A4B8]" />
+              <span className="font-semibold text-[#222438] dark:text-white capitalize">
+                {activeTab === 'vault'
+                  ? 'Idea Vault'
+                  : activeTab === 'workspace'
+                  ? 'My Projects'
+                  : activeTab === 'documents'
+                  ? 'Documents & Files'
+                  : activeTab === 'clarifications'
+                  ? 'Clarifications'
+                  : activeTab === 'exports'
+                  ? 'Project Exports & Dossier'
+                  : activeTab === 'ai-assistant'
+                  ? 'AI Idea Assistant'
+                  : activeTab.replace('-', ' ')}
+              </span>
             </div>
-            <div className="text-2xl sm:text-3xl font-extrabold font-mono flex items-center gap-2">
-              <NcxCreditBadge amount={userCredits} size="md" />
-            </div>
-            <div className="text-[10px] font-mono text-slate-400 font-semibold mt-1">50 NCX per idea submission</div>
+            <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-[#222438] dark:text-white tracking-tight">
+              {activeTab === 'vault'
+                ? 'Confidential Idea Vault'
+                : activeTab === 'workspace'
+                ? 'Product Architecture & Work Center'
+                : activeTab === 'documents'
+                ? 'Document Studio & Deliverables'
+                : activeTab === 'clarifications'
+                ? 'Clarification Center & Inquiries'
+                : activeTab === 'exports'
+                ? 'Project Exports & Verified Dossier'
+                : activeTab === 'ai-assistant'
+                ? 'AI Engineering Assistant Studio'
+                : 'Workspace Center'}
+            </h1>
           </div>
 
-          <div className="glass-card border border-slate-800 p-6 rounded-3xl bg-slate-900/95">
-            <div className="text-xs font-mono text-slate-400 font-bold uppercase mb-1">ACTIVE JOBS</div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-emerald-400 font-mono">{clientJobs.length}</div>
-            <div className="text-[10px] font-mono text-emerald-400 font-semibold mt-1">On marketplace</div>
-          </div>
-
-          <div className="glass-card border border-slate-800 p-6 rounded-3xl bg-slate-900/95">
-            <div className="text-xs font-mono text-slate-400 font-bold uppercase mb-1">ADMIN MESSAGES</div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-purple-300 font-mono">{myAdminMessages.length}</div>
-            <div className="text-[10px] font-mono text-purple-300 font-semibold mt-1">Direct channel</div>
-          </div>
-        </div>
-
-        {/* Credits banner for new users */}
-        {userCredits >= 450 && (
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950/80 via-purple-950/60 to-cyan-950/80 border border-indigo-500/40 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
-            <div className="flex items-center gap-3.5">
-              <NcxCoinIcon size="lg" className="shrink-0 animate-pulse" />
-              <div>
-                <p className="text-sm font-bold text-white flex items-center gap-2">
-                  <span>🎉 Welcome! You have</span>
-                  <NcxCreditBadge amount={userCredits} size="sm" />
-                  <span>starter credits</span>
-                </p>
-                <p className="text-xs text-slate-300 mt-0.5">Use your branded NCX virtual digital credits to submit project ideas directly to admin. Each submission is only <span className="text-indigo-300 font-mono font-bold">50 NCX</span>.</p>
-              </div>
-            </div>
-            <button
-              onClick={() => navigate('/brief')}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-500 text-white text-xs font-bold shrink-0 shadow-lg hover:scale-105 transition-all flex items-center gap-1.5"
-            >
-              <NcxCoinIcon size="xs" />
-              <span>Submit Idea</span>
-            </button>
-          </div>
-        )}
-
-        {/* Tab Switcher Navigation */}
-        <div className="flex items-center gap-2 p-1.5 bg-slate-900 rounded-2xl border border-slate-800 w-max mb-8">
-          <button
-            onClick={() => setActiveTab('projects')}
-            className={`px-5 py-2.5 rounded-xl text-xs font-mono font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'projects'
-                ? 'bg-gradient-to-r from-indigo-600 to-cyan-500 text-white shadow-lg'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <LayoutDashboard className="w-4 h-4" />
-            <span>Projects ({clientJobs.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('submissions')}
-            className={`px-5 py-2.5 rounded-xl text-xs font-mono font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'submissions'
-                ? 'bg-gradient-to-r from-indigo-600 to-cyan-500 text-white shadow-lg'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <ClipboardList className="w-4 h-4" />
-            <span>My Submissions ({mySubmissions.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('messages')}
-            className={`px-5 py-2.5 rounded-xl text-xs font-mono font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'messages'
-                ? 'bg-gradient-to-r from-indigo-600 to-cyan-500 text-white shadow-lg'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span>Admin Chat {myAdminMessages.length > 0 && `(${myAdminMessages.length})`}</span>
-          </button>
-        </div>
-
-        {/* TAB 1: PROJECTS */}
-        {activeTab === 'projects' && (
-          <div className="glass-card border border-cyan-500/30 rounded-3xl p-6 sm:p-8 mb-8 bg-slate-900/95">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center">
-                  <Briefcase className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-white">My Posted Projects ({clientJobs.length})</h2>
-                  <p className="text-xs text-slate-400">All live project requirements posted by you.</p>
-                </div>
-              </div>
+          {/* Quick Context Action */}
+          <div className="flex items-center gap-2">
+            {activeTab === 'exports' && (
               <button
-                onClick={() => navigate('/brief')}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 self-start sm:self-auto"
+                onClick={handlePrintDossier}
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-white dark:bg-[#1E1E38] border border-[#E9EAF0] dark:border-[#2A2A46] text-[#222438] dark:text-white hover:bg-[#F8F9FC] shadow-xs transition-all cursor-pointer"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>+ Add New Project</span>
+                <Download className="w-3.5 h-3.5 text-[#3978FF]" />
+                <span>Print Dossier</span>
               </button>
+            )}
+            {activeTab === 'vault' && (
+              <button
+                onClick={() => navigate('/submit-request')}
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-[#7357FF] to-[#3978FF] text-white shadow-xs transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Submit Idea Intake</span>
+              </button>
+            )}
+            <div className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-white dark:bg-[#17172B] border border-[#E9EAF0] dark:border-[#2A2A46] text-[#65677A] dark:text-[#A6A8C0]">
+              <Coins className="w-3.5 h-3.5 text-[#7357FF]" />
+              <span>{credits} NCX Available</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+
+      {/* ─────────────────────────────────────────────────────────────
+          TAB 1: PROJECTS OVERVIEW & PIPELINE
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'overview' && (
+        <div className="space-y-8">
+          {/* Key Live Telemetry Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="p-5 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
+              <span className="text-[10px] font-mono font-bold uppercase text-[#65677A] dark:text-[#A6A8C0]">Submitted Ideas</span>
+              <div className="text-2xl font-display font-extrabold text-[#17172B] dark:text-white mt-1">{totalRequests}</div>
+              <div className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-1">Live recorded submissions</div>
+            </div>
+            <div className="p-5 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
+              <span className="text-[10px] font-mono font-bold uppercase text-[#7357FF]">Pending Admin Review</span>
+              <div className="text-2xl font-display font-extrabold text-[#7357FF] mt-1">{underReview}</div>
+              <div className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-1">Scoping & architecture triage</div>
+            </div>
+            <div className="p-5 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
+              <span className="text-[10px] font-mono font-bold uppercase text-[#3978FF]">Active Builds</span>
+              <div className="text-2xl font-display font-extrabold text-[#3978FF] mt-1">{activeProjects}</div>
+              <div className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-1">In progress with specialists</div>
+            </div>
+            <div className="p-5 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
+              <span className="text-[10px] font-mono font-bold uppercase text-[#22c55e]">Completed Blueprints</span>
+              <div className="text-2xl font-display font-extrabold text-[#22c55e] mt-1">{completedProjects}</div>
+              <div className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-1">Ready for handoff or live</div>
+            </div>
+          </div>
+
+          {/* Project Quality & Decision Centers */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="lg:col-span-6">
+              <ProjectReadinessChecklist project={activeProject} />
+            </div>
+            <div className="lg:col-span-6 space-y-6">
+              <DecisionCenterCard project={activeProject} onDecisionUpdated={refreshRequests} />
+              
+              {/* Quick Actions Card */}
+              <div className="p-6 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-sm space-y-4">
+                <h4 className="font-display font-bold text-base text-[#17172B] dark:text-white">
+                  Project Governance & Release Actions
+                </h4>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setScopeChangeModalOpen(true)}
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-[#E9E3FF] text-[#7357FF] hover:bg-[#7357FF] hover:text-white transition-all shadow-xs"
+                  >
+                    + Request Scope Change
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHandoverModalOpen(true)}
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-[#E8F8F0] text-[#24A675] hover:bg-[#24A675] hover:text-white transition-all shadow-xs"
+                  >
+                    Formalize Handover Acceptance
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Submissions List */}
+          <div className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="font-display font-bold text-lg text-[#17172B] dark:text-white">
+                  My Commissioned Projects
+                </h3>
+                <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                  Real-time status tracking and access to project work centers.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {(['all', 'review', 'completed'] as const).map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setFilter(tab)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors ${
+                      filter === tab
+                        ? 'bg-[#17172B] text-white dark:bg-white dark:text-[#17172B]'
+                        : 'text-[#65677A] dark:text-[#A6A8C0] hover:bg-[#F0F2F9] dark:hover:bg-[#202038]'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {clientJobs.length === 0 ? (
-              <div className="p-8 rounded-2xl bg-slate-950 border border-slate-800 text-center space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center mx-auto border border-cyan-500/30">
-                  <Sparkles className="w-6 h-6" />
+            {filteredRequests.length === 0 ? (
+              <div className="py-12 text-center border-2 border-dashed border-[#E8EAF4] dark:border-[#2A2A46] rounded-2xl">
+                <Lightbulb className="w-10 h-10 text-[#65677A] dark:text-[#A6A8C0] mx-auto mb-3 opacity-60" />
+                <h4 className="font-display font-bold text-base text-[#17172B] dark:text-white">No projects found</h4>
+                <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-1 max-w-sm mx-auto">
+                  Submit a new idea with just a title to receive an instant AI scoping blueprint and specialist review.
+                </p>
+                <div className="mt-4">
+                  <BoxedButton variant="primary" size="sm" onClick={() => navigate('/submit-request')}>
+                    Submit Project
+                  </BoxedButton>
                 </div>
-                <div>
-                  <h3 className="text-base font-bold text-white">No Projects Posted Yet</h3>
-                  <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-                    Submit your idea using Quick Idea, upload a document, or use the AI Brief Builder.
-                  </p>
-                </div>
-                <button
-                  onClick={() => navigate('/brief')}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white font-extrabold text-xs shadow-lg"
-                >
-                  Submit Your First Idea
-                </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {clientJobs.map((job) => (
-                  <div key={job.id} className="p-5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-cyan-500/40 transition-all space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="font-bold text-white text-base">{job.title}</h3>
-                        <span className="text-xs text-slate-400">{job.category} • Posted {job.postedAt}</span>
+              <div className="space-y-4">
+                {filteredRequests.map(req => {
+                  const isSelected = (req.customId || req.id) === selectedProjectId;
+                  return (
+                    <div
+                      key={req.customId || req.id}
+                      className={`p-5 rounded-xl border transition-all duration-200 flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                        isSelected
+                          ? 'border-[#7357FF] bg-[#EEE9FF]/10 dark:bg-[#7357FF]/5'
+                          : 'border-[#E8EAF4] dark:border-[#2A2A46] bg-white dark:bg-[#131326] hover:border-[#7357FF]/40'
+                      }`}
+                    >
+                      <div className="space-y-1.5 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-[10px] text-[#7357FF] font-bold">
+                            {req.customId || req.id}
+                          </span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-[#F0F2F9] dark:bg-[#22223D] text-[#65677A] dark:text-[#A6A8C0]">
+                            {req.aiCategory || 'Web'}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-bold ${
+                            req.status === 'Completed'
+                              ? 'bg-[#22c55e]/10 text-[#22c55e]'
+                              : req.status === 'In Progress'
+                              ? 'bg-[#3978FF]/10 text-[#3978FF]'
+                              : 'bg-[#7357FF]/10 text-[#7357FF]'
+                          }`}>
+                            {req.status}
+                          </span>
+                        </div>
+                        <h4 className="font-display font-bold text-base text-[#17172B] dark:text-white">
+                          {req.projectTitle}
+                        </h4>
+                        <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] line-clamp-2">
+                          {req.aiSummary || req.rawIdea || 'Project submitted for administrative review and technical assessment.'}
+                        </p>
                       </div>
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
-                        ● {job.status.toUpperCase()}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-300 line-clamp-2 italic">{job.description}</p>
-                    <div className="flex items-center justify-between pt-3 border-t border-slate-900 text-xs font-mono">
-                      <div>
-                        <span className="text-slate-400 block text-[10px]">ESTIMATED BUDGET:</span>
-                        <span className="text-emerald-400 font-extrabold">${job.minBudget.toLocaleString()} - ${job.maxBudget.toLocaleString()}</span>
-                      </div>
+
                       <div className="flex items-center gap-2">
-                        <span className="text-cyan-300 font-bold">{job.proposalsCount} Proposals</span>
-                        <button
-                          onClick={() => navigate('/proposals')}
-                          className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-200 hover:text-cyan-300 font-bold text-xs flex items-center gap-1"
+                        <BoxedButton
+                          variant={isSelected ? 'accent' : 'secondary'}
+                          size="sm"
+                          onClick={() => {
+                            setSelectedProjectId(req.customId || req.id);
+                            setActiveTab('workspace');
+                          }}
                         >
-                          <FileCheck className="w-3.5 h-3.5 text-cyan-400" />
-                          <span>View Proposals</span>
-                        </button>
+                          Open Workspace
+                        </BoxedButton>
+                        <BoxedButton
+                          variant="tertiary"
+                          size="sm"
+                          onClick={() => navigate(`/requests/${req.customId || req.id}`)}
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </BoxedButton>
                       </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          TAB 2: IDEA VAULT (FREE DRAFT OPERATIONS)
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'vault' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Create / Edit Draft Form */}
+          <div className="lg:col-span-1 p-6 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Lightbulb className="w-5 h-5 text-[#7357FF]" />
+              <h3 className="font-display font-bold text-base text-[#17172B] dark:text-white">
+                {editingDraftId ? 'Edit Vault Draft' : 'Add Idea to Vault'}
+              </h3>
+            </div>
+            <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+              Drafts are 100% free. No NCX credits are deducted until you officially submit for administrative intake.
+            </p>
+
+            <form onSubmit={handleSaveDraft} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-[#17172B] dark:text-white mb-1">
+                  Project Title *
+                </label>
+                <input
+                  type="text"
+                  value={draftTitle}
+                  onChange={e => setDraftTitle(e.target.value)}
+                  placeholder="e.g. Autonomous Logistics Mesh"
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs text-[#17172B] dark:text-white focus:outline-none focus:border-[#7357FF]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#17172B] dark:text-white mb-1">
+                  Category
+                </label>
+                <select
+                  value={draftCategory}
+                  onChange={e => setDraftCategory(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs text-[#17172B] dark:text-white focus:outline-none focus:border-[#7357FF]"
+                >
+                  <option value="Web Application">Web Application / SaaS</option>
+                  <option value="E-commerce">E-commerce Platform</option>
+                  <option value="Mobile App">Mobile Application</option>
+                  <option value="AI / ML Product">AI / Machine Learning</option>
+                  <option value="Portfolio / Creative">Portfolio / Studio</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#17172B] dark:text-white mb-1">
+                  Concept Notes (Optional)
+                </label>
+                <textarea
+                  rows={3}
+                  value={draftIdea}
+                  onChange={e => setDraftIdea(e.target.value)}
+                  placeholder="Describe key requirements or user goals..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs text-[#17172B] dark:text-white focus:outline-none focus:border-[#7357FF]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#65677A] dark:text-[#A6A8C0] mb-1">
+                    Target Budget
+                  </label>
+                  <input
+                    type="text"
+                    value={draftBudget}
+                    onChange={e => setDraftBudget(e.target.value)}
+                    placeholder="e.g. ₹1,50,000"
+                    className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs text-[#17172B] dark:text-white focus:outline-none focus:border-[#7357FF]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#65677A] dark:text-[#A6A8C0] mb-1">
+                    Timeline
+                  </label>
+                  <input
+                    type="text"
+                    value={draftTimeline}
+                    onChange={e => setDraftTimeline(e.target.value)}
+                    placeholder="e.g. 4 Weeks"
+                    className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs text-[#17172B] dark:text-white focus:outline-none focus:border-[#7357FF]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <BoxedButton variant="primary" size="md" className="flex-1">
+                  {editingDraftId ? 'Update Draft' : 'Save to Vault'}
+                </BoxedButton>
+                {editingDraftId && (
+                  <BoxedButton
+                    variant="secondary"
+                    size="md"
+                    onClick={() => {
+                      setEditingDraftId(null);
+                      setDraftTitle('');
+                      setDraftIdea('');
+                    }}
+                  >
+                    Cancel
+                  </BoxedButton>
+                )}
+              </div>
+            </form>
+          </div>
+
+          {/* Drafts List */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-display font-bold text-base text-[#17172B] dark:text-white">
+                Private Vault Ideas ({drafts.length})
+              </h3>
+              <span className="text-xs text-[#7357FF] font-mono">0 NCX CHARGED FOR DRAFTS</span>
+            </div>
+
+            {vaultLoading ? (
+              <div className="p-8 text-center text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                Loading vault concepts...
+              </div>
+            ) : drafts.length === 0 ? (
+              <div className="p-10 text-center border-2 border-dashed border-[#E8EAF4] dark:border-[#2A2A46] rounded-2xl bg-white dark:bg-[#17172B]">
+                <Bookmark className="w-8 h-8 text-[#65677A] dark:text-[#A6A8C0] mx-auto mb-2 opacity-50" />
+                <h4 className="font-display font-bold text-sm text-[#17172B] dark:text-white">Your vault is empty</h4>
+                <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-1">
+                  Save early concepts here, refine them anytime, and submit when ready.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {drafts.map(d => (
+                  <div
+                    key={d.customId}
+                    className="p-5 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  >
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleToggleFavoriteDraft(d)}
+                          className={`text-xs ${d.isFavorite ? 'text-[#FF826E]' : 'text-[#65677A] dark:text-[#A6A8C0] hover:text-[#FF826E]'}`}
+                        >
+                          ★
+                        </button>
+                        <span className="font-display font-bold text-sm text-[#17172B] dark:text-white">
+                          {d.title}
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#EEE9FF] dark:bg-[#252445] text-[#7357FF]">
+                          {d.category}
+                        </span>
+                      </div>
+                      {d.rawIdea && (
+                        <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] line-clamp-2">
+                          {d.rawIdea}
+                        </p>
+                      )}
+                      {(d.expectedBudget || d.preferredTimeline) && (
+                        <div className="flex items-center gap-3 text-[11px] font-mono text-[#65677A] dark:text-[#A6A8C0] pt-1">
+                          {d.expectedBudget && <span>Target: {d.expectedBudget}</span>}
+                          {d.preferredTimeline && <span>Timeline: {d.preferredTimeline}</span>}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <BoxedButton
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleEditDraft(d)}
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </BoxedButton>
+                      <BoxedButton
+                        variant="tertiary"
+                        size="sm"
+                        onClick={() => handleDeleteDraft(d.customId)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                      </BoxedButton>
+                      <BoxedButton
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          navigate('/submit-request', { state: { prefillTitle: d.title, prefillIdea: d.rawIdea } });
+                        }}
+                      >
+                        Submit Project →
+                      </BoxedButton>
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-        )}
+        </div>
+      )}
 
-        {/* TAB 2: MY SUBMISSIONS */}
-        {activeTab === 'submissions' && (
-          <div className="space-y-4">
-            <div className="glass-card border border-indigo-500/30 rounded-3xl p-6 sm:p-8 bg-slate-900/95">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center">
-                    <ClipboardList className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-white">My Idea Submissions</h2>
-                    <p className="text-xs text-slate-400">All ideas you've submitted to the admin team.</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => navigate('/brief')}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>New Submission</span>
-                </button>
+      {/* ─────────────────────────────────────────────────────────────
+          TAB 3: AI IDEA ASSISTANT (12 INTERACTIVE TOOLS)
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'ai-assistant' && (
+        <div className="space-y-6">
+          <div className="p-6 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-[#EEE9FF] dark:bg-[#252445] text-[#7357FF] flex items-center justify-center">
+                <Sparkles className="w-5 h-5" />
               </div>
-
-              {mySubmissions.length === 0 ? (
-                <div className="p-10 rounded-2xl bg-slate-950 border border-slate-800 text-center space-y-4">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mx-auto border border-indigo-500/30">
-                    <ClipboardList className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-base font-bold text-white">No Submissions Yet</h3>
-                  <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                    Submit your project idea via Quick Idea, upload a Word document, or use the AI Brief Builder.
-                  </p>
-                  <button
-                    onClick={() => navigate('/brief')}
-                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-500 text-white font-extrabold text-xs shadow-lg"
-                  >
-                    Submit Your First Idea
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {mySubmissions.map((sub) => (
-                    <div key={sub.id} className="p-5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-indigo-500/40 transition-all">
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${
-                            sub.submissionType === 'document'
-                              ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30'
-                              : sub.submissionType === 'text'
-                              ? 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30'
-                              : 'bg-purple-500/15 text-purple-400 border-purple-500/30'
-                          }`}>
-                            {submissionTypeIcon(sub.submissionType)}
-                          </div>
-                          <div>
-                            <span className="text-[10px] font-mono text-slate-400 block">
-                              {sub.submissionType === 'document' ? 'DOCUMENT UPLOAD' : sub.submissionType === 'text' ? 'QUICK IDEA' : 'AI BRIEF'}
-                            </span>
-                            <span className="text-xs font-mono text-slate-500">{sub.createdAt}</span>
-                          </div>
-                        </div>
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold border ${statusColor(sub.status)}`}>
-                          {sub.status}
-                        </span>
-                      </div>
-
-                      {sub.docFileName ? (
-                        <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800">
-                          <div className="flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-indigo-400 shrink-0" />
-                            <span className="text-xs font-mono text-indigo-300 font-bold">{sub.docFileName}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => setActiveDocView({ fileName: sub.docFileName!, rawText: sub.rawIdea, docContentHtml: sub.docContentHtml })}
-                              className="px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[11px] font-bold flex items-center gap-1 hover:bg-indigo-500/30 transition-all"
-                            >
-                              <span>Preview</span>
-                            </button>
-                            {sub.status === 'New' && (
-                              <button
-                                onClick={() => {
-                                  setEditingSubmission({ id: sub.id, rawIdea: sub.rawIdea, docFileName: sub.docFileName });
-                                  setEditIdeaText(sub.rawIdea);
-                                  setEditDocName(sub.docFileName || '');
-                                }}
-                                className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold flex items-center gap-1 hover:bg-cyan-500/30 transition-all"
-                              >
-                                <span>✏️ Edit</span>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <p className="text-xs text-slate-300 leading-relaxed line-clamp-3">{sub.rawIdea}</p>
-                          {sub.status === 'New' && (
-                            <button
-                              onClick={() => {
-                                setEditingSubmission({ id: sub.id, rawIdea: sub.rawIdea });
-                                setEditIdeaText(sub.rawIdea);
-                                setEditDocName('');
-                              }}
-                              className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold inline-flex items-center gap-1 hover:bg-cyan-500/30 transition-all"
-                            >
-                              <span>✏️ Edit Idea</span>
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-900 text-[10px] font-mono">
-                        <span className="text-slate-400 flex items-center gap-1">
-                          NCX used: <NcxCreditBadge amount={sub.creditsCost} size="xs" />
-                        </span>
-                        {sub.status === 'New' && (
-                          <span className="flex items-center gap-1 text-cyan-400">
-                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                            Admin reviewing…
-                          </span>
-                        )}
-                        {sub.status === 'Actioned' && (
-                          <span className="flex items-center gap-1 text-emerald-400">
-                            <BadgeCheck className="w-3.5 h-3.5" />
-                            Check admin chat for updates
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: ADMIN CHAT */}
-        {activeTab === 'messages' && (
-          <div className="rounded-3xl glass-card border border-slate-800 overflow-hidden grid grid-cols-1 lg:grid-cols-12 h-[600px] bg-slate-900/95">
-            {/* Sidebar */}
-            <div className="lg:col-span-4 p-6 bg-slate-950/60 border-r border-slate-800 flex flex-col justify-between">
               <div>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-cyan-600 flex items-center justify-center border border-cyan-500/30">
-                    <ShieldCheck className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-white text-base">NexusCraft Admin</h3>
-                    <span className="text-xs text-emerald-400 font-mono">● Platform Support</span>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs space-y-2 mb-4">
-                  <div className="text-slate-400 font-mono uppercase text-[10px]">DIRECT CHANNEL:</div>
-                  <div className="font-bold text-white">Admin ↔ You (Private)</div>
-                  <div className="text-cyan-400 font-mono text-[10px]">{mySubmissions.length} Idea(s) submitted</div>
-                </div>
-
-                <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-mono text-indigo-300">
-                  💬 This is a private channel between you and the NexusCraft admin. Use it to discuss your project ideas and get updates.
-                </div>
-              </div>
-
-              <div className="text-xs text-slate-400 font-mono">
-                End-to-end encrypted. Platform-monitored for quality.
+                <h3 className="font-display font-bold text-lg text-[#17172B] dark:text-white">
+                  Nexus AI Idea Assistant
+                </h3>
+                <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                  12 purpose-built AI tools powered by Gemini 1.5 Flash to synthesize requirements, detect gaps, and optimize scopes.
+                </p>
               </div>
             </div>
 
-            {/* Chat Area */}
-            <div className="lg:col-span-8 flex flex-col h-full bg-slate-950">
-              <div className="flex-1 p-6 overflow-y-auto space-y-4">
-                {myAdminMessages.length === 0 && (
-                  <div className="h-full flex flex-col items-center justify-center text-center space-y-3">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
-                      <MessageSquare className="w-6 h-6" />
-                    </div>
-                    <p className="text-sm font-bold text-slate-400">No messages yet</p>
-                    <p className="text-xs text-slate-500">Submit an idea and start a conversation with admin!</p>
-                  </div>
-                )}
-                {myAdminMessages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex gap-3 max-w-[80%] ${msg.senderRole === 'client' ? 'ml-auto flex-row-reverse' : ''}`}
-                  >
-                    <img src={msg.senderAvatar} alt={msg.senderName} className="w-8 h-8 rounded-full object-cover shrink-0" />
-                    <div>
-                      <div className={`p-4 rounded-2xl text-xs leading-relaxed ${
-                        msg.senderRole === 'client'
-                          ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 text-white rounded-tr-none shadow-md'
-                          : 'bg-slate-900 text-slate-200 border border-slate-800 rounded-tl-none'
+            {/* Tool Selection Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 mt-6">
+              {[
+                { id: 'enhance_idea', label: '1. AI Idea Enhancer' },
+                { id: 'summarize_project', label: '2. Project Summarizer' },
+                { id: 'generate_features', label: '3. Feature Generator' },
+                { id: 'prioritize_features', label: '4. Feature Prioritizer' },
+                { id: 'technology_advisor', label: '5. Technology Advisor' },
+                { id: 'requirement_explainer', label: '6. Requirement Explainer' },
+                { id: 'gap_detector', label: '7. Gap Detector' },
+                { id: 'project_roadmap', label: '8. Project Roadmap' },
+                { id: 'readiness_checker', label: '9. Readiness Checker' },
+                { id: 'cost_estimator', label: '10. Cost Estimator' },
+                { id: 'budget_feasibility', label: '11. Budget Feasibility' },
+                { id: 'document_summarizer', label: '12. Document Summarizer' }
+              ].map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setSelectedAITool(t.id)}
+                  className={`p-3 rounded-xl text-left text-xs font-semibold border transition-all ${
+                    selectedAITool === t.id
+                      ? 'border-[#7357FF] bg-[#EEE9FF] dark:bg-[#252445] text-[#7357FF]'
+                      : 'border-[#E8EAF4] dark:border-[#2A2A46] text-[#65677A] dark:text-[#A6A8C0] hover:border-[#7357FF]/40'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Input & Run */}
+            <div className="mt-6 space-y-3">
+              <label className="block text-xs font-semibold text-[#17172B] dark:text-white">
+                Context / Prompt for {selectedAITool.replace(/_/g, ' ').toUpperCase()}:
+              </label>
+              <textarea
+                rows={3}
+                value={aiToolInput}
+                onChange={e => setAiToolInput(e.target.value)}
+                placeholder={`Provide specifics for ${activeProject?.projectTitle || 'your project'} or describe requirements...`}
+                className="w-full px-4 py-3 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs text-[#17172B] dark:text-white focus:outline-none focus:border-[#7357FF]"
+              />
+              <div className="flex justify-end">
+                <BoxedButton
+                  variant="primary"
+                  size="md"
+                  onClick={handleRunAITool}
+                  disabled={aiToolLoading}
+                  className="flex items-center gap-2"
+                >
+                  {aiToolLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  <span>{aiToolLoading ? 'Generating Intelligence...' : 'Execute AI Tool'}</span>
+                </BoxedButton>
+              </div>
+            </div>
+
+            {/* Result Display */}
+            {aiToolResult && (
+              <div className="mt-6 p-5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] space-y-3">
+                <div className="flex items-center justify-between border-b border-[#E8EAF4] dark:border-[#2A2A46] pb-2">
+                  <span className="text-[10px] font-mono font-bold uppercase text-[#7357FF]">
+                    AI RECOMMENDATION ENGINE (ADVISORY)
+                  </span>
+                  <span className="text-[10px] text-[#65677A] dark:text-[#A6A8C0]">
+                    Zero API Keys Exposed to Frontend
+                  </span>
+                </div>
+                <div className="prose dark:prose-invert text-xs leading-relaxed max-w-none whitespace-pre-wrap">
+                  {aiToolResult}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          TAB 4: WORKSPACE & PROJECT PASSPORT (17 BLUEPRINT SECTIONS)
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'workspace' && (
+        <div className="space-y-6">
+          {!activeProject ? (
+            /* Empty State */
+            <div className="p-12 text-center rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-5 shadow-sm">
+              <div className="w-16 h-16 rounded-2xl bg-[#E9E3FF] text-[#7357FF] flex items-center justify-center mx-auto shadow-sm">
+                <Sparkles className="w-8 h-8" />
+              </div>
+              <div className="max-w-md mx-auto">
+                <h3 className="font-display font-extrabold text-2xl text-[#17172B] dark:text-white">
+                  No Commissioned Projects Yet
+                </h3>
+                <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-1.5 leading-relaxed">
+                  Submit an idea intake to generate an exhaustive 17-point architecture blueprint, milestone roadmap, and real-time cost estimation.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/submit-request')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#7357FF] to-[#3978FF] text-white shadow-sm transition-all hover:scale-[1.02] cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Submit Your First Project (50 NCX)</span>
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Project Passport Hero Card */}
+              <div className="p-6 sm:p-7 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-sm space-y-5">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-[#E9E3FF] text-[#7357FF]">
+                        PROJECT PASSPORT
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#F0F2F9] dark:bg-[#202038] text-[#65677A] dark:text-[#A6A8C0]">
+                        #{activeProject.customId || activeProject.id}
+                      </span>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
+                        activeProject.status === 'Completed'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : activeProject.status?.includes('Progress')
+                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                          : 'bg-amber-50 text-amber-700 border border-amber-200'
                       }`}>
-                        <p>{msg.text}</p>
-                        {msg.attachmentName && (
-                          <div className="mt-2 p-2 rounded-lg bg-black/30 border border-white/10 flex items-center gap-2 font-mono text-[10px]">
-                            <Paperclip className="w-3.5 h-3.5" />
-                            <span>{msg.attachmentName}</span>
-                          </div>
-                        )}
-                      </div>
-                      <span className={`text-[10px] font-mono text-slate-400 block mt-1 ${msg.senderRole === 'client' ? 'text-right' : 'text-left'}`}>
-                        {msg.senderName} • {msg.timestamp}
+                        {activeProject.status || 'Active Commission'}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                        {activeProject.creditsCost || 50} NCX Intake
                       </span>
                     </div>
+
+                    <h2 className="font-display font-extrabold text-2xl text-[#17172B] dark:text-white">
+                      {activeProject.projectTitle || 'LocalConnect Hyperlocal Platform'}
+                    </h2>
+                    <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                      Domain Category: <span className="font-semibold text-[#17172B] dark:text-white">{activeProject.aiCategory || 'Web & Mobile Application'}</span> • Client: {activeProject.clientName || user?.name || 'Alex Rivera'} • Date: {activeProject.createdAt || 'Current Cycle'}
+                    </p>
+                  </div>
+
+                  {/* Switcher & Action Controls */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {projectRequests.length > 1 && (
+                      <select
+                        value={selectedProjectId}
+                        onChange={e => setSelectedProjectId(e.target.value)}
+                        className="px-3.5 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs font-semibold text-[#17172B] dark:text-white focus:outline-none cursor-pointer"
+                      >
+                        {projectRequests.map(r => (
+                          <option key={r.customId || r.id} value={r.customId || r.id}>
+                            {r.projectTitle} (#{r.customId || r.id})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+
+                    <button
+                      type="button"
+                      disabled={blueprintLoading}
+                      onClick={async () => {
+                        if (!activeProject) return;
+                        setBlueprintLoading(true);
+                        const res = await api.generateBlueprint({
+                          projectId: activeProject.customId || activeProject.id,
+                          title: activeProject.projectTitle,
+                          rawIdea: activeProject.rawIdea,
+                          category: activeProject.aiCategory
+                        });
+                        setBlueprint(res.blueprint);
+                        setBlueprintLoading(false);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-[#7357FF] to-[#3978FF] text-white shadow-xs transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${blueprintLoading ? 'animate-spin' : ''}`} />
+                      <span>{blueprint ? 'Refresh Blueprint' : 'Synthesize Blueprint'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => navigate('/client/exports')}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-white dark:bg-[#1E1E38] border border-[#E8EAF4] dark:border-[#2A2A46] text-[#65677A] dark:text-[#A6A8C0] hover:text-[#17172B] dark:hover:text-white shadow-xs transition-all cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5 text-[#7357FF]" />
+                      <span>Exports Hub</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Segmented Sub-Tabs Bar: Blueprint | Commercial & Cost | Milestones */}
+                <div className="flex items-center gap-2 pt-3 border-t border-[#E8EAF4] dark:border-[#2A2A46] overflow-x-auto no-scrollbar">
+                  {[
+                    { id: 'blueprint', label: '17-Point Architecture Spec', icon: FileCode },
+                    { id: 'budget', label: 'Commercial & Cost Intelligence (₹/$)', icon: DollarSign },
+                    { id: 'milestones', label: 'Milestones & Delivery', icon: Layers },
+                  ].map(tab => {
+                    const Icon = tab.icon;
+                    const isActive = workspaceSubTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setWorkspaceSubTab(tab.id as any)}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                          isActive
+                            ? 'bg-[#7357FF] text-white shadow-xs'
+                            : 'bg-[#F7F8FC] dark:bg-[#1E1E38] text-[#65677A] dark:text-[#A6A8C0] hover:bg-[#EEE9FF] dark:hover:bg-[#252445]'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        <span>{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ──────────────── SUB-TAB 1: 17-POINT BLUEPRINT SPEC ──────────────── */}
+              {workspaceSubTab === 'blueprint' && (
+                <div className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-6">
+                  {/* Header & Edit Button */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#E8EAF4] dark:border-[#2A2A46] pb-4 gap-4">
+                    <div>
+                      <h3 className="font-display font-bold text-lg text-[#17172B] dark:text-white">
+                        Nexus AI Architectural Blueprint
+                      </h3>
+                      <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                        Consolidated 17-point scoping architecture and requirement specifications.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase ${
+                        blueprint?.approvedByAdmin ? 'bg-[#22c55e]/10 text-[#22c55e]' : 'bg-[#7357FF]/10 text-[#7357FF]'
+                      }`}>
+                        {blueprint?.approvedByAdmin ? '✓ Admin Approved Blueprint' : 'Synthesized Draft'}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingBlueprint(!isEditingBlueprint)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#F7F8FC] dark:bg-[#1E1E38] border border-[#E8EAF4] dark:border-[#2A2A46] text-[#17172B] dark:text-white hover:bg-[#EEE9FF] transition-all cursor-pointer"
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-[#7357FF]" />
+                        <span>{isEditingBlueprint ? 'Exit Blueprint Editor' : 'Edit Draft Blueprint'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* AI Blueprint Editor Active Panel */}
+                  {isEditingBlueprint && (
+                    <div className="p-5 rounded-2xl bg-[#EEE9FF]/30 dark:bg-[#7357FF]/10 border border-[#7357FF]/30 space-y-5">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#7357FF]/20 pb-3">
+                        <div>
+                          <span className="text-[10px] font-mono font-bold uppercase text-[#7357FF]">
+                            CLIENT BLUEPRINT STUDIO
+                          </span>
+                          <h4 className="font-bold text-sm text-[#17172B] dark:text-white">
+                            Edit Draft Blueprint & Prioritize Milestones
+                          </h4>
+                          <p className="text-[11px] text-[#65677A] dark:text-[#A6A8C0]">
+                            Propose updates to modules and milestone order. Admin-approved requirements remain untouched until approved.
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={aiSuggestLoading}
+                            onClick={handleRequestAiSuggestions}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-[#1E1E38] border border-[#7357FF]/30 text-[#7357FF] hover:bg-[#7357FF] hover:text-white transition-all cursor-pointer"
+                          >
+                            <Sparkles className={`w-3.5 h-3.5 text-[#7357FF] ${aiSuggestLoading ? 'animate-spin' : ''}`} />
+                            <span>{aiSuggestLoading ? 'Analyzing...' : 'Request AI Suggestions'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Milestone Sequence */}
+                      <div className="space-y-2">
+                        <span className="text-xs font-bold text-[#17172B] dark:text-white block">
+                          Proposed Milestone Sequence:
+                        </span>
+                        <div className="space-y-2">
+                          {draftMilestones.map((m, idx) => (
+                            <div
+                              key={idx}
+                              className="p-3 rounded-xl bg-white dark:bg-[#1E1E38] border border-[#E8EAF4] dark:border-[#2A2A46] flex items-center justify-between gap-3 text-xs"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="w-6 h-6 rounded-full bg-[#7357FF] text-white flex items-center justify-center font-mono font-bold text-[11px]">
+                                  {idx + 1}
+                                </span>
+                                <span className="font-semibold text-[#17172B] dark:text-white">{m.title}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  disabled={idx === 0}
+                                  onClick={() => handleReorderMilestone(idx, 'up')}
+                                  className="p-1 rounded hover:bg-[#F0F2F9] disabled:opacity-30 text-[#65677A]"
+                                >
+                                  ▲
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={idx === draftMilestones.length - 1}
+                                  onClick={() => handleReorderMilestone(idx, 'down')}
+                                  className="p-1 rounded hover:bg-[#F0F2F9] disabled:opacity-30 text-[#65677A]"
+                                >
+                                  ▼
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Editor Action Buttons */}
+                      <div className="flex justify-end gap-2 pt-2 border-t border-[#7357FF]/20">
+                        <button
+                          type="button"
+                          disabled={blueprintSaving}
+                          onClick={() => handleSaveDraftBlueprint(false)}
+                          className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-[#1E1E38] border border-[#E8EAF4] dark:border-[#2A2A46] text-[#65677A] hover:bg-[#F8F9FC]"
+                        >
+                          Save Draft
+                        </button>
+                        <button
+                          type="button"
+                          disabled={blueprintSaving}
+                          onClick={() => handleSaveDraftBlueprint(true)}
+                          className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#7357FF] text-white hover:bg-[#6042EE]"
+                        >
+                          Submit Proposed Changes for Review
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {blueprintLoading ? (
+                    <div className="py-16 text-center text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                      <RefreshCw className="w-6 h-6 animate-spin mx-auto text-[#7357FF] mb-2" />
+                      Generating 17-section architectural blueprint...
+                    </div>
+                  ) : blueprint ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+                      {/* 1. Overview */}
+                      <div className="p-4 rounded-xl bg-[#F7F8FC] dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-1">
+                        <span className="font-mono text-[10px] text-[#7357FF] font-bold">1. PROJECT OVERVIEW</span>
+                        <p className="text-[#17172B] dark:text-white leading-relaxed">{blueprint.projectOverview}</p>
+                      </div>
+
+                      {/* 2. Problem Statement */}
+                      <div className="p-4 rounded-xl bg-[#F7F8FC] dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-1">
+                        <span className="font-mono text-[10px] text-[#7357FF] font-bold">2. PROBLEM STATEMENT</span>
+                        <p className="text-[#17172B] dark:text-white leading-relaxed">{blueprint.problemStatement}</p>
+                      </div>
+
+                      {/* 3. Proposed Solution */}
+                      <div className="p-4 rounded-xl bg-[#F7F8FC] dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-1">
+                        <span className="font-mono text-[10px] text-[#7357FF] font-bold">3. PROPOSED SOLUTION</span>
+                        <p className="text-[#17172B] dark:text-white leading-relaxed">{blueprint.proposedSolution}</p>
+                      </div>
+
+                      {/* 4. Main Modules */}
+                      <div className="p-4 rounded-xl bg-[#F7F8FC] dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-2">
+                        <span className="font-mono text-[10px] text-[#7357FF] font-bold">4. MAIN MODULES</span>
+                        <ul className="list-disc pl-4 space-y-1 text-[#17172B] dark:text-white">
+                          {blueprint.mainModules?.map((m, idx) => <li key={idx}>{m}</li>)}
+                        </ul>
+                      </div>
+
+                      {/* 5. Essential Features */}
+                      <div className="p-4 rounded-xl bg-[#F7F8FC] dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-2">
+                        <span className="font-mono text-[10px] text-[#22c55e] font-bold">5. ESSENTIAL FEATURES (P0 MVP)</span>
+                        <ul className="list-disc pl-4 space-y-1 text-[#17172B] dark:text-white">
+                          {blueprint.essentialFeatures?.map((f, idx) => <li key={idx}>{f}</li>)}
+                        </ul>
+                      </div>
+
+                      {/* 6. Recommended Features */}
+                      <div className="p-4 rounded-xl bg-[#F7F8FC] dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-2">
+                        <span className="font-mono text-[10px] text-[#3978FF] font-bold">6. RECOMMENDED FEATURES (P1)</span>
+                        <ul className="list-disc pl-4 space-y-1 text-[#17172B] dark:text-white">
+                          {blueprint.recommendedFeatures?.map((f, idx) => <li key={idx}>{f}</li>)}
+                        </ul>
+                      </div>
+
+                      {/* 7. Suggested Technologies */}
+                      <div className="p-4 rounded-xl bg-[#F7F8FC] dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-2">
+                        <span className="font-mono text-[10px] text-[#7357FF] font-bold">7. SUGGESTED TECHNOLOGIES</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {blueprint.suggestedTechnologies?.map((t, idx) => (
+                            <span key={idx} className="px-2 py-0.5 rounded bg-white dark:bg-[#1E1E38] border border-[#E8EAF4] dark:border-[#2A2A46] font-mono text-[10px]">
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 8. Effort & Complexity */}
+                      <div className="p-4 rounded-xl bg-[#F7F8FC] dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-2">
+                        <span className="font-mono text-[10px] text-[#7357FF] font-bold">8. ESTIMATED EFFORT & PHASING</span>
+                        <div className="text-sm font-display font-bold text-[#17172B] dark:text-white">
+                          {blueprint.estimatedDevelopmentEffort}
+                        </div>
+                        <div className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                          Complexity: <span className="font-bold text-[#7357FF]">{blueprint.projectComplexity}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-12 text-center text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                      No blueprint generated yet. Click "Synthesize Blueprint" to create an exhaustive 17-section architecture document.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ──────────────── SUB-TAB 2: COMMERCIAL & COST BREAKDOWN ──────────────── */}
+              {workspaceSubTab === 'budget' && (
+                <div className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-sm space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E8EAF4] dark:border-[#2A2A46]">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-[#E9E3FF] text-[#7357FF]">
+                          COMMERCIAL ESTIMATION
+                        </span>
+                        <span className="text-[11px] font-semibold text-[#65677A] dark:text-[#A6A8C0]">
+                          Studio Rate: ₹1,200/hr ($14.50/hr) • Fixed-Cap Escrow
+                        </span>
+                      </div>
+                      <h3 className="font-display font-extrabold text-xl text-[#17172B] dark:text-white">
+                        Project Cost Matrix & Scope Breakdown
+                      </h3>
+                      <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-0.5">
+                        Granular hourly estimation matrix with automatic 15% contingency reserve and milestone escrow protection.
+                      </p>
+                    </div>
+
+                    {/* Currency Toggle & Total Baseline */}
+                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 bg-[#F8F9FC] dark:bg-[#131326] p-4 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46]">
+                      <div className="flex items-center gap-1.5 p-1 bg-white dark:bg-[#1E1E38] rounded-lg border border-[#E9EAF0] dark:border-[#2A2A46]">
+                        <button
+                          type="button"
+                          onClick={() => setBudgetCurrency('INR')}
+                          className={`px-2 py-0.5 text-[11px] font-bold rounded cursor-pointer transition-colors ${
+                            budgetCurrency === 'INR'
+                              ? 'bg-[#7357FF] text-white shadow-xs'
+                              : 'text-[#65677A] hover:text-[#222438] dark:text-[#A6A8C0]'
+                          }`}
+                        >
+                          INR (₹)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setBudgetCurrency('USD')}
+                          className={`px-2 py-0.5 text-[11px] font-bold rounded cursor-pointer transition-colors ${
+                            budgetCurrency === 'USD'
+                              ? 'bg-[#7357FF] text-white shadow-xs'
+                              : 'text-[#65677A] hover:text-[#222438] dark:text-[#A6A8C0]'
+                          }`}
+                        >
+                          USD ($)
+                        </button>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] font-mono uppercase text-[#777B8A] block">CALCULATED BASELINE</span>
+                        <div className="font-display font-black text-2xl text-[#17172B] dark:text-white">
+                          {budgetCurrency === 'INR'
+                            ? `₹${(costEstimate?.estimatedTotal || 220000).toLocaleString('en-IN')}`
+                            : `$${Math.round((costEstimate?.estimatedTotal || 220000) / 83).toLocaleString('en-US')}`}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 8 Granular Cost Breakdown Components */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                    {[
+                      { name: 'UI/UX Design', hours: 24, cost: 28800, icon: Palette, color: 'text-pink-500', bg: 'bg-pink-50 dark:bg-pink-950/30' },
+                      { name: 'Frontend Architecture', hours: 48, cost: 57600, icon: Code2, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-950/30' },
+                      { name: 'Backend Services', hours: 40, cost: 48000, icon: Server, color: 'text-indigo-500', bg: 'bg-indigo-50 dark:bg-indigo-950/30' },
+                      { name: 'Database & Schemas', hours: 16, cost: 19200, icon: Database, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
+                      { name: 'API Integrations', hours: 20, cost: 24000, icon: Cpu, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-950/30' },
+                      { name: 'Testing & QA', hours: 18, cost: 21600, icon: CheckCircle2, color: 'text-teal-500', bg: 'bg-teal-50 dark:bg-teal-950/30' },
+                      { name: 'Cloud Deployment', hours: 10, cost: 12000, icon: Cloud, color: 'text-sky-500', bg: 'bg-sky-50 dark:bg-sky-950/30' },
+                      { name: '15% Contingency Buffer', hours: 26, cost: 31200, icon: ShieldCheck, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-950/30' }
+                    ].map((c, idx) => {
+                      const Icon = c.icon;
+                      const pct = Math.round((c.cost / 220000) * 100);
+                      const displayCost = budgetCurrency === 'INR'
+                        ? `₹${c.cost.toLocaleString('en-IN')}`
+                        : `$${Math.round(c.cost / 83).toLocaleString('en-US')}`;
+
+                      return (
+                        <div
+                          key={idx}
+                          className="p-4 rounded-xl bg-[#F8F9FC] dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] hover:border-[#7357FF]/40 hover:shadow-sm transition-all group"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className={`w-8 h-8 rounded-lg ${c.bg} ${c.color} flex items-center justify-center`}>
+                              <Icon className="w-4 h-4" />
+                            </div>
+                            <span className="text-[11px] font-mono font-bold text-[#777B8A]">
+                              {pct}% of budget
+                            </span>
+                          </div>
+
+                          <div className="mt-3">
+                            <div className="text-xs font-semibold text-[#222438] dark:text-white truncate">
+                              {c.name}
+                            </div>
+                            <div className="font-display font-extrabold text-lg text-[#17172B] dark:text-white mt-0.5">
+                              {displayCost}
+                            </div>
+                            <div className="text-[10px] text-[#777B8A] font-mono mt-0.5">
+                              {c.hours} hrs @ {budgetCurrency === 'INR' ? '₹1,200/hr' : '$14.50/hr'}
+                            </div>
+
+                            <div className="w-full bg-[#E9EAF0] dark:bg-[#202038] h-1.5 rounded-full mt-2.5 overflow-hidden">
+                              <div
+                                className="bg-[#7357FF] group-hover:bg-[#3978FF] h-full rounded-full transition-all duration-300"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* 3-Milestone Escrow Schedule */}
+                  <div className="pt-2">
+                    <h4 className="text-xs font-mono font-bold uppercase text-[#777B8A] tracking-wider mb-3">
+                      Milestone Escrow Disbursement Schedule
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {[
+                        {
+                          phase: 'Milestone 1 (30%)',
+                          title: 'Architecture Blueprint & UX Prototype',
+                          amount: budgetCurrency === 'INR' ? '₹66,000' : '$795',
+                          status: 'Escrow Funded',
+                          statusColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                          trigger: 'Released upon client blueprint approval in Studio'
+                        },
+                        {
+                          phase: 'Milestone 2 (40%)',
+                          title: 'Full-Stack Engineering & API Integration',
+                          amount: budgetCurrency === 'INR' ? '₹88,000' : '$1,060',
+                          status: 'In Progress Escrow',
+                          statusColor: 'bg-blue-50 text-blue-700 border-blue-200',
+                          trigger: 'Released upon passing automated test suites'
+                        },
+                        {
+                          phase: 'Milestone 3 (30%)',
+                          title: 'QA Hardening & Final Production Handover',
+                          amount: budgetCurrency === 'INR' ? '₹66,000' : '$795',
+                          status: 'Pending Acceptance',
+                          statusColor: 'bg-slate-100 text-slate-700 border-slate-200',
+                          trigger: 'Released upon ZIP deliverable verification'
+                        }
+                      ].map((m, mIdx) => (
+                        <div
+                          key={mIdx}
+                          className="p-4 rounded-xl bg-white dark:bg-[#1A1A33] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-2 shadow-xs"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-mono font-bold uppercase text-[#7357FF]">{m.phase}</span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${m.statusColor}`}>
+                              {m.status}
+                            </span>
+                          </div>
+                          <div className="font-display font-bold text-sm text-[#17172B] dark:text-white">
+                            {m.title}
+                          </div>
+                          <div className="font-mono font-extrabold text-base text-[#17172B] dark:text-white">
+                            {m.amount}
+                          </div>
+                          <div className="text-[10px] text-[#777B8A] pt-1 border-t border-[#E8EAF4] dark:border-[#2A2A46] flex items-center gap-1.5">
+                            <Lock className="w-3 h-3 text-[#7357FF] flex-shrink-0" />
+                            <span>{m.trigger}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ──────────────── SUB-TAB 3: MILESTONES & DELIVERY ──────────────── */}
+              {workspaceSubTab === 'milestones' && (
+                <div className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-sm space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E8EAF4] dark:border-[#2A2A46] pb-4">
+                    <div>
+                      <span className="text-[10px] font-mono font-bold uppercase text-[#7357FF]">
+                        DELIVERY TELEMETRY
+                      </span>
+                      <h3 className="font-display font-bold text-xl text-[#17172B] dark:text-white mt-0.5">
+                        Phased Milestones & Governance
+                      </h3>
+                      <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                        Track milestone progression and formalize deliverable acceptance.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setScopeChangeModalOpen(true)}
+                        className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#E9E3FF] text-[#7357FF] hover:bg-[#7357FF] hover:text-white transition-all cursor-pointer"
+                      >
+                        + Request Scope Change
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHandoverModalOpen(true)}
+                        className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#E8F8F0] text-[#24A675] hover:bg-[#24A675] hover:text-white transition-all cursor-pointer"
+                      >
+                        Formalize Handover Acceptance
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {[
+                      {
+                        title: 'Milestone 1: Architectural Scoping & UI/UX Wireframes',
+                        duration: '2 Weeks',
+                        status: 'Completed',
+                        progress: 100,
+                        notes: '17-point architecture blueprint verified and approved.'
+                      },
+                      {
+                        title: 'Milestone 2: Core Engineering, Database & API Integration',
+                        duration: '3 Weeks',
+                        status: 'In Progress',
+                        progress: 65,
+                        notes: 'Full-stack microservices and database modeling underway.'
+                      },
+                      {
+                        title: 'Milestone 3: QA Hardening, Deliverable Archive & Release',
+                        duration: '1 Week',
+                        status: 'Scheduled',
+                        progress: 0,
+                        notes: 'Automated test suite execution and ZIP integrity verification.'
+                      }
+                    ].map((m, idx) => (
+                      <div
+                        key={idx}
+                        className="p-5 rounded-2xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] space-y-3"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2.5">
+                            <span className="w-7 h-7 rounded-lg bg-[#E9E3FF] text-[#7357FF] font-mono font-bold text-xs flex items-center justify-center">
+                              M{idx + 1}
+                            </span>
+                            <div>
+                              <h4 className="font-bold text-sm text-[#17172B] dark:text-white">{m.title}</h4>
+                              <span className="text-[11px] text-[#65677A] dark:text-[#A6A8C0]">Duration: {m.duration}</span>
+                            </div>
+                          </div>
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase w-fit ${
+                            m.status === 'Completed'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : m.status === 'In Progress'
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                              : 'bg-slate-100 text-slate-700 border border-slate-200'
+                          }`}>
+                            {m.status} ({m.progress}%)
+                          </span>
+                        </div>
+                        <div className="w-full bg-[#E8EAF4] dark:bg-[#202038] h-2 rounded-full overflow-hidden">
+                          <div
+                            className="bg-[#7357FF] h-full rounded-full transition-all duration-500"
+                            style={{ width: `${m.progress}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">{m.notes}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          TAB: MILESTONE PROGRESS TRACKING (SECTION B)
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'milestones' && (
+        <div className="space-y-6">
+          <div className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E8EAF4] dark:border-[#2A2A46] pb-4">
+              <div>
+                <span className="text-[10px] font-mono font-bold uppercase text-[#7357FF]">
+                  PHASED EXECUTION AUDIT
+                </span>
+                <h3 className="font-display font-bold text-xl text-[#17172B] dark:text-white mt-0.5">
+                  Milestone Progress Tracking
+                </h3>
+                <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                  Track production milestones, start & due dates, associated deliverables, and completion status.
+                </p>
+              </div>
+
+              {/* Status Counters */}
+              <div className="flex items-center gap-2 flex-wrap text-xs">
+                <span className="px-2.5 py-1 rounded-lg font-mono font-bold bg-[#F7F8FC] dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] text-[#17172B] dark:text-white">
+                  Total: {projectMilestones.length || 3}
+                </span>
+                <span className="px-2.5 py-1 rounded-lg font-mono font-bold bg-[#22c55e]/10 text-[#22c55e]">
+                  Completed: {projectMilestones.filter(m => m.status === 'Completed' || m.status === 'Done').length}
+                </span>
+                <span className="px-2.5 py-1 rounded-lg font-mono font-bold bg-[#7357FF]/10 text-[#7357FF]">
+                  In Progress: {projectMilestones.filter(m => m.status === 'In Progress').length || 1}
+                </span>
+              </div>
+            </div>
+
+            {/* Phased Milestones List */}
+            {projectMilestones.length === 0 ? (
+              <div className="space-y-4">
+                {/* Fallback structured milestones if none saved in DB yet */}
+                {[
+                  {
+                    title: 'Milestone 1: Architectural Scoping & UI/UX Wireframes',
+                    description: 'Synthesis of project passport, Gemini AI requirement decomposition, and high-fidelity interface design.',
+                    duration: '2 Weeks',
+                    startDate: 'Week 1',
+                    dueDate: 'Week 2',
+                    progress: 100,
+                    status: 'Completed',
+                    completionNotes: 'Admin verified and client approved. Blueprint finalized in Idea Vault.'
+                  },
+                  {
+                    title: 'Milestone 2: Core Engineering, Database & API Integration',
+                    description: 'Full-stack application implementation, schema modeling, authentication and secure webhook bindings.',
+                    duration: '3 Weeks',
+                    startDate: 'Week 3',
+                    dueDate: 'Week 5',
+                    progress: 65,
+                    status: 'In Progress',
+                    completionNotes: 'Specialist assigned and sprint active. Intermediate modules undergoing test runs.'
+                  },
+                  {
+                    title: 'Milestone 3: QA Hardening, Deliverable Archive & Release',
+                    description: 'End-to-end integration tests, static code verification, SHA-256 package verification, and client delivery.',
+                    duration: '1 Week',
+                    startDate: 'Week 6',
+                    dueDate: 'Week 6',
+                    progress: 0,
+                    status: 'Not Started',
+                    completionNotes: 'Scheduled for execution upon completion of Milestone 2.'
+                  }
+                ].map((m, idx) => (
+                  <div
+                    key={idx}
+                    className="p-5 rounded-2xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] space-y-3"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-xs text-[#7357FF]">M{idx + 1}</span>
+                        <h4 className="font-bold text-sm text-[#17172B] dark:text-white">{m.title}</h4>
+                      </div>
+                      <span className={`px-2.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase w-fit ${
+                        m.status === 'Completed' ? 'bg-[#22c55e]/10 text-[#22c55e]' : m.status === 'In Progress' ? 'bg-[#7357FF]/10 text-[#7357FF]' : 'bg-[#65677A]/10 text-[#65677A]'
+                      }`}>
+                        {m.status}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">{m.description}</p>
+
+                    {/* Progress Bar */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px] font-mono">
+                        <span className="text-[#65677A] dark:text-[#A6A8C0]">Progress</span>
+                        <span className="font-bold text-[#17172B] dark:text-white">{m.progress}%</span>
+                      </div>
+                      <div className="w-full bg-[#E8EAF4] dark:bg-[#2A2A46] h-2 rounded-full overflow-hidden">
+                        <div
+                          className="bg-gradient-to-r from-[#7357FF] to-[#D5FF68] h-full rounded-full transition-all duration-500"
+                          style={{ width: `${m.progress}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 text-[11px] font-mono text-[#65677A] dark:text-[#A6A8C0] pt-1 border-t border-[#E8EAF4] dark:border-[#2A2A46]">
+                      <span>Est. Duration: {m.duration}</span>
+                      <span>Start: {m.startDate}</span>
+                      <span>Due: {m.dueDate}</span>
+                    </div>
+
+                    {m.completionNotes && (
+                      <div className="p-3 rounded-xl bg-white dark:bg-[#1E1E38] border border-[#E8EAF4] dark:border-[#2A2A46] text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                        <span className="font-bold text-[#17172B] dark:text-white">Milestone Notes: </span>
+                        {m.completionNotes}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
+            ) : (
+              <div className="space-y-4">
+                {projectMilestones.map((m, idx) => (
+                  <div
+                    key={m._id || m.customId || idx}
+                    className="p-5 rounded-2xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] space-y-3"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-xs text-[#7357FF]">M{idx + 1}</span>
+                        <h4 className="font-bold text-sm text-[#17172B] dark:text-white">{m.title}</h4>
+                      </div>
+                      <span className={`px-2.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase w-fit ${
+                        m.status === 'Completed' || m.status === 'Done' ? 'bg-[#22c55e]/10 text-[#22c55e]' : m.status === 'In Progress' ? 'bg-[#7357FF]/10 text-[#7357FF]' : 'bg-[#65677A]/10 text-[#65677A]'
+                      }`}>
+                        {m.status}
+                      </span>
+                    </div>
 
-              {/* Chat Input */}
-              <form onSubmit={handleSendMessage} className="p-4 bg-slate-900 border-t border-slate-800 flex items-center gap-3">
-                <input
-                  type="text"
-                  value={newMessageText}
-                  onChange={(e) => setNewMessageText(e.target.value)}
-                  placeholder="Message to Admin..."
-                  className="flex-1 py-3 px-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-cyan-400"
-                />
-                <button
-                  type="submit"
-                  className="p-3 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-500 text-white hover:from-indigo-500 hover:to-cyan-400 transition-all shadow-md"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </form>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+                    <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">{m.description}</p>
 
-    {/* Live Activity Feed */}
-    <div className="bg-slate-950 pb-24">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-      <div className="mt-10">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-            <Activity className="w-6 h-6 text-cyan-400" />
-            <span>Platform Activity</span>
-            <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              LIVE
-            </span>
-          </h2>
-          <button
-            onClick={() => showToast({ type: 'info', title: 'Activity Feed', message: 'All project events are shown in real-time.' })}
-            className="text-xs text-slate-400 hover:text-slate-200 font-mono transition-colors"
-          >
-            Mark all read
-          </button>
-        </div>
+                    {/* Progress Bar */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px] font-mono">
+                        <span className="text-[#65677A] dark:text-[#A6A8C0]">Progress</span>
+                        <span className="font-bold text-[#17172B] dark:text-white">{m.progress || (m.status === 'Done' ? 100 : 40)}%</span>
+                      </div>
+                      <div className="w-full bg-[#E8EAF4] dark:bg-[#2A2A46] h-2 rounded-full overflow-hidden">
+                        <div
+                          className="bg-gradient-to-r from-[#7357FF] to-[#D5FF68] h-full rounded-full transition-all duration-500"
+                          style={{ width: `${m.progress || (m.status === 'Done' ? 100 : 40)}%` }}
+                        />
+                      </div>
+                    </div>
 
-        <div className="space-y-3">
-          <AnimatePresence>
-            {ACTIVITY_FEED.map((item, i) => (
-              <MotionDiv
-                key={item.id}
-                initial={{ opacity: 0, x: -24 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: i * 0.08 }}
-                className={`relative flex items-start gap-4 p-4 rounded-2xl bg-slate-900/70 border ${
-                  item.isNew ? 'border-cyan-500/30 shadow-md shadow-cyan-500/5' : 'border-slate-800'
-                } transition-all hover:border-white/15`}
-              >
-                {item.isNew && (
-                  <div className="absolute top-3 right-3 flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping absolute" />
-                    <span className="w-2 h-2 rounded-full bg-cyan-400" />
-                  </div>
-                )}
-                <div className={`flex-shrink-0 w-9 h-9 rounded-xl border flex items-center justify-center ${item.color}`}>
-                  {item.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-bold text-white">{item.title}</span>
-                    {item.isNew && (
-                      <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex-shrink-0">NEW</span>
+                    <div className="flex items-center gap-4 text-[11px] font-mono text-[#65677A] dark:text-[#A6A8C0] pt-1 border-t border-[#E8EAF4] dark:border-[#2A2A46]">
+                      <span>Due: {m.dueDate ? new Date(m.dueDate).toLocaleDateString() : 'Active Sprint'}</span>
+                      {m.expectedDuration && <span>Duration: {m.expectedDuration}</span>}
+                    </div>
+
+                    {m.completionNotes && (
+                      <div className="p-3 rounded-xl bg-white dark:bg-[#1E1E38] border border-[#E8EAF4] dark:border-[#2A2A46] text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                        <span className="font-bold text-[#17172B] dark:text-white">Milestone Notes: </span>
+                        {m.completionNotes}
+                      </div>
                     )}
                   </div>
-                  <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{item.description}</p>
-                  <div className="flex items-center gap-1 mt-1.5 text-[10px] font-mono text-slate-500">
-                    <Clock className="w-3 h-3" />
-                    <span>{item.time}</span>
-                  </div>
-                </div>
-              </MotionDiv>
-            ))}
-          </AnimatePresence>
-        </div>
-      </div>
-    </div>
-    </div>
-
-    {/* In-App Document Viewer Modal */}
-    {activeDocView && (
-      <DocumentViewerModal
-        isOpen={!!activeDocView}
-        onClose={() => setActiveDocView(null)}
-        fileName={activeDocView.fileName}
-        rawText={activeDocView.rawText}
-        docContentHtml={activeDocView.docContentHtml}
-        onShareToChat={(text) => {
-          if (user?.id) sendAdminClientMessage(user.id, text);
-        }}
-      />
-    )}
-
-    {/* Client Edit Idea Modal (Allowed before Admin accepts) */}
-    {editingSubmission && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-        <div className="relative w-full max-w-lg rounded-3xl bg-slate-900 border border-cyan-500/40 p-6 sm:p-8 shadow-2xl space-y-5">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-            <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <span>✏️ Edit Submitted Idea</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                  Pre-Review Edit
-                </span>
-              </h2>
-              <p className="text-xs text-slate-400">Update your project idea before the Admin reviews or actions it.</p>
-            </div>
-            <button
-              onClick={() => setEditingSubmission(null)}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800"
-            >
-              ✕
-            </button>
+                ))}
+              </div>
+            )}
           </div>
+        </div>
+      )}
 
-          <form onSubmit={handleSaveEditedIdea} className="space-y-4 text-xs">
-            <div>
-              <label className="block font-mono font-bold text-slate-300 mb-1.5">Project Idea / Requirements</label>
-              <textarea
-                rows={5}
-                required
-                value={editIdeaText}
-                onChange={(e) => setEditIdeaText(e.target.value)}
-                placeholder="Describe your vision, core features, and target timeline..."
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-xs text-slate-200 focus:outline-none focus:border-cyan-400 leading-relaxed"
-              />
-            </div>
-
-            <div>
-              <label className="block font-mono font-bold text-slate-300 mb-1.5">Attached Document File (Optional)</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={editDocName}
-                  onChange={(e) => setEditDocName(e.target.value)}
-                  placeholder="e.g. Project_Brief_v2.docx"
-                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-400 font-mono"
-                />
+      {/* ─────────────────────────────────────────────────────────────
+          TAB 5: CLARIFICATION CENTER (STRUCTURED Q&A)
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'clarifications' && (
+        <div className="space-y-6">
+          <div className="p-6 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-[#EEE9FF] dark:bg-[#252445] text-[#7357FF] flex items-center justify-center">
+                <HelpCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-display font-bold text-lg text-[#17172B] dark:text-white">
+                  Clarification Center
+                </h3>
+                <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                  Structured questions between clients and administrators regarding project scope, edge cases, and design preferences.
+                </p>
               </div>
             </div>
 
-            <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-[11px] font-mono text-cyan-300">
-              💡 Editing is free! Your updated specifications will be immediately reflected on the Admin Moderation Portal.
+            {clarifications.length === 0 ? (
+              <div className="py-12 text-center border-2 border-dashed border-[#E8EAF4] dark:border-[#2A2A46] rounded-2xl mt-4">
+                <CheckCircle2 className="w-8 h-8 text-[#22c55e] mx-auto mb-2 opacity-60" />
+                <h4 className="font-display font-bold text-sm text-[#17172B] dark:text-white">
+                  No Pending Clarifications
+                </h4>
+                <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-1">
+                  All requirements for "{activeProject?.projectTitle}" are aligned.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4 mt-6">
+                {clarifications.map(c => (
+                  <div
+                    key={c.customId}
+                    className="p-5 rounded-2xl bg-[#F7F8FC] dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
+                          c.status === 'Answered' ? 'bg-[#22c55e]/10 text-[#22c55e]' : 'bg-[#FF826E]/10 text-[#FF826E]'
+                        }`}>
+                          {c.status}
+                        </span>
+                        <span className="text-[10px] font-mono text-[#65677A] dark:text-[#A6A8C0]">
+                          Category: {c.category}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-[#65677A] dark:text-[#A6A8C0]">
+                        Asked by {c.askedBy.name} ({c.askedBy.role})
+                      </span>
+                    </div>
+
+                    <p className="font-semibold text-xs text-[#17172B] dark:text-white">
+                      Q: {c.question}
+                    </p>
+
+                    {c.answer ? (
+                      <div className="p-3.5 rounded-xl bg-white dark:bg-[#1A1A33] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-1">
+                        <span className="text-[10px] font-mono text-[#22c55e] font-bold">YOUR ANSWER:</span>
+                        <p className="text-xs text-[#17172B] dark:text-white">{c.answer}</p>
+                      </div>
+                    ) : answeringId === c.customId ? (
+                      <div className="space-y-2 pt-2">
+                        <textarea
+                          rows={3}
+                          value={answerText}
+                          onChange={e => setAnswerText(e.target.value)}
+                          placeholder="Type your clarification answer..."
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-white dark:bg-[#1A1A33] text-xs text-[#17172B] dark:text-white focus:outline-none focus:border-[#7357FF]"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <BoxedButton variant="secondary" size="sm" onClick={() => setAnsweringId(null)}>
+                            Cancel
+                          </BoxedButton>
+                          <BoxedButton variant="primary" size="sm" onClick={() => handleAnswerClarification(c.customId)}>
+                            Submit Response
+                          </BoxedButton>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="pt-1">
+                        <BoxedButton variant="primary" size="sm" onClick={() => setAnsweringId(c.customId)}>
+                          Answer Question
+                        </BoxedButton>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          TAB 7: DOCUMENTS & RELEASED DELIVERABLES
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'documents' && (
+        <div className="space-y-6">
+          <div className="p-6 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="font-display font-bold text-lg text-[#17172B] dark:text-white">
+                  Document Studio & Deliverable Releases
+                </h3>
+                <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                  Access your uploaded reference briefs and officially released deliverable packages.
+                </p>
+              </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => setEditingSubmission(null)}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-500 text-white font-extrabold shadow-lg hover:from-indigo-500 hover:to-cyan-400 transition-all"
-              >
-                Save &amp; Update Idea
-              </button>
+            {/* Released Deliverables Section */}
+            <div className="space-y-3">
+              <h4 className="font-mono text-xs font-bold uppercase text-[#7357FF]">
+                Official Released Deliverables
+              </h4>
+
+              {deliverables.length === 0 ? (
+                <div className="p-8 text-center border-2 border-dashed border-[#E8EAF4] dark:border-[#2A2A46] rounded-xl text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                  No deliverables released yet. Deliverable ZIP packages will appear here once inspected and authorized by Administration.
+                </div>
+              ) : (
+                deliverables.map(deliv => (
+                  <div
+                    key={deliv.customId}
+                    className="p-4 rounded-xl bg-[#F7F8FC] dark:bg-[#131326] border border-[#22c55e]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#22c55e]/10 text-[#22c55e]">
+                          RELEASED DELIVERABLE v{deliv.version}
+                        </span>
+                        <span className="text-xs font-bold text-[#17172B] dark:text-white">
+                          {deliv.submissionTitle}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-1">
+                        {deliv.releaseNotes || 'Final production deliverable package.'}
+                      </p>
+                      <div className="text-[10px] font-mono text-[#65677A] dark:text-[#A6A8C0] mt-1">
+                        {deliv.zipFileName} ({deliv.zipFileSize}) • {deliv.fileCount} files
+                      </div>
+                    </div>
+
+                    <a
+                      href={api.getDocumentDownloadUrl(deliv.zipStoragePath)}
+                      download
+                      className="px-4 py-2 rounded-xl bg-[#7357FF] text-white font-semibold text-xs flex items-center gap-2 hover:bg-[#6042EE] transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download ZIP Package
+                    </a>
+                  </div>
+                ))
+              )}
             </div>
-          </form>
+          </div>
         </div>
-      </div>
-    )}
-    </>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          TAB: EXPORTS & VERIFIED DOSSIER (SECTION B)
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'exports' && (
+        <div className="space-y-6">
+          <div className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E8EAF4] dark:border-[#2A2A46] pb-5">
+              <div>
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#7357FF]">
+                  ENTERPRISE ARTIFACTS & TELEMETRY
+                </span>
+                <h3 className="font-display font-extrabold text-2xl text-[#17172B] dark:text-white mt-0.5">
+                  Project Exports & Verified Dossier
+                </h3>
+                <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-1 max-w-2xl leading-relaxed">
+                  Download board-ready architectural dossiers, editable Microsoft Word specifications, portable GitHub markdown specs, telemetry spreadsheets, or launch the executive presentation slide studio.
+                </p>
+              </div>
+
+              {activeProject && (
+                <div className="flex items-center gap-2.5 p-2.5 px-3.5 rounded-xl bg-[#F7F8FC] dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] text-xs">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <div>
+                    <div className="font-bold text-[#17172B] dark:text-white truncate max-w-[200px]">
+                      {activeProject.projectTitle}
+                    </div>
+                    <div className="text-[10px] font-mono text-[#65677A] dark:text-[#A6A8C0]">
+                      #{activeProject.customId || activeProject.id}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 6 Format Export Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Card 1: Executive PDF Dossier */}
+              <div className="p-5 rounded-2xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] flex flex-col justify-between gap-4 hover:border-rose-400/50 hover:shadow-md transition-all group">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2.5 py-1 rounded-md text-[10px] font-mono font-bold uppercase bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                      .PDF DOSSIER
+                    </span>
+                    <FileText className="w-5 h-5 text-rose-500 transition-transform group-hover:scale-110" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-[#17172B] dark:text-white">
+                      Executive Architectural Dossier
+                    </h4>
+                    <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-1 leading-relaxed">
+                      Compiled 17-point architecture specification, tech stack matrix, and security checklist compiled into a formatted executive PDF.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-mono text-[#65677A] dark:text-[#A6A8C0]">
+                    <span className="px-2 py-0.5 rounded bg-white dark:bg-[#1A1A36] border border-[#E8EAF4] dark:border-[#2A2A46]">Vector PDF</span>
+                    <span className="px-2 py-0.5 rounded bg-white dark:bg-[#1A1A36] border border-[#E8EAF4] dark:border-[#2A2A46]">17 Sections</span>
+                    <span className="px-2 py-0.5 rounded bg-white dark:bg-[#1A1A36] border border-[#E8EAF4] dark:border-[#2A2A46]">Print Ready</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleExportBlueprintPDF}
+                  className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-xs hover:opacity-90 active:scale-98 transition-all cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download PDF Dossier</span>
+                </button>
+              </div>
+
+              {/* Card 2: Enterprise Word (.DOCX) */}
+              <div className="p-5 rounded-2xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] flex flex-col justify-between gap-4 hover:border-blue-400/50 hover:shadow-md transition-all group">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2.5 py-1 rounded-md text-[10px] font-mono font-bold uppercase bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                      .DOCX WORD
+                    </span>
+                    <FileText className="w-5 h-5 text-blue-500 transition-transform group-hover:scale-110" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-[#17172B] dark:text-white">
+                      Enterprise Scoping Specification
+                    </h4>
+                    <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-1 leading-relaxed">
+                      Fully editable Microsoft Word document with native XML headings, structured tables, and signoff blocks ready for corporate compliance.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-mono text-[#65677A] dark:text-[#A6A8C0]">
+                    <span className="px-2 py-0.5 rounded bg-white dark:bg-[#1A1A36] border border-[#E8EAF4] dark:border-[#2A2A46]">MS Word XML</span>
+                    <span className="px-2 py-0.5 rounded bg-white dark:bg-[#1A1A36] border border-[#E8EAF4] dark:border-[#2A2A46]">Editable</span>
+                    <span className="px-2 py-0.5 rounded bg-white dark:bg-[#1A1A36] border border-[#E8EAF4] dark:border-[#2A2A46]">ISO/IEEE</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleExportBlueprintDOCX}
+                  className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-[#EBF2FF] dark:bg-[#1E2746] text-[#2F68EE] dark:text-[#6FA2FF] border border-blue-200 dark:border-blue-800 hover:bg-[#2F68EE] hover:text-white dark:hover:bg-[#2F68EE] dark:hover:text-white transition-all cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download Word (.docx)</span>
+                </button>
+              </div>
+
+              {/* Card 3: Portable Blueprint (.MD) */}
+              <div className="p-5 rounded-2xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] flex flex-col justify-between gap-4 hover:border-purple-400/50 hover:shadow-md transition-all group">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2.5 py-1 rounded-md text-[10px] font-mono font-bold uppercase bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                      .MD MARKDOWN
+                    </span>
+                    <FileCode className="w-5 h-5 text-purple-500 transition-transform group-hover:scale-110" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-[#17172B] dark:text-white">
+                      AI Architectural Blueprint (.md)
+                    </h4>
+                    <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-1 leading-relaxed">
+                      Clean GitHub Flavored Markdown specification formatted for Git repositories, software wikis, and engineering knowledge bases.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-mono text-[#65677A] dark:text-[#A6A8C0]">
+                    <span className="px-2 py-0.5 rounded bg-white dark:bg-[#1A1A36] border border-[#E8EAF4] dark:border-[#2A2A46]">GFM Format</span>
+                    <span className="px-2 py-0.5 rounded bg-white dark:bg-[#1A1A36] border border-[#E8EAF4] dark:border-[#2A2A46]">Git Ready</span>
+                    <span className="px-2 py-0.5 rounded bg-white dark:bg-[#1A1A36] border border-[#E8EAF4] dark:border-[#2A2A46]">Raw UTF-8</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleExportBlueprintMarkdown}
+                  className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-[#F3E8FF] dark:bg-[#28183E] text-[#9333EA] dark:text-[#D8B4FE] border border-purple-200 dark:border-purple-800 hover:bg-[#9333EA] hover:text-white dark:hover:bg-[#9333EA] dark:hover:text-white transition-all cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download Blueprint (.md)</span>
+                </button>
+              </div>
+
+              {/* Card 4: Project Passport CSV */}
+              <div className="p-5 rounded-2xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] flex flex-col justify-between gap-4 hover:border-emerald-400/50 hover:shadow-md transition-all group">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2.5 py-1 rounded-md text-[10px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      .CSV SPREADSHEET
+                    </span>
+                    <Table className="w-5 h-5 text-emerald-500 transition-transform group-hover:scale-110" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-[#17172B] dark:text-white">
+                      Project Passport & Intake Telemetry
+                    </h4>
+                    <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-1 leading-relaxed">
+                      Structured tabular dataset with project ID, domain category, token consumption, intake status, and lifecycle timestamps.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-mono text-[#65677A] dark:text-[#A6A8C0]">
+                    <span className="px-2 py-0.5 rounded bg-white dark:bg-[#1A1A36] border border-[#E8EAF4] dark:border-[#2A2A46]">Excel / Sheets</span>
+                    <span className="px-2 py-0.5 rounded bg-white dark:bg-[#1A1A36] border border-[#E8EAF4] dark:border-[#2A2A46]">RFC 4180</span>
+                    <span className="px-2 py-0.5 rounded bg-white dark:bg-[#1A1A36] border border-[#E8EAF4] dark:border-[#2A2A46]">Audit Log</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-[#E8F8F0] dark:bg-[#162A20] text-[#16A34A] dark:text-[#4ADE80] border border-emerald-200 dark:border-emerald-800 hover:bg-[#16A34A] hover:text-white dark:hover:bg-[#16A34A] dark:hover:text-white transition-all cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download Passport (.csv)</span>
+                </button>
+              </div>
+
+              {/* Card 5: Milestone Delivery Plan CSV */}
+              <div className="p-5 rounded-2xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] flex flex-col justify-between gap-4 hover:border-emerald-400/50 hover:shadow-md transition-all group">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2.5 py-1 rounded-md text-[10px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      .CSV SCHEDULE
+                    </span>
+                    <Table className="w-5 h-5 text-emerald-500 transition-transform group-hover:scale-110" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-[#17172B] dark:text-white">
+                      Milestone Execution Schedule
+                    </h4>
+                    <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-1 leading-relaxed">
+                      Chronological work breakdown structure (WBS), duration estimates, target sprint dates, and real-time completion percentages.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-mono text-[#65677A] dark:text-[#A6A8C0]">
+                    <span className="px-2 py-0.5 rounded bg-white dark:bg-[#1A1A36] border border-[#E8EAF4] dark:border-[#2A2A46]">Sprint Plan</span>
+                    <span className="px-2 py-0.5 rounded bg-white dark:bg-[#1A1A36] border border-[#E8EAF4] dark:border-[#2A2A46]">WBS Matrix</span>
+                    <span className="px-2 py-0.5 rounded bg-white dark:bg-[#1A1A36] border border-[#E8EAF4] dark:border-[#2A2A46]">Phased</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleExportMilestonesCSV}
+                  className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-[#E8F8F0] dark:bg-[#162A20] text-[#16A34A] dark:text-[#4ADE80] border border-emerald-200 dark:border-emerald-800 hover:bg-[#16A34A] hover:text-white dark:hover:bg-[#16A34A] dark:hover:text-white transition-all cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download Milestones (.csv)</span>
+                </button>
+              </div>
+
+              {/* Card 6: Quick Print / Save Layout */}
+              <div className="p-5 rounded-2xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] flex flex-col justify-between gap-4 hover:border-indigo-400/50 hover:shadow-md transition-all group">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2.5 py-1 rounded-md text-[10px] font-mono font-bold uppercase bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                      PRINT LAYOUT
+                    </span>
+                    <FileDown className="w-5 h-5 text-indigo-500 transition-transform group-hover:scale-110" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-[#17172B] dark:text-white">
+                      Browser Print & Executive Preview
+                    </h4>
+                    <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-1 leading-relaxed">
+                      Pre-formatted clean printable layout suitable for instant AirPrint, physical meeting distribution, or operating system PDF print.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-mono text-[#65677A] dark:text-[#A6A8C0]">
+                    <span className="px-2 py-0.5 rounded bg-white dark:bg-[#1A1A36] border border-[#E8EAF4] dark:border-[#2A2A46]">A4 Portrait</span>
+                    <span className="px-2 py-0.5 rounded bg-white dark:bg-[#1A1A36] border border-[#E8EAF4] dark:border-[#2A2A46]">Instant</span>
+                    <span className="px-2 py-0.5 rounded bg-white dark:bg-[#1A1A36] border border-[#E8EAF4] dark:border-[#2A2A46]">Zero Setup</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handlePrintDossier}
+                  className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-white dark:bg-[#1E1E38] border border-[#E8EAF4] dark:border-[#2A2A46] text-[#17172B] dark:text-white hover:bg-[#F0F2F9] dark:hover:bg-[#252445] transition-all cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Open Print Preview</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Showcase Card: AI Presentation Studio & Pitch Deck (.PPTX) */}
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#121324] via-[#1A1A36] to-[#25234A] border border-[#7357FF]/30 p-6 sm:p-8 text-white shadow-xl">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#7357FF]/25 to-[#3978FF]/15 rounded-full blur-3xl pointer-events-none" />
+              
+              <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div className="space-y-3 max-w-2xl">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                      AI PPT GENERATOR · NATIVE POWERPOINT (.PPTX)
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white/10 text-white/80">
+                      10-Slide Keynote
+                    </span>
+                  </div>
+                  <h3 className="font-display font-extrabold text-xl sm:text-2xl text-white tracking-tight">
+                    Executive Pitch Deck & Slide Studio
+                  </h3>
+                  <p className="text-xs sm:text-sm text-[#A6A8C0] leading-relaxed">
+                    Convert this project's architecture, problem statement, technology stack, and milestone delivery plan into an editable, beautifully formatted 10-slide PowerPoint presentation with real vector shapes, typography hierarchies, and dark glass styling.
+                  </p>
+                  <div className="flex items-center gap-3 flex-wrap text-[11px] font-mono text-white/70 pt-1">
+                    <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> 16:9 Widescreen</span>
+                    <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Editable Vector Elements</span>
+                    <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Executive Theme</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/slides?topic=${encodeURIComponent(activeProject?.projectTitle || '')}&category=${encodeURIComponent(activeProject?.aiCategory || 'Technology')}`)}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#7357FF] to-[#3978FF] hover:from-[#6246EA] hover:to-[#2B66EE] text-white shadow-lg shadow-[#7357FF]/30 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4 text-white" />
+                    <span>Open AI Presentation Studio</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+    
+      {/* Scope Change Request Modal */}
+      <ScopeChangeRequestModal
+        isOpen={scopeChangeModalOpen}
+        onClose={() => setScopeChangeModalOpen(false)}
+        projectId={activeProject?.customId || activeProject?.id || ''}
+        projectTitle={activeProject?.projectTitle || 'Commissioned Project'}
+        onSubmitted={() => refreshRequests()}
+      />
+
+      {/* Handover Acceptance Modal */}
+      <HandoverAcceptanceModal
+        isOpen={handoverModalOpen}
+        onClose={() => setHandoverModalOpen(false)}
+        project={activeProject}
+        onAccepted={() => refreshRequests()}
+      />
+</div>
   );
 };
 

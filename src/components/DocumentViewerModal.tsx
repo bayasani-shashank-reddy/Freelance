@@ -2,16 +2,14 @@ import React, { useState, useEffect } from 'react';
 import {
   X,
   FileText,
-  Share2,
   Copy,
   Check,
-  MessageSquare,
-  Download,
+  Download
 } from 'lucide-react';
 import mammoth from 'mammoth';
-import { useToast } from '../context/ToastContext';
+import { BoxedButton } from './shared/BoxedButton';
 
-interface DocumentViewerModalProps {
+export interface DocumentViewerModalProps {
   isOpen: boolean;
   onClose: () => void;
   fileName: string;
@@ -19,23 +17,21 @@ interface DocumentViewerModalProps {
   fileBlob?: Blob | File;
   rawText?: string;
   docContentHtml?: string;
-  onShareToChat?: (text: string) => void;
+  onShareToChat?: (text: any) => void;
 }
 
 export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
   isOpen,
   onClose,
   fileName,
+  fileUrl,
   fileBlob,
   rawText,
-  docContentHtml,
-  onShareToChat,
+  docContentHtml
 }) => {
-  const { showToast } = useToast();
   const [htmlContent, setHtmlContent] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [copied, setCopied] = useState<boolean>(false);
-  const [shareMenuOpen, setShareMenuOpen] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -51,197 +47,159 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
           if (result.value) {
             setHtmlContent(result.value);
           } else {
-            setHtmlContent(`<p class="text-slate-400">No formatted text found in document.</p>`);
+            setHtmlContent(`<p style="color: var(--text-muted)">No formatted text found in document.</p>`);
           }
+        } else if (fileUrl && (fileName.endsWith('.docx') || fileName.endsWith('.doc'))) {
+          const res = await fetch(fileUrl);
+          const arrayBuffer = await res.arrayBuffer();
+          const result = await mammoth.convertToHtml({ arrayBuffer });
+          setHtmlContent(result.value || `<p style="color: var(--text-muted)">Document loaded successfully.</p>`);
         } else if (rawText && rawText.trim()) {
-          // Format raw text into clean HTML paragraphs and headers
           const formatted = rawText
             .split('\n\n')
-            .map((p) => `<p class="mb-3 leading-relaxed">${p.replace(/\n/g, '<br/>')}</p>`)
+            .map((p) => `<p style="margin-bottom: 0.75rem; line-height: 1.6;">${p.replace(/\n/g, '<br/>')}</p>`)
             .join('');
           setHtmlContent(formatted);
         } else {
-          // Default preview for documents
           setHtmlContent(`
-            <div class="space-y-4">
-              <h2 class="text-lg font-bold text-cyan-300">Project Requirements & Specification</h2>
-              <p class="text-xs text-slate-300 font-mono">Document: ${fileName}</p>
-              <hr class="border-slate-800 my-3"/>
-              <h3 class="text-sm font-bold text-white">1. Executive Overview</h3>
-              <p class="text-xs text-slate-300 leading-relaxed">
-                This document contains project scope, architectural requirements, and design expectations for the engagement.
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+              <h2 style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; font-family: monospace;">Document Spec Sheet</h2>
+              <p style="font-size: 0.8rem; color: var(--text-muted);">File: ${fileName}</p>
+              <hr style="border: 0; border-top: 1px solid var(--border-main); margin: 0.5rem 0;"/>
+              <p style="font-size: 0.8rem; line-height: 1.6; color: var(--text-muted);">
+                This project brief or specification is securely retained on the NexusCraft infrastructure. You can download the complete original file using the action button in the toolbar.
               </p>
-              <h3 class="text-sm font-bold text-white mt-4">2. Specifications</h3>
-              <ul class="list-disc pl-5 text-xs text-slate-300 space-y-1.5">
-                <li>High-fidelity responsive user interface with modern dark theme</li>
-                <li>Real-time client ↔ admin messaging & milestone delivery</li>
-                <li>Escrow protected payments & NCX virtual digital credits</li>
-              </ul>
             </div>
           `);
         }
       } catch (err) {
-        setHtmlContent(`
-          <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 space-y-2">
-            <p class="font-bold text-cyan-300">${fileName}</p>
-            <p class="leading-relaxed">${rawText || 'Document content loaded successfully.'}</p>
-          </div>
-        `);
+        setHtmlContent(`<p style="color: #ef4444">Could not render in-browser preview for this file format. Please download to view.</p>`);
       } finally {
         setLoading(false);
       }
     };
 
     parseDoc();
-  }, [isOpen, fileBlob, rawText, docContentHtml, fileName]);
+  }, [isOpen, docContentHtml, fileBlob, fileUrl, rawText, fileName]);
 
   if (!isOpen) return null;
 
-  const handleCopyLink = () => {
-    const shareLink = window.location.origin + window.location.pathname + `#/brief?doc=${encodeURIComponent(fileName)}`;
-    navigator.clipboard.writeText(shareLink);
+  const handleCopy = () => {
+    const div = document.createElement('div');
+    div.innerHTML = htmlContent;
+    const text = div.textContent || div.innerText || '';
+    navigator.clipboard.writeText(text);
     setCopied(true);
-    showToast({ type: 'success', title: 'Link Copied!', message: 'Shareable document link copied to clipboard.' });
-    setTimeout(() => setCopied(false), 2500);
-  };
-
-  const handleDownloadDoc = () => {
-    const blob = new Blob([rawText || htmlContent.replace(/<[^>]+>/g, '\n')], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName.endsWith('.docx') || fileName.endsWith('.txt') ? fileName : `${fileName}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast({ type: 'success', title: 'Downloading Document', message: `Saved ${fileName} to your computer.` });
-  };
-
-  const handleShareToConversation = () => {
-    if (onShareToChat) {
-      onShareToChat(`📄 Shared Document: ${fileName}`);
-      showToast({ type: 'success', title: 'Document Shared', message: 'Document sent to the chat conversation!' });
-      onClose();
-    }
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl bg-slate-900 border border-indigo-500/30 shadow-2xl overflow-hidden">
-        {/* Modal Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-slate-950/60">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 flex items-center justify-center">
-              <FileText className="w-5 h-5" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div
+        className="w-full max-w-4xl rounded-2xl border shadow-2xl flex flex-col max-h-[88vh] overflow-hidden transition-all stitch-card"
+        style={{
+          borderColor: 'var(--border-main)',
+          color: 'var(--text-main)'
+        }}
+      >
+        {/* Header Toolbar */}
+        <div
+          className="px-6 py-4 border-b flex items-center justify-between gap-4"
+          style={{
+            backgroundColor: 'var(--bg-canvas)',
+            borderColor: 'var(--border-main)'
+          }}
+        >
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div
+              className="p-2 border"
+              style={{
+                backgroundColor: 'var(--bg-surface)',
+                borderColor: 'var(--border-main)',
+                color: 'var(--text-main)'
+              }}
+            >
+              <FileText className="w-4 h-4" />
             </div>
-            <div>
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <span>{fileName}</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                  In-App Document Viewer
-                </span>
-              </h2>
-              <p className="text-[11px] font-mono text-slate-400">Microsoft Word (.docx) / Project Specification</p>
+            <div className="overflow-hidden">
+              <h3 className="font-display font-bold text-sm uppercase truncate max-w-md">
+                {fileName}
+              </h3>
+              <p className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
+                NexusCraft Document Inspector
+              </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleDownloadDoc}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-bold flex items-center gap-1.5 transition-all border border-slate-700"
-              title="Download Document"
+            <BoxedButton
+              onClick={handleCopy}
+              variant="secondary"
+              size="sm"
+              icon={copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
             >
-              <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Download</span>
-            </button>
+              {copied ? 'Copied' : 'Copy Text'}
+            </BoxedButton>
 
-            {/* Share Menu Button */}
-            <div className="relative">
-              <button
-                onClick={() => setShareMenuOpen(!shareMenuOpen)}
-                className="px-3 py-1.5 rounded-xl bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 border border-indigo-500/30 text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm shadow-indigo-500/20"
+            {fileUrl && (
+              <a
+                href={fileUrl}
+                target="_blank"
+                rel="noreferrer"
+                download={fileName}
               >
-                <Share2 className="w-3.5 h-3.5" />
-                <span>Share</span>
-              </button>
+                <BoxedButton
+                  variant="primary"
+                  size="sm"
+                  icon={<Download className="w-3.5 h-3.5" />}
+                >
+                  Download
+                </BoxedButton>
+              </a>
+            )}
 
-              {shareMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-slate-950 border border-slate-800 p-2 shadow-2xl z-50 text-xs space-y-1">
-                  <button
-                    onClick={handleCopyLink}
-                    className="w-full text-left px-3 py-2 rounded-xl text-slate-300 hover:bg-slate-900 flex items-center gap-2 font-medium"
-                  >
-                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-cyan-400" />}
-                    <span>{copied ? 'Link Copied!' : 'Copy Share Link'}</span>
-                  </button>
-
-                  {onShareToChat && (
-                    <button
-                      onClick={handleShareToConversation}
-                      className="w-full text-left px-3 py-2 rounded-xl text-indigo-300 hover:bg-indigo-500/15 flex items-center gap-2 font-medium"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
-                      <span>Send into Chat</span>
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Close Button */}
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
+              className="p-1.5 border hover:opacity-80 transition-opacity ml-1"
+              style={{ borderColor: 'var(--border-main)', color: 'var(--text-muted)' }}
+              aria-label="Close modal"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* Document Body */}
-        <div className="flex-1 overflow-y-auto p-6 sm:p-8 bg-slate-950/40">
+        {/* Content Viewer Body */}
+        <div
+          className="p-6 sm:p-8 overflow-y-auto flex-1 font-mono text-xs leading-relaxed"
+          style={{
+            backgroundColor: 'var(--bg-surface)',
+            color: 'var(--text-main)'
+          }}
+        >
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-16 space-y-3">
-              <div className="w-8 h-8 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
-              <p className="text-xs font-mono text-slate-400">Rendering document preview…</p>
+            <div className="py-20 text-center font-mono text-xs animate-pulse" style={{ color: 'var(--text-muted)' }}>
+              Parsing document structure...
             </div>
           ) : (
-            <div className="max-w-2xl mx-auto p-8 rounded-2xl bg-slate-950 border border-slate-800 text-slate-200 shadow-xl font-sans text-xs leading-relaxed docx-preview-body">
-              <div
-                dangerouslySetInnerHTML={{ __html: htmlContent }}
-                className="space-y-3 prose prose-invert max-w-none text-slate-300"
-              />
-            </div>
+            <div
+              className="prose max-w-none text-xs leading-relaxed [&>h1]:text-base [&>h1]:font-bold [&>h1]:mb-2 [&>h2]:text-sm [&>h2]:font-bold [&>h2]:mb-2 [&>p]:mb-3 [&>ul]:list-disc [&>ul]:pl-5 [&>ul]:mb-3"
+              dangerouslySetInnerHTML={{ __html: htmlContent }}
+            />
           )}
         </div>
 
-        {/* Modal Footer */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between text-xs">
-          <div className="text-[11px] font-mono text-slate-400 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span>Document loaded & verified</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleDownloadDoc}
-              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold flex items-center gap-1.5 transition-all border border-slate-800"
-            >
-              <Download className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Download File</span>
-            </button>
-
-            {onShareToChat && (
-              <button
-                onClick={handleShareToConversation}
-                className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white font-bold flex items-center gap-1.5 shadow-md transition-all"
-              >
-                <Share2 className="w-3.5 h-3.5" />
-                <span>Share in Chat</span>
-              </button>
-            )}
-          </div>
+        {/* Footer info bar */}
+        <div
+          className="px-6 py-2.5 border-t flex items-center justify-between text-[10px] font-mono"
+          style={{
+            backgroundColor: 'var(--bg-canvas)',
+            borderColor: 'var(--border-main)',
+            color: 'var(--text-muted)'
+          }}
+        >
+          <span>SPEC: DOCX / HTML / MARKDOWN</span>
+          <span>PROTOCOL: AUTHORIZED ACCESS ONLY</span>
         </div>
       </div>
     </div>

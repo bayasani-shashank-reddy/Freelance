@@ -1,11 +1,19 @@
 /**
- * NexusCraft MongoDB API Client
- * Connects frontend directly to Express/MongoDB backend with seamless offline fallback.
+ * NexusCraft Unified REST API Client
+ * Connects frontend directly to Express/MongoDB backend.
  */
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
 
 export const api = {
+  // Document Download URL Helper
+  getDocumentDownloadUrl(storagePath?: string | null) {
+    if (!storagePath) return '';
+    if (storagePath.startsWith('http://') || storagePath.startsWith('https://')) return storagePath;
+    const base = (import.meta as any).env?.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    return `${base}${storagePath.startsWith('/') ? '' : '/'}${storagePath}`;
+  },
+
   // Health
   async getHealth() {
     try {
@@ -17,22 +25,12 @@ export const api = {
   },
 
   // Auth & Users
-  async getUsers() {
-    try {
-      const res = await fetch(`${API_BASE}/auth/users`);
-      if (!res.ok) return null;
-      return await res.json();
-    } catch {
-      return null;
-    }
-  },
-
-  async register(userData: any) {
+  async register(data: { name: string; email: string; phone?: string; countryCode?: string; password?: string; company?: string }) {
     try {
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData),
+        body: JSON.stringify(data)
       });
       return await res.json();
     } catch (err: any) {
@@ -40,12 +38,12 @@ export const api = {
     }
   },
 
-  async login(credentials: { email: string; password?: string }) {
+  async login(credentials: { identifier?: string; email?: string; phone?: string; password?: string }) {
     try {
       const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials),
+        body: JSON.stringify(credentials)
       });
       return await res.json();
     } catch (err: any) {
@@ -53,42 +51,19 @@ export const api = {
     }
   },
 
-  async approveFreelancer(id: string) {
+  async getUsers() {
     try {
-      const res = await fetch(`${API_BASE}/auth/freelancers/${id}/approve`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/auth/users`);
+      if (!res.ok) return [];
       return await res.json();
     } catch {
-      return { success: false };
+      return [];
     }
   },
 
-  async rejectFreelancer(id: string) {
+  async getProfile(userId: string) {
     try {
-      const res = await fetch(`${API_BASE}/auth/freelancers/${id}/reject`, { method: 'POST' });
-      return await res.json();
-    } catch {
-      return { success: false };
-    }
-  },
-
-  async updateCredits(userId: string, amount: number, type: 'add' | 'spend') {
-    try {
-      const res = await fetch(`${API_BASE}/auth/users/${userId}/credits`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount, type }),
-      });
-      return await res.json();
-    } catch {
-      return { success: false };
-    }
-  },
-
-  // Ideas
-  async getIdeas(clientId?: string) {
-    try {
-      const url = clientId ? `${API_BASE}/ideas/client/${clientId}` : `${API_BASE}/ideas`;
-      const res = await fetch(url);
+      const res = await fetch(`${API_BASE}/auth/profile/${userId}`);
       if (!res.ok) return null;
       return await res.json();
     } catch {
@@ -96,12 +71,13 @@ export const api = {
     }
   },
 
-  async submitIdea(ideaData: any) {
+  // AI Scoping Preview (FREE — No credits charged)
+  async generatePreview(data: { title: string; referenceUrl?: string; docText?: string }) {
     try {
-      const res = await fetch(`${API_BASE}/ideas/submit`, {
+      const res = await fetch(`${API_BASE}/projects/preview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ideaData),
+        body: JSON.stringify(data)
       });
       return await res.json();
     } catch (err: any) {
@@ -109,50 +85,270 @@ export const api = {
     }
   },
 
-  async updateIdeaStatus(id: string, status: string) {
+  // Project Requests
+  async submitProject(projectData: any) {
     try {
-      const res = await fetch(`${API_BASE}/ideas/${id}/status`, {
+      const res = await fetch(`${API_BASE}/projects/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(projectData)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async getProjects(params?: { status?: string; search?: string }) {
+    try {
+      const query = new URLSearchParams();
+      if (params?.status) query.set('status', params.status);
+      if (params?.search) query.set('search', params.search);
+      const res = await fetch(`${API_BASE}/projects?${query.toString()}`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async getClientProjects(clientId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/projects/client/${clientId}`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async getProject(id: string) {
+    try {
+      const res = await fetch(`${API_BASE}/projects/${id}`);
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async updateProjectStatus(id: string, update: { status: string; internalNote?: string; userVisibleNote?: string; adminId?: string; adminName?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/projects/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(update)
       });
       return await res.json();
-    } catch {
-      return { success: false };
+    } catch (err: any) {
+      return { success: false, error: err.message };
     }
   },
 
-  async editIdea(id: string, updateData: any) {
+  async updateProjectNotes(id: string, notes: { internalNote?: string; userVisibleNote?: string }) {
     try {
-      const res = await fetch(`${API_BASE}/ideas/${id}`, {
+      const res = await fetch(`${API_BASE}/projects/${id}/notes`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData),
+        body: JSON.stringify(notes)
       });
       return await res.json();
-    } catch {
-      return { success: false };
+    } catch (err: any) {
+      return { success: false, error: err.message };
     }
   },
 
-  // Admin-Client Messages
-  async getMessages(conversationId?: string) {
+  // NCX Credits
+  async getCreditsBalance(userId: string) {
     try {
-      const url = conversationId ? `${API_BASE}/messages?conversationId=${conversationId}` : `${API_BASE}/messages`;
+      const res = await fetch(`${API_BASE}/credits/balance/${userId}`);
+      return await res.json();
+    } catch {
+      return { success: false, credits: 0 };
+    }
+  },
+
+  async getCreditsTransactions(userId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/credits/transactions/${userId}`);
+      return await res.json();
+    } catch {
+      return { success: false, transactions: [] };
+    }
+  },
+
+  async getAllCredits() {
+    try {
+      const res = await fetch(`${API_BASE}/credits/all`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async adminAdjustCredits(data: { userId: string; amount: number; reason: string; adminId?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/credits/admin-adjust`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async topUpCredits(data: { userId: string; packageId: string; tokens: number; amountPaid: number; currency?: string; paymentMethod?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/credits/topup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Private Freelancers (Admin Managed)
+  async getFreelancers() {
+    try {
+      const res = await fetch(`${API_BASE}/freelancers`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async createFreelancer(data: any) {
+    try {
+      const res = await fetch(`${API_BASE}/freelancers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async updateFreelancer(id: string, data: any) {
+    try {
+      const res = await fetch(`${API_BASE}/freelancers/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async deleteFreelancer(id: string) {
+    try {
+      const res = await fetch(`${API_BASE}/freelancers/${id}`, {
+        method: 'DELETE'
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async getFreelancerShares(freelancerId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/freelancers/${freelancerId}/shares`);
+      return await res.json();
+    } catch {
+      return { success: false, shares: [] };
+    }
+  },
+
+  async submitFreelancerAssessment(data: any) {
+    try {
+      const res = await fetch(`${API_BASE}/freelancers/assessment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Document Upload & Sharing
+  async uploadDocument(formData: FormData) {
+    try {
+      const res = await fetch(`${API_BASE}/documents/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async shareDocument(data: { requestId: string; freelancerIds: string[]; adminInstructions?: string; dueDate?: string; adminId?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/documents/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async revokeDocumentShare(shareId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/documents/revoke-share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shareId })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async getRequestShares(requestId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/documents/shares/${requestId}`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  // Contact History (Calls & Emails)
+  async getContactLogs(requestId?: string) {
+    try {
+      const url = requestId ? `${API_BASE}/contacts/request/${requestId}` : `${API_BASE}/contacts`;
       const res = await fetch(url);
-      if (!res.ok) return null;
+      if (!res.ok) return [];
       return await res.json();
     } catch {
-      return null;
+      return [];
     }
   },
 
-  async sendMessage(msgData: any) {
+  async addContactLog(data: any) {
     try {
-      const res = await fetch(`${API_BASE}/messages`, {
+      const res = await fetch(`${API_BASE}/contacts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(msgData),
+        body: JSON.stringify(data)
       });
       return await res.json();
     } catch (err: any) {
@@ -160,60 +356,1168 @@ export const api = {
     }
   },
 
-  // Jobs
-  async getJobs() {
+  // Notifications
+  async getNotifications(recipientId: string) {
     try {
-      const res = await fetch(`${API_BASE}/jobs`);
-      if (!res.ok) return null;
+      const res = await fetch(`${API_BASE}/notifications/${recipientId}`);
+      if (!res.ok) return [];
       return await res.json();
     } catch {
-      return null;
+      return [];
     }
   },
 
-  async postJob(jobData: any) {
+  async markNotificationRead(id: string) {
     try {
-      const res = await fetch(`${API_BASE}/jobs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(jobData),
-      });
-      return await res.json();
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  },
-
-  // Proposals
-  async getProposals() {
-    try {
-      const res = await fetch(`${API_BASE}/proposals`);
-      if (!res.ok) return null;
-      return await res.json();
-    } catch {
-      return null;
-    }
-  },
-
-  async submitProposal(propData: any) {
-    try {
-      const res = await fetch(`${API_BASE}/proposals`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(propData),
-      });
-      return await res.json();
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  },
-
-  async awardProposal(proposalId: string) {
-    try {
-      const res = await fetch(`${API_BASE}/proposals/${proposalId}/award`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/notifications/${id}/read`, { method: 'PATCH' });
       return await res.json();
     } catch {
       return { success: false };
     }
   },
+
+  async markAllNotificationsRead(recipientId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/notifications/read-all/${recipientId}`, { method: 'PATCH' });
+      return await res.json();
+    } catch {
+      return { success: false };
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // ARCHITECTURAL BLUEPRINTS (17 SECTIONS)
+  // ─────────────────────────────────────────────────────────────
+  async getBlueprint(projectId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/blueprints/${projectId}`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async generateBlueprint(data: { projectId: string; title: string; rawIdea?: string; category?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/blueprints/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async approveBlueprint(id: string) {
+    try {
+      const res = await fetch(`${API_BASE}/blueprints/${id}/approve`, { method: 'PATCH' });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async shareBlueprintWithClient(id: string) {
+    try {
+      const res = await fetch(`${API_BASE}/blueprints/${id}/share-client`, { method: 'PATCH' });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // IDEA VAULT (FREE DRAFT OPERATIONS)
+  // ─────────────────────────────────────────────────────────────
+  async getClientDrafts(clientId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/drafts/client/${clientId}`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async createDraft(data: any) {
+    try {
+      const res = await fetch(`${API_BASE}/drafts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async updateDraft(id: string, data: any) {
+    try {
+      const res = await fetch(`${API_BASE}/drafts/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async deleteDraft(id: string) {
+    try {
+      const res = await fetch(`${API_BASE}/drafts/${id}`, { method: 'DELETE' });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // NEXUS COST INTELLIGENCE (HOURS × RATE + CONTINGENCY)
+  // ─────────────────────────────────────────────────────────────
+  async getCostDashboard() {
+    try {
+      const res = await fetch(`${API_BASE}/costs/dashboard`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async getProjectCost(projectId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/costs/project/${projectId}`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async generateCostEstimate(data: { projectId: string; hourlyRate?: number; clientBudget?: number; complexity?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/costs/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async updateCostComponents(id: string, data: { components: any; adminId?: string; reason?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/costs/${id}/components`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async updateCostStatus(id: string, data: { status: string; adminApprovedAmount?: number; finalizedAmount?: number; reason?: string; adminId?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/costs/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // FEASIBILITY ASSESSMENTS
+  // ─────────────────────────────────────────────────────────────
+  async getRequestAssessments(requestId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/assessments/request/${requestId}`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async getFreelancerAssessments(freelancerId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/assessments/freelancer/${freelancerId}`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async submitAssessment(data: any) {
+    try {
+      const res = await fetch(`${API_BASE}/assessments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async updateAssessmentStatus(id: string, data: { status: string; adminFeedback?: string; adminId?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/assessments/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // FREELANCER QUOTATIONS (VERSION PRESERVED)
+  // ─────────────────────────────────────────────────────────────
+  async getRequestQuotations(requestId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/quotations/request/${requestId}`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async getFreelancerQuotations(freelancerId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/quotations/freelancer/${freelancerId}`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async submitQuotation(data: any) {
+    try {
+      const res = await fetch(`${API_BASE}/quotations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async updateQuotationStatus(id: string, data: { status: string; adminFeedback?: string; adminId?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/quotations/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // NEXUS DELIVERABLE CENTER & ZIP INSPECTOR
+  // ─────────────────────────────────────────────────────────────
+  async uploadDeliverableZip(formData: FormData) {
+    try {
+      const res = await fetch(`${API_BASE}/deliverables/upload-zip`, {
+        method: 'POST',
+        body: formData
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async getProjectDeliverables(projectId: string, role?: string) {
+    try {
+      const query = role ? `?role=${role}` : '';
+      const res = await fetch(`${API_BASE}/deliverables/project/${projectId}${query}`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async getFreelancerDeliverables(freelancerId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/deliverables/freelancer/${freelancerId}`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async updateDeliverableStatus(id: string, data: { status: string; adminFeedback?: string; adminId?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/deliverables/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async releaseDeliverableToClient(id: string, adminId?: string) {
+    try {
+      const res = await fetch(`${API_BASE}/deliverables/${id}/release-client`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminId })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // CLARIFICATION CENTER (STRUCTURED Q&A)
+  // ─────────────────────────────────────────────────────────────
+  async getProjectClarifications(projectId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/clarifications/project/${projectId}`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async createClarification(data: any) {
+    try {
+      const res = await fetch(`${API_BASE}/clarifications`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async answerClarification(id: string, data: { answer: string; answeredBy?: any; supportingDocs?: string[] }) {
+    try {
+      const res = await fetch(`${API_BASE}/clarifications/${id}/answer`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async updateClarificationStatus(id: string, status: string) {
+    try {
+      const res = await fetch(`${API_BASE}/clarifications/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // PROJECT TASK WORKBOARD
+  // ─────────────────────────────────────────────────────────────
+  async getProjectTasks(projectId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/tasks/project/${projectId}`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async getFreelancerTasks(freelancerId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/tasks/freelancer/${freelancerId}`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async createTask(data: any) {
+    try {
+      const res = await fetch(`${API_BASE}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async updateTask(id: string, data: any) {
+    try {
+      const res = await fetch(`${API_BASE}/tasks/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // ANALYTICS, AUDIT LOG & ACTIVITIES
+  // ─────────────────────────────────────────────────────────────
+  async getAdminAnalytics() {
+    try {
+      const res = await fetch(`${API_BASE}/analytics/admin`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async getAuditLogs() {
+    try {
+      const res = await fetch(`${API_BASE}/audit-logs`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async createAuditLog(data: any) {
+    try {
+      const res = await fetch(`${API_BASE}/audit-logs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async getProjectActivities(projectId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/activities/project/${projectId}`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // 12 CLIENT AI TOOLS & ADMIN PROJECT INTELLIGENCE
+  // ─────────────────────────────────────────────────────────────
+  async runAITool(tool: string, data: { title?: string; input?: string; category?: string; context?: any }) {
+    try {
+      const res = await fetch(`${API_BASE}/ai/assistant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tool, ...data })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // PUBLIC AI BLUEPRINT SANDBOX (Section A)
+  // ─────────────────────────────────────────────────────────────
+  async getPublicAiSandbox(prompt?: string, chipKey?: string) {
+    try {
+      const res = await fetch(`${API_BASE}/ai/public-sandbox`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, chipKey })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { error: err.message };
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // FREELANCER ENHANCEMENTS (Section C)
+  // ─────────────────────────────────────────────────────────────
+  async getFreelancerProfileCompletion(freelancerId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/freelancers/profile-completion/${freelancerId}`);
+      if (!res.ok) return { score: 70, breakdown: {}, missingFields: [] };
+      return await res.json();
+    } catch {
+      return { score: 70, breakdown: {}, missingFields: [] };
+    }
+  },
+
+  async updateFreelancerProfile(freelancerId: string, data: any) {
+    try {
+      const res = await fetch(`${API_BASE}/freelancers/profile/${freelancerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async getSmartFreelancerMatches(projectId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/freelancers/matching/${projectId}`);
+      if (!res.ok) return { success: false, recommendations: [] };
+      return await res.json();
+    } catch {
+      return { success: false, recommendations: [] };
+    }
+  },
+
+  async getFreelancerTimeline(freelancerId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/tasks/timeline/${freelancerId}`);
+      if (!res.ok) return { timeline: [] };
+      return await res.json();
+    } catch {
+      return { timeline: [] };
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // ADMIN QUICK ACTION DRAWER & COMMERCIAL TERMS (Section D)
+  // ─────────────────────────────────────────────────────────────
+  async updateProjectPriority(projectId: string, priority: string, adminInfo?: { adminId?: string; adminName?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/priority`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priority, ...adminInfo })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async updateProjectCommercials(projectId: string, commercials: any) {
+    try {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/commercials`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(commercials)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async assignFreelancerToProject(projectId: string, data: { freelancerId: string; freelancerName?: string; adminName?: string; notes?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/assign-freelancer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // CLIENT BLUEPRINT EDITOR & SUGGESTIONS (Section B)
+  // ─────────────────────────────────────────────────────────────
+  async clientEditBlueprint(blueprintId: string, data: any) {
+    try {
+      const res = await fetch(`${API_BASE}/blueprints/${blueprintId}/client-edit`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async aiSuggestBlueprint(blueprintId: string, focus = 'milestones') {
+    try {
+      const res = await fetch(`${API_BASE}/blueprints/${blueprintId}/ai-suggest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ focus })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async updateTaskMilestone(taskId: string, data: any) {
+    try {
+      const res = await fetch(`${API_BASE}/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // UNIQUE ROLE FEATURES (Client, Admin, Freelancer)
+  // ─────────────────────────────────────────────────────────────
+
+  // Client Scope Change Center
+  async submitScopeChange(projectId: string, payload: { title: string; description: string; reason?: string; affectedRequirements?: string[]; estimatedBudgetImpact?: number; estimatedTimelineImpact?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/scope-changes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Admin Scope Change Review
+  async reviewScopeChange(projectId: string, changeId: string, payload: { status: string; adminNotes?: string; budgetImpact?: number; timelineImpact?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/scope-changes/${changeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Project Decision Center
+  async createDecision(projectId: string, payload: { title: string; description: string; decisionType?: string; deadline?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/decisions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async respondToDecision(projectId: string, decisionId: string, payload: { status: string; clientFeedback?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/decisions/${decisionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Client Final Handover Acceptance
+  async recordHandoverAcceptance(projectId: string, payload: { status: string; rating?: number; feedback?: string; issues?: string[] }) {
+    try {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/acceptance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Freelancer Effort vs Estimate Tracker
+  async logFreelancerWork(projectId: string, payload: { freelancerId: string; freelancerName?: string; taskTitle: string; estimatedHours: number; actualHours: number; workCompleted?: string; remainingWork?: string; deviationReason?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/worklogs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Freelancer Technical Handover Generator
+  async saveHandoverDoc(projectId: string, payload: { overview: string; technologies: string[]; installationInstructions: string; envVariables?: string[]; databaseSetup?: string; startupInstructions: string; keyModules?: string[]; knownLimitations?: string; futureRecommendations?: string; authorName?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/handover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Admin SLA & Bottleneck Radar
+  async getSlaRadar() {
+    try {
+      const res = await fetch(`${API_BASE}/projects/operations/sla-radar`);
+      if (!res.ok) return { summary: { total: 0, onTrack: 0, atRisk: 0, breaches: 0 }, items: [] };
+      return await res.json();
+    } catch {
+      return { summary: { total: 0, onTrack: 0, atRisk: 0, breaches: 0 }, items: [] };
+    }
+  },
+
+  // ── PHASE 1: AUTH & SECURITY METHODS ──
+  async forgotPassword(email: string) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async resetPassword(token: string, newPassword: string) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, newPassword })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async verifyEmail(token: string) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/verify-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async generate2FA(userId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/2fa/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async verify2FA(userId: string, code: string) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/2fa/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, code })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async getSessions(userId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/sessions/${userId}`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async revokeSession(sessionId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/sessions/revoke/${sessionId}`, { method: 'POST' });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async updateProfile(userId: string, data: any) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/profile/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // ── PHASE 2: FINANCIAL INTEGRITY & ORDERS ──
+  async createPaymentOrder(userId: string, packageId: string, currency = 'INR') {
+    try {
+      const res = await fetch(`${API_BASE}/credits/create-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, packageId, currency })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async verifyPaymentOrder(orderId: string, providerPaymentId?: string) {
+    try {
+      const res = await fetch(`${API_BASE}/credits/verify-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, providerPaymentId })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async lockMilestoneEscrow(payload: { clientId: string; projectId: string; projectTitle?: string; amountNCX: number; milestoneTitle?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/credits/escrow-lock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async releaseMilestoneEscrowFunds(payload: { clientId: string; specialistId: string; projectId: string; amountNCX: number; milestoneTitle?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/credits/escrow-release`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // ── PHASE 4: IN-APP CHAT ──
+  async getProjectChat(projectId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/chat/project/${projectId}`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async sendProjectChat(projectId: string, payload: { senderId: string; senderName: string; senderRole: string; senderAvatar?: string; text: string; attachment?: any }) {
+    try {
+      const res = await fetch(`${API_BASE}/chat/project/${projectId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // ── PHASE 5: BLUEPRINTS, DIFFS & TEAMS ──
+  async getBlueprintVersions(projectId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/blueprints/${projectId}/versions`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async createBlueprintShareLink(projectId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/blueprints/${projectId}/share-link`, { method: 'POST' });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async getSharedBlueprint(token: string) {
+    try {
+      const res = await fetch(`${API_BASE}/blueprints/shared/${token}`);
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async getClientTeam(clientId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/teams/client/${clientId}`);
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async inviteTeamMember(payload: { clientId: string; name: string; email: string; role?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/teams/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async removeTeamMember(clientId: string, memberId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/teams/member/${clientId}/${memberId}`, { method: 'DELETE' });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async getProjectWireframes(projectId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/wireframes/project/${projectId}`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async addWireframeAnnotation(wireframeId: string, payload: any) {
+    try {
+      const res = await fetch(`${API_BASE}/wireframes/${wireframeId}/annotations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // ── PHASE 6: DISPUTES, BULK ACTIONS & FORECASTING ──
+  async getDisputes() {
+    try {
+      const res = await fetch(`${API_BASE}/disputes`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async createDispute(payload: any) {
+    try {
+      const res = await fetch(`${API_BASE}/disputes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async resolveDispute(disputeId: string, payload: any) {
+    try {
+      const res = await fetch(`${API_BASE}/disputes/${disputeId}/resolve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async bulkActionProjects(action: string, projectIds: string[], payload?: any) {
+    try {
+      const res = await fetch(`${API_BASE}/projects/bulk-action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, projectIds, payload })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async getFinancialForecasting() {
+    try {
+      const res = await fetch(`${API_BASE}/costs/forecasting`);
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async getPlatformSettings() {
+    try {
+      const res = await fetch(`${API_BASE}/settings`);
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async updatePlatformSettings(payload: any) {
+    try {
+      const res = await fetch(`${API_BASE}/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // ── PHASE 7: SPECIALIST EARNINGS, INVOICES & SKILLS ──
+  async getSpecialistInvoices(freelancerId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/invoices/specialist/${freelancerId}`);
+      return await res.json();
+    } catch {
+      return { totalEarnings: 0, pendingPayout: 0, invoices: [] };
+    }
+  },
+
+  async createInvoice(payload: any) {
+    try {
+      const res = await fetch(`${API_BASE}/invoices`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async getSkillAssessments() {
+    try {
+      const res = await fetch(`${API_BASE}/skills/assessments`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async submitSkillAssessment(payload: { userId: string; assessmentId: string; answers: number[] }) {
+    try {
+      const res = await fetch(`${API_BASE}/skills/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async getPublicSpecialistProfile(specialistId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/freelancers/public/${specialistId}`);
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  async updateSpecialistAvailability(specialistId: string, payload: any) {
+    try {
+      const res = await fetch(`${API_BASE}/freelancers/availability/${specialistId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  }
 };

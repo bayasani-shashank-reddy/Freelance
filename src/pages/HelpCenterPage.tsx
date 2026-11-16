@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import {
   HelpCircle,
   Search,
@@ -8,100 +7,107 @@ import {
   Zap,
   Shield,
   CreditCard,
-  Users,
   ChevronDown,
   Mail,
   ArrowRight,
+  FileText
 } from 'lucide-react';
+import { BoxedButton } from '../components/shared/BoxedButton';
 
 const categories = [
-  { id: 'getting-started', label: 'Getting Started', icon: Zap, color: 'text-cyan-400' },
-  { id: 'projects', label: 'Projects & Briefs', icon: BookOpen, color: 'text-indigo-400' },
-  { id: 'payments', label: 'Payments & Escrow', icon: CreditCard, color: 'text-emerald-400' },
-  { id: 'designers', label: 'Working with Designers', icon: Users, color: 'text-purple-400' },
-  { id: 'security', label: 'Security & Privacy', icon: Shield, color: 'text-amber-400' },
-  { id: 'support', label: 'Contact Support', icon: MessageCircle, color: 'text-rose-400' },
+  { id: 'intake', label: 'Idea Intake & AI', icon: Zap },
+  { id: 'credits', label: 'NCX Credit Protocol', icon: CreditCard },
+  { id: 'governance', label: 'Private Review', icon: Shield },
+  { id: 'deliverables', label: 'Specs & Codebase', icon: FileText },
+  { id: 'security', label: 'Data Security', icon: BookOpen },
+  { id: 'contact', label: 'Studio Direct', icon: MessageCircle },
 ];
 
 const faqs: Record<string, Array<{ q: string; a: string }>> = {
-  'getting-started': [
+  intake: [
     {
-      q: 'How do I create my first project brief?',
-      a: 'Navigate to the AI Brief Builder from the main navigation. Our AI-powered tool will guide you through a series of questions to create a comprehensive design brief that attracts top talent.',
+      q: 'How does the AI requirement structuring work?',
+      a: 'When you submit a raw concept, our Gemini AI models analyze your submission against industry architecture standards. It breaks the concept into Executive Summaries, Functional Modules, High-Level Architecture, Risk Assessment, and recommended milestones.',
     },
     {
-      q: 'How does the matching system work?',
-      a: 'NexusCraft uses an AI algorithm that analyzes your project requirements, budget, timeline, and style preferences to match you with the most suitable designers from our vetted network.',
+      q: 'Can I upload existing PRDs or wireframe documents?',
+      a: 'Yes. The submission portal accepts PDF, DOCX, and TXT files up to 25MB. The system automatically ingests and parses them to augment the generated project brief.',
     },
     {
-      q: 'Is there a free tier available?',
-      a: 'Yes! You can browse designer portfolios and create project briefs for free. Fees only apply when you hire a designer and fund the escrow for a project.',
-    },
-  ],
-  projects: [
-    {
-      q: 'How do I manage project milestones?',
-      a: 'Each project is broken into milestones that you define during the brief creation. You can track progress, approve deliverables, and release payments milestone-by-milestone from your Dashboard.',
-    },
-    {
-      q: 'Can I modify a brief after posting?',
-      a: 'Absolutely. You can edit your brief at any time before a designer accepts the project. After acceptance, changes require mutual agreement between you and the designer.',
+      q: 'Does submitting an idea require upfront commitment?',
+      a: 'No. Submitting an idea requires a one-time fee of 50 NCX Credits from your balance (new accounts receive 500 NCX complimentary). There is no financial obligation until you approve an active development scope.',
     },
   ],
-  payments: [
+  credits: [
     {
-      q: 'How does escrow work?',
-      a: 'When you start a project, funds are held securely in escrow. Payment is only released to the designer when you approve the completed milestone. This protects both parties.',
+      q: 'What are NCX Credits and how are they used?',
+      a: 'NCX Credits are the native utility currency of the NexusCraft ecosystem. They are consumed for AI requirements decomposition (50 NCX per submission) and administrative triage. Every newly registered client receives 500 NCX Credits immediately upon sign-up.',
     },
     {
-      q: 'What payment methods are accepted?',
-      a: 'We accept all major credit/debit cards (Visa, Mastercard, Amex), PayPal, and bank transfers. Cryptocurrency payments are coming soon.',
+      q: 'How can I acquire additional NCX Credits?',
+      a: 'Credits can be requested via the NCX Credit Vault or granted directly by platform administrators. Administrators can award promotional, test, or enterprise allotments through the governance console.',
     },
     {
-      q: 'What is the platform fee?',
-      a: 'NexusCraft charges a 5% platform fee on each transaction. This covers escrow protection, dispute resolution, and platform maintenance.',
+      q: 'Do NCX Credits expire?',
+      a: 'Standard NCX credits awarded upon registration or purchased do not expire as long as your account remains in good standing.',
     },
   ],
-  designers: [
+  governance: [
     {
-      q: 'How are designers vetted?',
-      a: 'Every designer on NexusCraft goes through a rigorous review process including portfolio evaluation, skill assessment, and identity verification. Only the top 3% of applicants are accepted.',
+      q: 'Is my project visible on a public marketplace or job board?',
+      a: 'Never. NexusCraft operates on a strict non-marketplace model. Your project details are strictly private between your team and NexusCraft administrators. We do not permit public bidding or scraping.',
     },
     {
-      q: 'Can I hire multiple designers for one project?',
-      a: 'Yes! You can create separate briefs or invite multiple designers to collaborate on different aspects of your project.',
+      q: 'How are freelancers selected and involved?',
+      a: 'Administrators privately review vetted, verified domain specialists and selectively dispatch sanitized project briefs for technical feasibility and architecture assessment. Freelancers cannot view client contact details or unassigned projects.',
+    },
+    {
+      q: 'Can freelancers contact clients directly?',
+      a: 'No. To ensure client confidentiality, rigorous quality control, and NDA compliance, all communications are stewarded through the NexusCraft admin layer.',
+    },
+  ],
+  deliverables: [
+    {
+      q: 'What artifacts do I receive upon completion of scoping?',
+      a: 'You receive an interactive project dossier including the structured Markdown brief, technical architecture blueprint, component checklist, estimated sprint roadmap, and downloadable DOCX documentation.',
+    },
+    {
+      q: 'Who owns the intellectual property and code produced?',
+      a: 'You retain 100% intellectual property ownership of your submitted ideas, specifications, generated architectures, and subsequent codebases developed under NexusCraft contracts.',
     },
   ],
   security: [
     {
-      q: 'How is my data protected?',
-      a: 'All data is encrypted at rest and in transit using AES-256 encryption. We are SOC 2 Type II certified and comply with GDPR, CCPA, and other privacy regulations.',
+      q: 'How is confidential data and IP protected?',
+      a: 'All documents, inputs, and database records are encrypted at rest and in transit. Document sharing requires cryptographic session tokens and role-based permissions (RBAC).',
     },
     {
-      q: 'What happens in case of a dispute?',
-      a: 'Our dedicated dispute resolution team mediates between clients and designers. If no agreement is reached, an independent arbitrator reviews the case and makes a final decision.',
+      q: 'Do you offer non-disclosure agreements (NDAs)?',
+      a: 'Yes. Enterprise projects can execute bespoke mutual NDAs before requirements deep-dives or code audits begin.',
     },
   ],
-  support: [
+  contact: [
     {
-      q: 'How do I reach customer support?',
-      a: 'You can reach us via live chat (available 24/7), email at support@nexuscraft.io, or through the contact form below. Priority support is available for Professional plan members.',
+      q: 'How do I escalate an urgent project deadline?',
+      a: 'Contact administrators directly via the Help Center inquiry form or email founders@nexuscraft.studio. Enterprise clients have direct access to their assigned project lead.',
     },
     {
-      q: 'What is the average response time?',
-      a: 'Our average first response time is under 2 hours during business hours. Live chat responses are typically under 5 minutes.',
+      q: 'What is the standard response time for project intake triage?',
+      a: 'Initial AI requirements structuring is instant. Administrator review and freelancer feasibility assessments are completed within 24 to 48 business hours.',
     },
   ],
 };
 
-const HelpCenterPage: React.FC = () => {
-  const [activeCategory, setActiveCategory] = useState('getting-started');
+export const HelpCenterPage: React.FC = () => {
+  const [activeCategory, setActiveCategory] = useState('intake');
   const [openFaq, setOpenFaq] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [contactSubject, setContactSubject] = useState('');
+  const [contactMessage, setContactMessage] = useState('');
+  const [contactSent, setContactSent] = useState(false);
 
   const currentFaqs = faqs[activeCategory] || [];
 
-  // Filter FAQs by search
   const filteredFaqs = searchQuery
     ? Object.values(faqs)
         .flat()
@@ -112,47 +118,64 @@ const HelpCenterPage: React.FC = () => {
         )
     : currentFaqs;
 
+  const handleContactSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setContactSent(true);
+    setTimeout(() => {
+      setContactSubject('');
+      setContactMessage('');
+    }, 2000);
+  };
+
   return (
-    <div className="pt-24 pb-16 min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Hero */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12"
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/80 border border-slate-800 text-xs font-medium text-cyan-400 mb-6">
-            <HelpCircle className="w-4 h-4" />
-            Help Center
+    <div
+      className="min-h-screen pt-28 pb-20 transition-colors font-mono"
+      style={{ backgroundColor: 'var(--bg-canvas)', color: 'var(--text-main)' }}
+    >
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        {/* Editorial Header */}
+        <div className="text-center max-w-2xl mx-auto mb-12 space-y-3">
+          <div
+            className="inline-flex items-center gap-1.5 px-3 py-1 border text-[10px] uppercase tracking-widest"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              borderColor: 'var(--border-main)',
+              color: 'var(--text-muted)'
+            }}
+          >
+            <HelpCircle className="w-3.5 h-3.5" style={{ color: 'var(--text-main)' }} />
+            <span>KNOWLEDGE BASE & PROTOCOLS</span>
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            How can we <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-400">help you?</span>
+
+          <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-tight" style={{ color: 'var(--text-main)' }}>
+            Studio Documentation
           </h1>
-          <p className="text-lg text-slate-400 max-w-2xl mx-auto">
-            Find answers to common questions, explore our guides, or get in touch with our support team.
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+            Authoritative answers on AI intake, NCX credit governance, private freelancer coordination, and intellectual property.
           </p>
 
-          {/* Search */}
-          <div className="relative max-w-xl mx-auto mt-8">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+          {/* Search Box */}
+          <div className="relative max-w-lg mx-auto pt-4">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
             <input
               type="text"
-              placeholder="Search for help articles..."
+              placeholder="Search guides, protocols, or credit rules..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-4 bg-slate-900/80 border border-slate-800 rounded-2xl text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+              className="w-full pl-10 pr-4 py-3 border text-xs focus:outline-none transition-colors"
+              style={{
+                backgroundColor: 'var(--bg-surface)',
+                borderColor: 'var(--border-main)',
+                color: 'var(--text-main)'
+              }}
             />
           </div>
-        </motion.div>
+        </div>
 
-        {/* Categories Grid */}
+        {/* Categories Grid (Segmented Controls) */}
         {!searchQuery && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-12"
-          >
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-10">
             {categories.map((cat) => {
               const Icon = cat.icon;
               const isActive = activeCategory === cat.id;
@@ -160,110 +183,162 @@ const HelpCenterPage: React.FC = () => {
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all text-center ${
-                    isActive
-                      ? 'bg-gradient-to-b from-indigo-600/20 to-cyan-600/10 border-cyan-500/40 shadow-lg shadow-cyan-500/10'
-                      : 'bg-slate-900/50 border-slate-800 hover:border-slate-700 hover:bg-slate-800/50'
-                  }`}
+                  className="flex flex-col items-center gap-2 p-3.5 border transition-all text-center"
+                  style={{
+                    backgroundColor: isActive ? 'var(--text-main)' : 'var(--bg-surface)',
+                    borderColor: 'var(--border-main)',
+                    color: isActive ? 'var(--bg-canvas)' : 'var(--text-main)'
+                  }}
                 >
-                  <Icon className={`w-6 h-6 ${isActive ? cat.color : 'text-slate-500'}`} />
-                  <span className={`text-xs font-medium ${isActive ? 'text-white' : 'text-slate-400'}`}>
+                  <Icon className="w-4 h-4" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
                     {cat.label}
                   </span>
                 </button>
               );
             })}
-          </motion.div>
+          </div>
         )}
 
-        {/* FAQ List */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="max-w-3xl mx-auto"
-        >
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            {searchQuery ? (
-              <>
-                <Search className="w-5 h-5 text-cyan-400" />
-                Search Results ({filteredFaqs.length})
-              </>
-            ) : (
-              <>
-                <BookOpen className="w-5 h-5 text-cyan-400" />
-                Frequently Asked Questions
-              </>
-            )}
-          </h2>
+        {/* FAQ Accordion List */}
+        <div className="max-w-3xl mx-auto space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'var(--border-main)' }}>
+            <h2 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
+              <BookOpen className="w-3.5 h-3.5" />
+              {searchQuery ? `Search Results (${filteredFaqs.length})` : 'Frequently Addressed Queries'}
+            </h2>
+            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+              NEXUS PROTOCOL v3.2
+            </span>
+          </div>
 
-          <div className="space-y-3">
-            {filteredFaqs.map((faq, idx) => {
+          {filteredFaqs.length === 0 ? (
+            <div className="py-12 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+              No matching records found for "{searchQuery}". Try a different keyword or contact studio leadership.
+            </div>
+          ) : (
+            filteredFaqs.map((faq, idx) => {
               const key = `${activeCategory}-${idx}`;
               const isOpen = openFaq === key;
               return (
                 <div
                   key={key}
-                  className={`rounded-xl border transition-all overflow-hidden ${
-                    isOpen
-                      ? 'bg-slate-900/80 border-cyan-500/30'
-                      : 'bg-slate-900/40 border-slate-800 hover:border-slate-700'
-                  }`}
+                  className="border transition-all"
+                  style={{
+                    backgroundColor: 'var(--bg-surface)',
+                    borderColor: 'var(--border-main)'
+                  }}
                 >
                   <button
                     onClick={() => setOpenFaq(isOpen ? null : key)}
-                    className="w-full flex items-center justify-between p-5 text-left"
+                    className="w-full flex items-center justify-between p-4 text-left"
                   >
-                    <span className={`text-sm font-medium pr-4 ${isOpen ? 'text-white' : 'text-slate-300'}`}>
+                    <span className="text-xs font-bold uppercase tracking-wider pr-4" style={{ color: 'var(--text-main)' }}>
                       {faq.q}
                     </span>
                     <ChevronDown
-                      className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 ${
-                        isOpen ? 'rotate-180 text-cyan-400' : 'text-slate-500'
-                      }`}
+                      className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                      style={{ color: 'var(--text-muted)' }}
                     />
                   </button>
+
                   {isOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      className="px-5 pb-5"
-                    >
-                      <p className="text-sm text-slate-400 leading-relaxed">{faq.a}</p>
-                    </motion.div>
+                    <div className="px-4 pb-4 pt-1 border-t" style={{ borderColor: 'var(--border-main)' }}>
+                      <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                        {faq.a}
+                      </p>
+                    </div>
                   )}
                 </div>
               );
-            })}
-          </div>
-        </motion.div>
+            })
+          )}
+        </div>
 
-        {/* Contact CTA */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="max-w-3xl mx-auto mt-12"
+        {/* Direct Studio Inquiry Panel */}
+        <div
+          className="max-w-3xl mx-auto mt-14 p-8 border transition-all"
+          style={{
+            backgroundColor: 'var(--bg-surface)',
+            borderColor: 'var(--border-main)'
+          }}
         >
-          <div className="p-8 rounded-2xl bg-gradient-to-r from-indigo-600/20 via-purple-600/10 to-cyan-600/20 border border-indigo-500/20 text-center">
-            <Mail className="w-10 h-10 text-cyan-400 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-white mb-2">Still need help?</h3>
-            <p className="text-sm text-slate-400 mb-6 max-w-md mx-auto">
-              Our support team is available 24/7. Get in touch and we'll get back to you within 2 hours.
+          <div className="text-center max-w-md mx-auto mb-6">
+            <Mail className="w-6 h-6 mx-auto mb-2" style={{ color: 'var(--text-main)' }} />
+            <h3 className="font-display font-black text-lg uppercase tracking-tight" style={{ color: 'var(--text-main)' }}>
+              Direct Studio Inquiry
+            </h3>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+              Require bespoke architecture triage or custom enterprise volume? Transmit your query directly to leadership.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <button className="px-6 py-3 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-cyan-600 hover:shadow-lg hover:shadow-indigo-500/25 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2">
-                <MessageCircle className="w-4 h-4" />
-                Start Live Chat
-              </button>
-              <button className="px-6 py-3 rounded-xl text-sm font-medium text-slate-300 border border-slate-700 hover:border-slate-600 hover:text-white transition-all flex items-center gap-2">
-                <Mail className="w-4 h-4" />
-                Email Support
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
           </div>
-        </motion.div>
+
+          {contactSent ? (
+            <div
+              className="p-4 border text-center text-xs space-y-2"
+              style={{ backgroundColor: 'var(--bg-canvas)', borderColor: 'var(--border-main)' }}
+            >
+              <p className="font-bold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                Inquiry Logged Successfully
+              </p>
+              <p style={{ color: 'var(--text-muted)' }}>
+                Our leadership team reviews all technical transmissions within 24 hours.
+              </p>
+            </div>
+          ) : (
+            <form onSubmit={handleContactSubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="block uppercase text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                  Inquiry Subject
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={contactSubject}
+                  onChange={(e) => setContactSubject(e.target.value)}
+                  placeholder="e.g. Enterprise Credit Allocation or Architecture Advisory"
+                  className="w-full px-3 py-2 border focus:outline-none transition-colors"
+                  style={{
+                    backgroundColor: 'var(--bg-canvas)',
+                    borderColor: 'var(--border-main)',
+                    color: 'var(--text-main)'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label className="block uppercase text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                  Message Specification
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  value={contactMessage}
+                  onChange={(e) => setContactMessage(e.target.value)}
+                  placeholder="Provide context regarding your concept, timeline, or query..."
+                  className="w-full px-3 py-2 border focus:outline-none transition-colors"
+                  style={{
+                    backgroundColor: 'var(--bg-canvas)',
+                    borderColor: 'var(--border-main)',
+                    color: 'var(--text-main)'
+                  }}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <BoxedButton
+                  type="submit"
+                  variant="primary"
+                  size="md"
+                  icon={<ArrowRight className="w-3.5 h-3.5" />}
+                >
+                  Transmit Inquiry
+                </BoxedButton>
+              </div>
+            </form>
+          )}
+        </div>
+
       </div>
     </div>
   );

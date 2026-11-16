@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Mail, ArrowRight, CheckCircle2, KeyRound } from 'lucide-react';
+import { ArrowRight, CheckCircle2, KeyRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { BoxedButton } from '../components/shared/BoxedButton';
 
 export const ForgotPasswordPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -12,55 +13,74 @@ export const ForgotPasswordPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen pt-28 pb-20 bg-slate-950 flex items-center justify-center p-4 text-slate-200">
-      <div className="w-full max-w-md glass-card border border-slate-800 p-8 rounded-3xl space-y-6 shadow-2xl bg-slate-900/95">
-        <div className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-cyan-500/40 text-cyan-400 flex items-center justify-center mx-auto mb-2">
-            <KeyRound className="w-7 h-7" />
+    <div className="min-h-[85vh] flex items-center justify-center p-4">
+      <div className="w-full max-w-md p-8 sm:p-10 rounded-3xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-xl space-y-6">
+        <div className="text-center space-y-2 mb-4">
+          <div className="w-12 h-12 rounded-2xl bg-[#EEE9FF] dark:bg-[#252445] text-[#7357FF] flex items-center justify-center mx-auto mb-2 shadow-sm">
+            <KeyRound className="w-5 h-5" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Reset Account Password</h1>
-          <p className="text-xs text-slate-300">Enter your email address to receive password reset instructions.</p>
+          <span className="text-[10px] font-mono uppercase tracking-widest font-bold text-[#7357FF] block">
+            CREDENTIAL RECOVERY
+          </span>
+          <h1 className="font-display font-extrabold text-2xl text-[#17172B] dark:text-white">
+            Reset Password
+          </h1>
+          <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+            Enter your registered email to receive secure recovery instructions.
+          </p>
         </div>
 
         {submitted ? (
-          <div className="p-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-3">
-            <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-            <h3 className="text-base font-bold text-white">Reset Email Sent!</h3>
-            <p className="text-xs text-slate-300">
-              If an account associated with <strong className="text-cyan-300">{email}</strong> exists, instructions have been sent.
+          <div className="p-6 rounded-2xl bg-[#F7F8FC] dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] text-center space-y-3">
+            <CheckCircle2 className="w-8 h-8 text-[#10B981] mx-auto" />
+            <h3 className="font-display font-bold text-sm text-[#17172B] dark:text-white">
+              Dispatch Initiated
+            </h3>
+            <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] leading-relaxed">
+              If an account associated with <strong className="text-[#17172B] dark:text-white">{email}</strong> exists, verification instructions have been dispatched.
             </p>
-            <Link to="/login" className="inline-block mt-2 text-xs font-bold text-cyan-400 hover:underline">
-              Return to Sign In
-            </Link>
+            <div className="pt-2">
+              <Link to="/login">
+                <BoxedButton variant="primary" size="md">
+                  Return to Sign In
+                </BoxedButton>
+              </Link>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             <div>
-              <label className="block font-mono text-slate-300 font-bold mb-1">Registered Email Address</label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@company.com"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500/50"
-                />
-              </div>
+              <label className="block text-[#65677A] dark:text-[#A6A8C0] uppercase text-[10px] mb-1 font-bold">
+                Registered Work Email
+              </label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@company.com"
+                className="w-full px-3.5 py-3 rounded-xl bg-white dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] text-[#17172B] dark:text-white placeholder-[#8F91A3] focus:outline-none focus:border-[#7357FF] text-xs"
+              />
             </div>
 
-            <button
-              type="submit"
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white font-bold text-xs shadow-lg flex items-center justify-center gap-2"
-            >
-              <span>Send Reset Instructions</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            <div className="pt-2">
+              <BoxedButton
+                type="submit"
+                variant="primary"
+                size="lg"
+                fullWidth
+                icon={<ArrowRight className="w-4 h-4" />}
+              >
+                Send Reset Instructions
+              </BoxedButton>
+            </div>
 
-            <div className="text-center pt-2">
-              <Link to="/login" className="text-xs text-slate-400 hover:text-white">
-                Back to Sign In
+            <div className="text-center pt-3 border-t border-[#F0F2F9] dark:border-[#202038]">
+              <Link
+                to="/login"
+                className="text-xs font-semibold text-[#7357FF] hover:underline"
+              >
+                ← Back to Sign In
               </Link>
             </div>
           </form>
