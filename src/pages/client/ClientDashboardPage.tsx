@@ -31,7 +31,10 @@ import {
   Table,
   DollarSign,
   Layers,
-  FileDown
+  FileDown,
+  Upload,
+  X,
+  Link as LinkIcon
 } from 'lucide-react';
 import { exportBlueprintToPdf, exportBlueprintToDocx } from '../../lib/documentExport';
 import { useUser } from '../../context/UserContext';
@@ -275,6 +278,60 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({ view }
   const activeProject = useMemo(() => {
     return projectRequests.find(r => (r.customId || r.id) === selectedProjectId) || projectRequests[0];
   }, [projectRequests, selectedProjectId]);
+
+  // Reference Document Upload / Update State (Client Feature)
+  const [refDocModalOpen, setRefDocModalOpen] = useState(false);
+  const [selectedRefProject, setSelectedRefProject] = useState<any | null>(null);
+  const [refDocFile, setRefDocFile] = useState<File | null>(null);
+  const [refDocUrl, setRefDocUrl] = useState('');
+  const [refDocUploading, setRefDocUploading] = useState(false);
+  const clientFileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleOpenRefDocModal = (project: any) => {
+    setSelectedRefProject(project);
+    setRefDocUrl(project.referenceUrl || '');
+    setRefDocFile(null);
+    setRefDocModalOpen(true);
+  };
+
+  const handleSaveClientRefDoc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRefProject) return;
+
+    setRefDocUploading(true);
+    try {
+      const docData: any = {
+        referenceUrl: refDocUrl.trim()
+      };
+
+      if (refDocFile) {
+        const fd = new FormData();
+        fd.append('file', refDocFile);
+        const uploadRes = await api.uploadDocument(fd);
+        if (uploadRes?.success && uploadRes.file) {
+          docData.docFileName = uploadRes.file.originalName;
+          docData.docStoragePath = uploadRes.file.storagePath;
+          docData.docFileSize = uploadRes.file.size;
+          docData.docFileType = uploadRes.file.mimeType;
+        }
+      }
+
+      const pId = selectedRefProject.customId || selectedRefProject.id;
+      const res = await api.updateProjectReference(pId, docData);
+      if (res?.success) {
+        setRefDocModalOpen(false);
+        refreshRequests();
+        confetti({ particleCount: 30, spread: 35 });
+        alert('Reference document and materials updated successfully!');
+      } else {
+        alert(res?.error || 'Failed to update reference materials.');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error uploading document.');
+    } finally {
+      setRefDocUploading(false);
+    }
+  };
 
   // Handlers for Idea Vault
   const handleSaveDraft = async (e: React.FormEvent) => {
@@ -816,6 +873,56 @@ ${bp?.suggestedTechnologies?.map((t: any) => `- ${t}`).join('\n') || 'N/A'}
                         <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] line-clamp-2">
                           {req.aiSummary || req.rawIdea || 'Project submitted for administrative review and technical assessment.'}
                         </p>
+
+                        {/* Reference Document & Links */}
+                        <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                          {req.docFileName ? (
+                            <a
+                              href={api.getDocumentDownloadUrl(req.docStoragePath)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#EEE9FF] dark:bg-[#201F3E] text-[#7357FF] text-[11px] font-semibold hover:bg-[#7357FF] hover:text-white transition-all"
+                              title="Download / View Reference Document"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>{req.docFileName}</span>
+                              {req.docFileSize && <span className="opacity-75">({req.docFileSize})</span>}
+                              <Download className="w-3 h-3 ml-0.5" />
+                            </a>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenRefDocModal(req)}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-dashed border-[#7357FF]/40 text-[#7357FF] text-[11px] font-semibold hover:bg-[#EEE9FF]/40 cursor-pointer"
+                            >
+                              <Upload className="w-3 h-3" />
+                              <span>+ Attach Reference Doc</span>
+                            </button>
+                          )}
+
+                          {req.referenceUrl && (
+                            <a
+                              href={req.referenceUrl.startsWith('http') ? req.referenceUrl : `https://${req.referenceUrl}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-mono text-[#3978FF] hover:underline"
+                            >
+                              <LinkIcon className="w-3 h-3" />
+                              <span className="truncate max-w-[200px]">{req.referenceUrl}</span>
+                              <ExternalLink className="w-2.5 h-2.5" />
+                            </a>
+                          )}
+
+                          {req.docFileName && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenRefDocModal(req)}
+                              className="text-[10px] text-[#8F91A3] hover:text-[#7357FF] underline ml-1 cursor-pointer"
+                            >
+                              Replace Doc
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -2024,16 +2131,101 @@ ${bp?.suggestedTechnologies?.map((t: any) => `- ${t}`).join('\n') || 'N/A'}
       ───────────────────────────────────────────────────────────── */}
       {activeTab === 'documents' && (
         <div className="space-y-6">
-          <div className="p-6 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
-            <div className="flex items-center justify-between mb-4">
+          <div className="p-6 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-6">
+            <div className="flex items-center justify-between pb-4 border-b border-[#E8EAF4] dark:border-[#2A2A46]">
               <div>
                 <h3 className="font-display font-bold text-lg text-[#17172B] dark:text-white">
-                  Document Studio & Deliverable Releases
+                  Document Studio & Reference Materials
                 </h3>
                 <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
-                  Access your uploaded reference briefs and officially released deliverable packages.
+                  Manage your uploaded reference documents, specifications, and officially released deliverable packages.
                 </p>
               </div>
+            </div>
+
+            {/* Submitted Project Reference Documents Section */}
+            <div className="space-y-3 pb-6 border-b border-[#E8EAF4] dark:border-[#2A2A46]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-mono text-xs font-bold uppercase text-[#7357FF]">
+                    Your Submitted Project Reference Documents
+                  </h4>
+                  <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                    Reference documents, specifications, and links provided with your project submissions.
+                  </p>
+                </div>
+              </div>
+
+              {projectRequests.length === 0 ? (
+                <div className="p-8 text-center border-2 border-dashed border-[#E8EAF4] dark:border-[#2A2A46] rounded-xl text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                  No submitted projects yet.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {projectRequests.map(proj => (
+                    <div
+                      key={proj.customId || proj.id}
+                      className="p-4 rounded-xl bg-[#F7F8FC] dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-[10px] text-[#7357FF] font-bold">
+                            #{proj.customId || proj.id}
+                          </span>
+                          <span className="font-bold text-sm text-[#17172B] dark:text-white">
+                            {proj.projectTitle}
+                          </span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#EEE9FF] dark:bg-[#201F3E] text-[#7357FF]">
+                            {proj.status}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3 text-xs pt-1">
+                          {proj.docFileName ? (
+                            <a
+                              href={api.getDocumentDownloadUrl(proj.docStoragePath)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#1E1E38] border border-[#E8EAF4] dark:border-[#2A2A46] text-[#7357FF] font-semibold hover:bg-[#F5F2FF] transition-all"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>{proj.docFileName}</span>
+                              {proj.docFileSize && <span className="text-[10px] text-[#8F91A3]">({proj.docFileSize})</span>}
+                              <Download className="w-3.5 h-3.5 ml-1 text-[#65677A]" />
+                            </a>
+                          ) : (
+                            <span className="text-xs text-[#8F91A3] italic">No document file attached</span>
+                          )}
+
+                          {proj.referenceUrl && (
+                            <a
+                              href={proj.referenceUrl.startsWith('http') ? proj.referenceUrl : `https://${proj.referenceUrl}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#1E1E38] border border-[#E8EAF4] dark:border-[#2A2A46] text-[#3978FF] font-semibold hover:underline"
+                            >
+                              <LinkIcon className="w-3.5 h-3.5 text-[#3978FF]" />
+                              <span className="truncate max-w-[200px]">{proj.referenceUrl}</span>
+                              <ExternalLink className="w-3 h-3 ml-0.5" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <BoxedButton
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleOpenRefDocModal(proj)}
+                        >
+                          <Upload className="w-3.5 h-3.5 mr-1" />
+                          <span>{proj.docFileName ? 'Replace Document' : '+ Attach Document'}</span>
+                        </BoxedButton>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Released Deliverables Section */}
@@ -2381,6 +2573,108 @@ ${bp?.suggestedTechnologies?.map((t: any) => `- ${t}`).join('\n') || 'N/A'}
         project={activeProject}
         onAccepted={() => refreshRequests()}
       />
+
+      {/* Client Reference Document Upload / Update Modal */}
+      {refDocModalOpen && selectedRefProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E8EAF4] dark:border-[#2A2A46]">
+              <div>
+                <h3 className="font-display font-bold text-base text-[#17172B] dark:text-white">
+                  Update Reference Document & Materials
+                </h3>
+                <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                  Attach or replace your specification document or Figma/PRD link for #{selectedRefProject.customId || selectedRefProject.id}.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRefDocModalOpen(false)}
+                className="text-[#65677A] hover:text-[#17172B] dark:hover:text-white p-1 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveClientRefDoc} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">
+                  Project Title
+                </label>
+                <div className="p-2.5 rounded-xl bg-[#F7F8FC] dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#2A2A46] text-xs font-semibold text-[#17172B] dark:text-white">
+                  {selectedRefProject.projectTitle}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">
+                  Reference URL / Figma / GitHub Repository Link
+                </label>
+                <div className="relative">
+                  <LinkIcon className="absolute left-3 top-2.5 w-4 h-4 text-[#8F91A3]" />
+                  <input
+                    type="url"
+                    value={refDocUrl}
+                    onChange={e => setRefDocUrl(e.target.value)}
+                    placeholder="https://figma.com/@project or github repository"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs text-[#17172B] dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">
+                  Attach Reference Specification Document (.pdf, .docx, .txt, .zip, images)
+                </label>
+                <div className="p-3.5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="w-4 h-4 text-[#7357FF] flex-shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold truncate text-[#17172B] dark:text-white">
+                          {refDocFile ? refDocFile.name : (selectedRefProject.docFileName || 'No document currently attached')}
+                        </div>
+                        <div className="text-[10px] text-[#8F91A3]">
+                          {refDocFile ? `${(refDocFile.size / 1024).toFixed(1)} KB (New Selection)` : (selectedRefProject.docFileSize || 'Upload a file up to 20MB')}
+                        </div>
+                      </div>
+                    </div>
+
+                    <input
+                      type="file"
+                      ref={clientFileInputRef}
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) setRefDocFile(file);
+                      }}
+                      className="hidden"
+                      accept=".pdf,.doc,.docx,.txt,.zip,.png,.jpg,.jpeg"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => clientFileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#7357FF] text-white text-xs font-semibold hover:bg-[#5E43E2] transition-colors cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{selectedRefProject.docFileName || refDocFile ? 'Choose New File' : 'Select File'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-[#E8EAF4] dark:border-[#2A2A46]">
+                <BoxedButton variant="secondary" size="sm" onClick={() => setRefDocModalOpen(false)}>
+                  Cancel
+                </BoxedButton>
+                <BoxedButton variant="primary" size="sm" type="submit" loading={refDocUploading}>
+                  {refDocUploading ? 'Uploading & Saving...' : 'Save Reference Materials'}
+                </BoxedButton>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 </div>
   );
 };

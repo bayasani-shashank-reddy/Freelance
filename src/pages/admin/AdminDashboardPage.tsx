@@ -71,7 +71,6 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
     freelancers,
     refreshFreelancers,
     createFreelancerByAdmin,
-    deleteFreelancerByAdmin,
     createClientByAdmin,
     deleteUserByAdmin,
     adjustCreditsByAdmin
@@ -2129,7 +2128,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
                     <span className="font-mono text-xs font-bold text-[#7357FF]">₹{f.hourlyRate || 1200}/hr</span>
                     <button
                       type="button"
-                      onClick={() => handleDeleteUser(f.customId || f.id || f._id, f.name, 'freelancer')}
+                      onClick={() => handleDeleteUser(f.customId || f.id || f._id || '', f.name || 'Specialist', 'freelancer')}
                       className="px-2 py-1 text-[11px] font-bold rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-600 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
                       title="Permanently remove freelancer"
                     >
@@ -2303,15 +2302,6 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
                             </button>
                           )}
                         </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
                       </td>
                     </tr>
                   ))

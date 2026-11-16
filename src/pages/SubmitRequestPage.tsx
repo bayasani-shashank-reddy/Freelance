@@ -4,10 +4,11 @@ import {
   Sparkles,
   ArrowRight,
   Upload,
-  FileText,
   X,
   AlertCircle,
   Check,
+  CheckCircle2,
+  Eye,
   Coins,
   Cpu,
   Link as LinkIcon
@@ -173,6 +174,11 @@ export const SubmitRequestPage: React.FC = () => {
     e.preventDefault();
     if (!projectTitle.trim()) {
       setSubmitError('Project title is required.');
+      return;
+    }
+
+    if (isUploadingFile) {
+      setSubmitError('Please wait for your reference document to finish uploading before submitting.');
       return;
     }
 
@@ -391,37 +397,69 @@ export const SubmitRequestPage: React.FC = () => {
             {/* Document Upload Dropzone */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-[#65677A] dark:text-[#A6A8C0]">
-                Attach Specification (.pdf, .docx, .txt up to 20MB)
+                Attach Specification Reference Document (.pdf, .docx, .txt, .zip, images)
               </label>
               
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.docx,.doc,.txt"
+                accept=".pdf,.docx,.doc,.txt,.zip,.png,.jpg,.jpeg"
                 onChange={handleFileChange}
                 className="hidden"
               />
 
-              {uploadedFile ? (
-                <div className="p-2.5 rounded-xl bg-[#F7F8FC] dark:bg-[#131326] border border-[#7357FF] flex items-center justify-between text-xs">
+              {isUploadingFile ? (
+                <div className="p-3 rounded-xl bg-[#F7F8FC] dark:bg-[#131326] border border-[#7357FF] flex items-center justify-center gap-2 text-xs text-[#7357FF] font-semibold animate-pulse">
+                  <Upload className="w-4 h-4 animate-bounce" />
+                  <span>Uploading specification document to server...</span>
+                </div>
+              ) : uploadedFile ? (
+                <div className="p-3 rounded-xl bg-[#F7F8FC] dark:bg-[#131326] border border-emerald-400 dark:border-emerald-600 flex items-center justify-between text-xs shadow-xs">
                   <div className="flex items-center gap-2 truncate">
-                    <FileText className="w-4 h-4 text-[#7357FF]" />
-                    <span className="font-bold text-[#17172B] dark:text-white truncate">{uploadedFile.name}</span>
-                    <span className="text-[10px] text-[#8F91A3]">({(uploadedFile.size / 1024).toFixed(1)} KB)</span>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    <div className="truncate">
+                      <div className="font-bold text-[#17172B] dark:text-white truncate">{uploadedFile.name}</div>
+                      <div className="text-[10px] text-[#8F91A3] flex items-center gap-2">
+                        <span>{(uploadedFile.size / 1024).toFixed(1)} KB</span>
+                        <span className="text-emerald-600 font-bold">✓ Attached for Submission</span>
+                      </div>
+                    </div>
                   </div>
-                  <button type="button" onClick={removeFile} className="p-1 text-[#FF826E] hover:bg-[#FFF0ED] rounded-lg">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    {uploadMetadata?.storagePath && (
+                      <a
+                        href={api.getDocumentDownloadUrl(uploadMetadata.storagePath)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-1.5 rounded-lg text-[#7357FF] hover:bg-[#EEE9FF] dark:hover:bg-[#201F3E]"
+                        title="Download / View file"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={removeFile}
+                      className="p-1.5 text-[#FF826E] hover:bg-[#FFF0ED] dark:hover:bg-[#2A1717] rounded-lg cursor-pointer"
+                      title="Remove file"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full p-2.5 rounded-xl border-2 border-dashed border-[#E8EAF4] dark:border-[#2A2A46] hover:border-[#7357FF] text-xs text-[#65677A] dark:text-[#A6A8C0] flex items-center justify-center gap-2 transition-all hover:bg-[#F5F2FF] dark:hover:bg-[#1C1C33]"
+                  className="w-full p-3 rounded-xl border-2 border-dashed border-[#E8EAF4] dark:border-[#2A2A46] hover:border-[#7357FF] text-xs text-[#65677A] dark:text-[#A6A8C0] flex items-center justify-center gap-2 transition-all hover:bg-[#F5F2FF] dark:hover:bg-[#1C1C33] cursor-pointer"
                 >
                   <Upload className="w-4 h-4 text-[#7357FF]" />
-                  <span>Choose Document to Upload</span>
+                  <span>Choose Reference Document to Upload with Project</span>
                 </button>
+              )}
+
+              {fileUploadError && (
+                <p className="text-[11px] text-red-500 font-medium">{fileUploadError}</p>
               )}
             </div>
           </div>
