@@ -50,7 +50,7 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/nexuscraft';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://Shashank_Reddy:Shashank_Reddy@cluster0.yxy9znr.mongodb.net/Nexuscraft?retryWrites=true&w=majority&appName=Cluster0';
 
 // 1. Strict CORS Allow-List (Checklist 2)
 const allowedOrigins = [
