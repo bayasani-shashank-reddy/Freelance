@@ -35,6 +35,7 @@ import {
 import { useUser } from '../context/UserContext';
 import { useTheme } from '../context/ThemeContext';
 import { GlobalCommandPalette } from './shared/GlobalCommandPalette';
+import { UserProfileMenu } from './shared/UserProfileMenu';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -141,8 +142,8 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       group: 'PROJECT OPERATIONS',
       items: [
         { label: 'Request Queue', path: '/admin/requests', icon: Layers, tab: 'intake' },
-        { label: 'Project Management', path: '/admin/projects', icon: Briefcase, tab: 'projects' },
-        { label: 'Assignments', path: '/admin/assignments', icon: UserCheck, tab: 'assignments' },
+        { label: 'Project Management', path: '/admin/projects', icon: Briefcase, tab: 'projects', isNew: true },
+        { label: 'Assignments', path: '/admin/assignments', icon: UserCheck, tab: 'assignments', isNew: true },
         { label: 'Feasibility & Quotations', path: '/admin/assessments', icon: CheckSquare, tab: 'assessments-quotes' },
       ],
     },
@@ -157,15 +158,15 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
     {
       group: 'INTELLIGENCE',
       items: [
-        { label: 'AI Project Intelligence', path: '/admin/ai-intelligence', icon: Bot, tab: 'ai-intelligence' },
+        { label: 'AI Project Intelligence', path: '/admin/ai-intelligence', icon: Bot, tab: 'ai-intelligence', isNew: true },
         { label: 'Cost Intelligence', path: '/admin/cost-intelligence', icon: DollarSign, tab: 'cost-intelligence' },
       ],
     },
     {
       group: 'DOCUMENTS & DELIVERY',
       items: [
-        { label: 'Reference Document', path: '/admin/reference-template', icon: FileText, tab: 'reference-template' },
-        { label: 'Document Requirements', path: '/admin/document-requirements', icon: FileText, tab: 'document-management' },
+        { label: 'Reference Document', path: '/admin/reference-template', icon: FileText, tab: 'reference-template', isNew: true },
+        { label: 'Document Requirements', path: '/admin/document-requirements', icon: FileText, tab: 'document-management', isNew: true },
         { label: 'ZIP Deliverables', path: '/admin/deliverables', icon: PackageCheck, tab: 'deliverables' },
       ],
     },
@@ -175,7 +176,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         { label: 'Compliance Telemetry', path: '/admin/compliance', icon: CheckCircle2, tab: 'compliance' },
         { label: 'Notifications', path: '/notifications', icon: Bell, badge: unreadCount > 0 ? unreadCount : undefined },
         { label: 'Audit Logs', path: '/admin/audit-logs', icon: ShieldCheck, tab: 'audit' },
-        { label: 'Admin Tasks', path: '/admin/tasks', icon: CheckSquare, tab: 'tasks' },
+        { label: 'Admin Tasks', path: '/admin/tasks', icon: CheckSquare, tab: 'tasks', isNew: true },
         { label: 'Settings', path: '/settings', icon: Settings },
       ],
     },
@@ -189,10 +190,10 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         { label: 'Overview', path: '/client/dashboard', icon: LayoutDashboard, tab: 'overview' },
         { label: 'Idea Vault', path: '/client/vault', icon: Bookmark, tab: 'vault' },
         { label: 'My Projects', path: '/client/projects', icon: Briefcase, tab: 'workspace' },
-        { label: 'Documents & Requirements', path: '/client/documents', icon: FileText, tab: 'documents' },
+        { label: 'Documents & Requirements', path: '/client/documents', icon: FileText, tab: 'documents', isNew: true },
         { label: 'Clarifications', path: '/client/clarifications', icon: CheckSquare, tab: 'clarifications' },
         { label: 'Project Exports', path: '/client/exports', icon: Archive, tab: 'exports' },
-        { label: 'AI Idea Assistant', path: '/client/ai-assistant', icon: Bot, tab: 'ai-assistant' },
+        { label: 'AI Idea Assistant', path: '/client/ai-assistant', icon: Bot, tab: 'ai-assistant', isNew: true },
         { label: 'NCX Wallet', path: '/credits', icon: Coins, badge: `${credits} NCX` },
         { label: 'Notifications', path: '/notifications', icon: Bell, badge: unreadCount > 0 ? unreadCount : undefined },
         { label: 'Help Center', path: '/help', icon: HelpCircle },
@@ -214,14 +215,14 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
     {
       group: 'SCOPING & QUOTES',
       items: [
-        { label: 'Feasibility Assessments', path: '/freelancer/assessments', icon: CheckSquare, tab: 'assessment' },
+        { label: 'Feasibility Assessments', path: '/freelancer/assessments', icon: CheckSquare, tab: 'assessment', isNew: true },
         { label: 'Quotations', path: '/freelancer/quotations', icon: DollarSign, tab: 'quotation' },
       ],
     },
     {
       group: 'EXECUTION & TASKS',
       items: [
-        { label: 'Tasks & Workboard', path: '/freelancer/tasks', icon: Layers, tab: 'tasks' },
+        { label: 'Tasks & Workboard', path: '/freelancer/tasks', icon: Layers, tab: 'tasks', isNew: true },
         { label: 'Deadline Calendar', path: '/freelancer/calendar', icon: Calendar, tab: 'timeline' },
         { label: 'Shared Documents', path: '/freelancer/documents', icon: FileText, tab: 'documents' },
       ],
@@ -351,7 +352,6 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                 const Icon = item.icon;
                 const isItemActive =
                   location.pathname === item.path ||
-                  (item.path === '/admin/requests' && location.pathname === '/admin/projects') ||
                   (item.path === '/admin/dashboard' && (location.pathname === '/admin' || (location.pathname === '/admin/dashboard' && !location.search))) ||
                   (item.path === '/client/dashboard' && (location.pathname === '/client' || (location.pathname === '/client/dashboard' && !location.search))) ||
                   (item.path === '/client/projects' && location.pathname === '/client/workspace') ||
@@ -376,14 +376,23 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                       {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
                     </div>
 
-                    {!sidebarCollapsed && item.badge !== undefined && (
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        typeof item.badge === 'number'
-                          ? 'bg-[#E45D6D] text-white'
-                          : 'bg-[#E9EAF0] dark:bg-[#2A2A46] text-[#65677A] dark:text-[#A6A8C0]'
-                      }`}>
-                        {item.badge}
-                      </span>
+                    {!sidebarCollapsed && (
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {item.isNew && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-black uppercase tracking-wider bg-gradient-to-r from-[#7357FF] to-[#3978FF] text-white animate-pulse shadow-xs">
+                            NEW
+                          </span>
+                        )}
+                        {item.badge !== undefined && (
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            typeof item.badge === 'number'
+                              ? 'bg-[#E45D6D] text-white'
+                              : 'bg-[#E9EAF0] dark:bg-[#2A2A46] text-[#65677A] dark:text-[#A6A8C0]'
+                          }`}>
+                            {item.badge}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </NavLink>
                 );
@@ -491,7 +500,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       </aside>
 
       {/* ─────────────────────────────────────────────────────────────
-          2. MAIN CONTENT VIEWPORT (ZERO REDUNDANT TOP BAR ON DESKTOP)
+          2. MAIN CONTENT VIEWPORT (WITH TOP BAR + USER PROFILE MENU)
       ───────────────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
         
@@ -513,33 +522,98 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             </NavLink>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <button
               onClick={toggleTheme}
-              className="p-2 text-[#65677A] dark:text-[#A6A8C0] hover:text-[#222438] dark:hover:text-white"
+              className="p-2 rounded-xl text-[#65677A] dark:text-[#A6A8C0] hover:text-[#222438] dark:hover:text-white hover:bg-[#F5F6FA] dark:hover:bg-[#1E1E38]"
               title={`Switch to ${theme === 'light' ? 'Black' : 'White'} mode`}
             >
               {theme === 'light' ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
             </button>
             <button
               onClick={() => navigate('/notifications')}
-              className="relative p-2 text-[#65677A] dark:text-[#A6A8C0] hover:text-[#222438] dark:hover:text-white"
+              className="relative p-2 rounded-xl text-[#65677A] dark:text-[#A6A8C0] hover:text-[#222438] dark:hover:text-white hover:bg-[#F5F6FA] dark:hover:bg-[#1E1E38]"
               title="Notifications"
             >
               <Bell className="w-4 h-4" />
               {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#E45D6D]" />}
             </button>
-            <button
-              onClick={handleLogout}
-              className="p-2 text-[#777B8A] dark:text-[#A6A8C0] hover:text-[#E45D6D]"
-              title="Sign Out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+            <UserProfileMenu align="right" compact />
           </div>
         </div>
 
-        {/* Main Dashboard Content - Starts Directly at Top of Viewport */}
+        {/* Desktop Top Header Bar matching Screenshot (hidden on mobile, visible on desktop) */}
+        <header className="hidden lg:flex h-14 bg-white dark:bg-[#131326] border-b border-[#E9EAF0] dark:border-[#202038] px-6 items-center justify-between z-20 flex-shrink-0 transition-colors">
+          <div className="flex items-center gap-3">
+            {sidebarCollapsed && (
+              <button
+                onClick={() => setSidebarCollapsed(false)}
+                className="p-1.5 rounded-lg text-[#8F91A3] hover:text-[#222438] dark:hover:text-white hover:bg-[#F5F6FA] dark:hover:bg-[#1E1E38] transition-colors cursor-pointer mr-1"
+                title="Expand sidebar"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
+            <div className="flex items-center gap-2 text-xs font-semibold text-[#8F91A3] dark:text-[#A6A8C0]">
+              <span>NexusCraft</span>
+              <span>/</span>
+              <span className="text-[#17172B] dark:text-white font-bold capitalize">
+                {user?.role === 'admin' ? 'Admin Portal' : user?.role === 'freelancer' ? 'Specialist Workspace' : 'Client Hub'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* White / Black Switcher in Top Bar */}
+            <div className="flex items-center p-0.5 rounded-xl bg-[#F0F2F9] dark:bg-[#1A1A32] border border-[#E9EAF0] dark:border-[#2A2A46]">
+              <button
+                type="button"
+                onClick={() => setTheme('light')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                  theme === 'light'
+                    ? 'bg-white text-[#17172B] shadow-xs'
+                    : 'text-[#65677A] dark:text-[#A6A8C0] hover:text-[#17172B] dark:hover:text-white'
+                }`}
+                title="Light (White) Mode"
+              >
+                <Sun className="w-3 h-3 text-amber-500" />
+                <span>White</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme('dark')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                  theme === 'dark'
+                    ? 'bg-[#131326] text-white shadow-xs'
+                    : 'text-[#65677A] dark:text-[#A6A8C0] hover:text-[#17172B] dark:hover:text-white'
+                }`}
+                title="Dark (Black) Mode"
+              >
+                <Moon className="w-3 h-3 text-indigo-400" />
+                <span>Black</span>
+              </button>
+            </div>
+
+            {/* Notification Bell */}
+            <button
+              onClick={() => navigate('/notifications')}
+              className="relative p-2 rounded-xl text-[#65677A] dark:text-[#A6A8C0] hover:text-[#222438] dark:hover:text-white hover:bg-[#F5F6FA] dark:hover:bg-[#1E1E38] transition-colors cursor-pointer"
+              title="Notifications"
+            >
+              <Bell className="w-4 h-4" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-[#E45D6D] text-white text-[9px] font-bold flex items-center justify-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* User Profile Menu with Dropdown - Matches Aurora portal screenshot */}
+            <UserProfileMenu align="right" />
+          </div>
+        </header>
+
+        {/* Main Dashboard Content */}
         <main className="flex-1 w-full bg-[#F4F5F9] dark:bg-[#0F0F1D] p-5 sm:p-7 lg:p-8 min-w-0 overflow-y-auto transition-colors duration-150">
           {children}
         </main>

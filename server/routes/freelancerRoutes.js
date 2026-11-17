@@ -27,7 +27,7 @@ freelancerRouter.get('/', async (req, res) => {
 // POST /api/freelancers — Admin adds private vetted freelancer
 freelancerRouter.post('/', async (req, res) => {
   try {
-    const { name, email, phone, title, skills, hourlyRate = 60, availability = 'Available Now', experience = '5+ Years' } = req.body;
+    const { name, email, password, phone, title, skills, hourlyRate = 60, availability = 'Available Now', experience = '5+ Years' } = req.body;
     if (!name || !email) {
       return res.status(400).json({ error: 'Name and email are required.' });
     }
@@ -38,6 +38,7 @@ freelancerRouter.post('/', async (req, res) => {
       return res.status(400).json({ error: 'A user with this email address already exists.' });
     }
 
+    const initialPassword = password && password.trim() ? password.trim() : 'Freelancer@12345';
     const customId = `freelancer-${Date.now()}`;
     const newFreelancer = new User({
       customId,
@@ -53,12 +54,30 @@ freelancerRouter.post('/', async (req, res) => {
       status: 'active',
       approvalStatus: 'approved',
       createdByAdmin: true,
-      password: 'Freelancer@12345',
+      password: initialPassword,
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80'
     });
 
     await newFreelancer.save();
-    res.status(201).json({ success: true, freelancer: newFreelancer });
+
+    // Create system notification
+    try {
+      await Notification.create({
+        customId: `notif-${Date.now()}`,
+        userId: 'admin',
+        title: 'New Freelancer Account Created',
+        message: `Specialist account created for ${newFreelancer.name} (${newFreelancer.email}). Initial password configured.`,
+        type: 'user',
+        priority: 'high',
+        read: false
+      });
+    } catch {}
+
+    res.status(201).json({
+      success: true,
+      message: 'Freelancer account created successfully with active credentials.',
+      freelancer: newFreelancer
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

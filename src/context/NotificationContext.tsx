@@ -52,25 +52,46 @@ export const NotificationContext = createContext<NotificationContextProps>(
 export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  // Seed mock notifications on mount
+  // Seed recent platform updates & system notifications
   useEffect(() => {
-    const mock: Notification[] = [
+    const recentUpdates: Notification[] = [
       {
-        id: '1',
-        title: 'Welcome to NexusCraft',
-        message: 'Your account has been created successfully.',
+        id: 'update-ref-template',
+        title: 'NEW: Official Reference Document System',
+        message: 'Administrators can now edit, download, and configure the global Project Intake Specification Template required for client submissions.',
         read: false,
         timestamp: new Date(),
       },
       {
-        id: '2',
-        title: 'New Designer Joined',
-        message: 'Designer Alice has joined the platform.',
+        id: 'update-freelancer-auth',
+        title: 'NEW: Specialist Password & Account Creation',
+        message: 'Admin Freelancer Directory now supports custom password provisioning with instant MongoDB account activation and login rights.',
         read: false,
-        timestamp: new Date(Date.now() - 1000 * 60 * 60),
+        timestamp: new Date(Date.now() - 1000 * 60 * 45),
+      },
+      {
+        id: 'update-doc-requirements',
+        title: 'NEW: Dynamic Document Requirements System',
+        message: 'Configurable project requirements, intake file formats, and submission reviews are active across Admin and Client portals.',
+        read: false,
+        timestamp: new Date(Date.now() - 1000 * 60 * 180),
+      },
+      {
+        id: 'update-ai-studio',
+        title: 'NEW: AI Intelligence Studio & Synthesis',
+        message: 'Automated scoping, tech stack estimation, and architecture synthesis powered by Google Gemini are now accessible in Admin operations.',
+        read: false,
+        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12),
+      },
+      {
+        id: 'welcome-nexuscraft',
+        title: 'Welcome to NexusCraft Platform',
+        message: 'Unified ecosystem connecting Clients, Administrators, and Delivery Specialists seamlessly.',
+        read: true,
+        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48),
       },
     ];
-    mock.forEach((n) => dispatch({ type: 'ADD_NOTIFICATION', payload: n }));
+    recentUpdates.forEach((n) => dispatch({ type: 'ADD_NOTIFICATION', payload: n }));
   }, []);
 
   const addNotification = (

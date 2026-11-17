@@ -231,6 +231,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
   const [freelancerForm, setFreelancerForm] = useState({
     name: '',
     email: '',
+    password: '',
     phone: '',
     title: 'Senior Full-Stack Architect',
     skills: 'React, Node.js, WebGPU, Cloud',
@@ -413,6 +414,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
     await createFreelancerByAdmin({
       name: freelancerForm.name,
       email: freelancerForm.email,
+      password: freelancerForm.password || 'Freelancer@12345',
       phone: freelancerForm.phone,
       title: freelancerForm.title,
       skills: freelancerForm.skills.split(',').map(s => s.trim()),
@@ -424,6 +426,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
     setFreelancerForm({
       name: '',
       email: '',
+      password: '',
       phone: '',
       title: 'Senior Full-Stack Architect',
       skills: 'React, Node.js, WebGPU, Cloud',
@@ -602,22 +605,30 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
                 : activeTab.replace('-', ' ')}
             </span>
           </div>
-          <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-[#222438] dark:text-white tracking-tight">
-            {activeTab === 'overview'
-              ? 'Portfolio Intelligence & Operations'
-              : activeTab === 'analytics'
-              ? 'Enterprise Telemetry & Analytics'
-              : activeTab === 'projects'
-              ? 'Project Portfolio Management'
-              : activeTab === 'assignments'
-              ? 'Specialist Assignments & Dispatch'
-              : activeTab === 'reference-template'
-              ? 'Project Intake Specification Template'
-              : activeTab === 'ai-intelligence'
-              ? 'AI Project Intelligence & Synthesis'
-              : activeTab === 'tasks'
-              ? 'Admin Tasks & Operational Workboard'
-              : 'Portfolio Intelligence & Operations'}
+          <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-[#222438] dark:text-white tracking-tight flex items-center flex-wrap gap-2.5">
+            <span>
+              {activeTab === 'overview'
+                ? 'Portfolio Intelligence & Operations'
+                : activeTab === 'analytics'
+                ? 'Enterprise Telemetry & Analytics'
+                : activeTab === 'projects'
+                ? 'Project Portfolio Management'
+                : activeTab === 'assignments'
+                ? 'Specialist Assignments & Dispatch'
+                : activeTab === 'reference-template'
+                ? 'Project Intake Specification Template'
+                : activeTab === 'ai-intelligence'
+                ? 'AI Project Intelligence & Synthesis'
+                : activeTab === 'tasks'
+                ? 'Admin Tasks & Operational Workboard'
+                : 'Portfolio Intelligence & Operations'}
+            </span>
+            {['reference-template', 'projects', 'assignments', 'ai-intelligence', 'tasks', 'document-management'].includes(activeTab) && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-black uppercase tracking-wider bg-gradient-to-r from-[#7357FF] to-[#3978FF] text-white shadow-xs animate-pulse">
+                <Sparkles className="w-3 h-3" />
+                <span>NEW</span>
+              </span>
+            )}
           </h1>
         </div>
 
@@ -2647,6 +2658,18 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
                   placeholder="e.g. elena@nexuscraft.app"
                   className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs"
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold mb-1 text-[#17172B] dark:text-white">Account Password *</label>
+                <input
+                  type="text"
+                  required
+                  value={freelancerForm.password}
+                  onChange={e => setFreelancerForm({ ...freelancerForm, password: e.target.value })}
+                  placeholder="Set initial login password (e.g. Elena#2026)"
+                  className="w-full px-3 py-2 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] text-xs font-mono"
+                />
+                <p className="text-[10px] text-[#8F91A3] mt-0.5">The specialist will use their email and this password to sign into their account.</p>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>

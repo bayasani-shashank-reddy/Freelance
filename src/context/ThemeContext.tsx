@@ -23,16 +23,23 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     const root = document.documentElement;
+    const body = document.body;
     if (theme === 'dark') {
       root.classList.add('dark');
       root.classList.remove('light');
-      document.body.style.backgroundColor = '#0F0F1D';
-      document.body.style.color = '#F7F8FC';
+      root.setAttribute('data-theme', 'dark');
+      body.classList.add('dark');
+      body.classList.remove('light');
+      body.style.backgroundColor = '#0F0F1D';
+      body.style.color = '#F7F8FC';
     } else {
       root.classList.add('light');
       root.classList.remove('dark');
-      document.body.style.backgroundColor = '#F7F8FC';
-      document.body.style.color = '#17172B';
+      root.setAttribute('data-theme', 'light');
+      body.classList.add('light');
+      body.classList.remove('dark');
+      body.style.backgroundColor = '#F7F8FC';
+      body.style.color = '#17172B';
     }
     try {
       localStorage.setItem('nexuscraft_theme', theme);
