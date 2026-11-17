@@ -194,7 +194,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         { label: 'Clarifications', path: '/client/clarifications', icon: CheckSquare, tab: 'clarifications' },
         { label: 'Project Exports', path: '/client/exports', icon: Archive, tab: 'exports' },
         { label: 'AI Idea Assistant', path: '/client/ai-assistant', icon: Bot, tab: 'ai-assistant', isNew: true },
-        { label: 'NCX Wallet', path: '/credits', icon: Coins, badge: `${credits} NCX` },
+        { label: 'Credits', path: '/client/credits', icon: Coins, badge: `${credits} NCX`, tab: 'credits' },
         { label: 'Notifications', path: '/notifications', icon: Bell, badge: unreadCount > 0 ? unreadCount : undefined },
         { label: 'Help Center', path: '/help', icon: HelpCircle },
         { label: 'Settings', path: '/settings', icon: Settings },
@@ -352,6 +352,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                 const Icon = item.icon;
                 const isItemActive =
                   location.pathname === item.path ||
+                  ((item.path === '/client/credits' || item.path === '/credits') && (location.pathname === '/client/credits' || location.pathname === '/credits')) ||
                   (item.path === '/admin/dashboard' && (location.pathname === '/admin' || (location.pathname === '/admin/dashboard' && !location.search))) ||
                   (item.path === '/client/dashboard' && (location.pathname === '/client' || (location.pathname === '/client/dashboard' && !location.search))) ||
                   (item.path === '/client/projects' && location.pathname === '/client/workspace') ||

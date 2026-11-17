@@ -41,10 +41,11 @@ import { useUser } from '../../context/UserContext';
 import { BoxedButton } from '../../components/shared/BoxedButton';
 import { api } from '../../lib/api';
 import { ClientDocumentRequirementsPortal } from '../../components/client/ClientDocumentRequirementsPortal';
+import CreditsPage from '../CreditsPage';
 import type { IdeaDraft, ProjectBlueprint, ClarificationItem, CostEstimate, DeliverableSubmissionItem } from '../../types';
 import confetti from 'canvas-confetti';
 
-type ClientTab = 'overview' | 'vault' | 'ai-assistant' | 'workspace' | 'milestones' | 'clarifications' | 'budget' | 'documents' | 'exports';
+type ClientTab = 'overview' | 'vault' | 'ai-assistant' | 'workspace' | 'milestones' | 'clarifications' | 'budget' | 'documents' | 'exports' | 'credits';
 
 interface ClientDashboardPageProps {
   view?: string;
@@ -99,13 +100,17 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({ view }
       setActiveTab('milestones');
       return;
     }
+    if (view === 'credits' || path === '/client/credits' || path === '/client/wallet' || path === '/credits') {
+      setActiveTab('credits');
+      return;
+    }
     if (view === 'overview' || path === '/client/dashboard' || path === '/client') {
       setActiveTab('overview');
       return;
     }
 
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['overview', 'vault', 'ai-assistant', 'workspace', 'milestones', 'clarifications', 'budget', 'documents', 'exports'].includes(tabParam)) {
+    if (tabParam && ['overview', 'vault', 'ai-assistant', 'workspace', 'milestones', 'clarifications', 'budget', 'documents', 'exports', 'credits'].includes(tabParam)) {
       setActiveTab(tabParam as ClientTab);
     }
   }, [view, location.pathname, searchParams]);
@@ -682,6 +687,8 @@ ${bp?.suggestedTechnologies?.map((t: any) => `- ${t}`).join('\n') || 'N/A'}
                   ? 'Project Exports & Dossier'
                   : activeTab === 'ai-assistant'
                   ? 'AI Idea Assistant'
+                  : activeTab === 'credits'
+                  ? 'NCX Credits & Ledger'
                   : activeTab.replace('-', ' ')}
               </span>
             </div>
@@ -698,6 +705,8 @@ ${bp?.suggestedTechnologies?.map((t: any) => `- ${t}`).join('\n') || 'N/A'}
                 ? 'Project Exports & Verified Dossier'
                 : activeTab === 'ai-assistant'
                 ? 'AI Engineering Assistant Studio'
+                : activeTab === 'credits'
+                ? 'NCX Wallet & Platform Credits'
                 : 'Workspace Center'}
             </h1>
           </div>
@@ -2560,7 +2569,15 @@ ${bp?.suggestedTechnologies?.map((t: any) => `- ${t}`).join('\n') || 'N/A'}
         </div>
       )}
 
-    
+      {/* ─────────────────────────────────────────────────────────────
+          TAB: CREDITS & NCX WALLET
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'credits' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          <CreditsPage />
+        </div>
+      )}
+
       {/* Scope Change Request Modal */}
       <ScopeChangeRequestModal
         isOpen={scopeChangeModalOpen}

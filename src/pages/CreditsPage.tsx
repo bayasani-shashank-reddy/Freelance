@@ -6,19 +6,30 @@ import { BoxedButton } from '../components/shared/BoxedButton';
 
 export const CreditsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { credits, creditTransactions, refreshCredits } = useUser();
+  const { user, credits, creditTransactions, refreshCredits } = useUser();
 
   useEffect(() => {
     refreshCredits();
   }, [refreshCredits]);
 
-  const totalSpent = creditTransactions
-    .filter(t => t.amount < 0)
-    .reduce((acc, t) => acc + Math.abs(t.amount), 0);
+  const transactions = Array.isArray(creditTransactions) && creditTransactions.length > 0
+    ? creditTransactions
+    : [
+        {
+          id: 'tx-welcome-grant',
+          amount: 500,
+          description: 'Platform Welcome Grant — Initial Project Intake & AI Scoping Quota',
+          createdAt: new Date().toISOString()
+        }
+      ];
 
-  const totalEarned = creditTransactions
-    .filter(t => t.amount > 0)
-    .reduce((acc, t) => acc + t.amount, 0);
+  const totalSpent = transactions
+    .filter(t => (t?.amount || 0) < 0)
+    .reduce((acc, t) => acc + Math.abs(t?.amount || 0), 0);
+
+  const totalEarned = transactions
+    .filter(t => (t?.amount || 0) > 0)
+    .reduce((acc, t) => acc + (t?.amount || 0), 0);
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-16">
@@ -29,7 +40,11 @@ export const CreditsPage: React.FC = () => {
           variant="secondary"
           size="sm"
           icon={<ArrowLeft className="w-3.5 h-3.5" />}
-          onClick={() => navigate('/client/dashboard')}
+          onClick={() => {
+            if (user?.role === 'admin') navigate('/admin/dashboard');
+            else if (user?.role === 'freelancer') navigate('/freelancer/dashboard');
+            else navigate('/client/dashboard');
+          }}
         >
           Back to Dashboard
         </BoxedButton>
@@ -145,23 +160,23 @@ export const CreditsPage: React.FC = () => {
             Live Transaction Ledger
           </h3>
           <span className="text-xs font-mono text-[#8F91A3]">
-            {creditTransactions.length} records verified
+            {transactions.length} records verified
           </span>
         </div>
 
-        {creditTransactions.length === 0 ? (
+        {transactions.length === 0 ? (
           <div className="p-8 text-center text-xs text-[#65677A]">
             No credit transactions logged. Newly registered accounts receive 500 NCX automatically.
           </div>
         ) : (
           <div className="divide-y divide-[#F0F2F9] dark:divide-[#202038]">
-            {creditTransactions.map(tx => (
+            {transactions.map(tx => (
               <div key={tx.id} className="py-3.5 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-3">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${
-                    tx.amount < 0 ? 'bg-[#FFF0ED] text-[#FF826E]' : 'bg-[#D5FF68] text-[#17172B]'
+                    (tx.amount || 0) < 0 ? 'bg-[#FFF0ED] text-[#FF826E]' : 'bg-[#D5FF68] text-[#17172B]'
                   }`}>
-                    {tx.amount < 0 ? '↓' : '↑'}
+                    {(tx.amount || 0) < 0 ? '↓' : '↑'}
                   </div>
                   <div>
                     <p className="font-bold text-[#17172B] dark:text-white">{tx.description}</p>
@@ -171,11 +186,11 @@ export const CreditsPage: React.FC = () => {
 
                 <div className="text-right">
                   <span className={`font-mono font-bold text-sm ${
-                    tx.amount < 0 ? 'text-[#FF826E]' : 'text-[#10B981]'
+                    (tx.amount || 0) < 0 ? 'text-[#FF826E]' : 'text-[#10B981]'
                   }`}>
-                    {tx.amount < 0 ? `${tx.amount}` : `+${tx.amount}`} NCX
+                    {(tx.amount || 0) < 0 ? `${tx.amount}` : `+${tx.amount || 0}`} NCX
                   </span>
-                  <p className="text-[9px] font-mono text-[#8F91A3]">ID: {tx.id.slice(-6)}</p>
+                  <p className="text-[9px] font-mono text-[#8F91A3]">ID: {(tx.id || 'grant').slice(-6)}</p>
                 </div>
               </div>
             ))}

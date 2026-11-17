@@ -129,6 +129,8 @@ function App() {
                 <Route path="/client/documents" element={<RequireRole allowedRoles={['client']}><ClientDashboardPage view="documents" /></RequireRole>} />
                 <Route path="/client/clarifications" element={<RequireRole allowedRoles={['client']}><ClientDashboardPage view="clarifications" /></RequireRole>} />
                 <Route path="/client/budget" element={<Navigate to="/client/projects" replace />} />
+                <Route path="/client/credits" element={<RequireRole allowedRoles={['client', 'admin']}><CreditsPage /></RequireRole>} />
+                <Route path="/client/wallet" element={<RequireRole allowedRoles={['client', 'admin']}><CreditsPage /></RequireRole>} />
                 <Route path="/client/exports" element={<RequireRole allowedRoles={['client']}><ClientDashboardPage view="exports" /></RequireRole>} />
                 <Route path="/client/ai-assistant" element={<RequireRole allowedRoles={['client']}><ClientDashboardPage view="ai-assistant" /></RequireRole>} />
                 <Route path="/client/timeline" element={<RequireRole allowedRoles={['client']}><ClientDashboardPage view="milestones" /></RequireRole>} />
@@ -151,6 +153,8 @@ function App() {
                 <Route path="/freelancer/zips" element={<Navigate to="/freelancer/deliverables" replace />} />
                 <Route path="/freelancer/revisions" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="revisions" /></RequireRole>} />
                 <Route path="/freelancer/history" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="history" /></RequireRole>} />
+                <Route path="/freelancer/credits" element={<RequireRole allowedRoles={['freelancer', 'admin']}><CreditsPage /></RequireRole>} />
+                <Route path="/freelancer/wallet" element={<RequireRole allowedRoles={['freelancer', 'admin']}><CreditsPage /></RequireRole>} />
                 <Route path="/freelancer/*" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage /></RequireRole>} />
 
                 {/* Deprecated Public Marketplace & Chat Routes (Redirected cleanly) */}

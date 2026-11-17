@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useTheme } from '../context/ThemeContext';
 import BoxedButton from '../components/shared/BoxedButton';
@@ -15,19 +16,44 @@ import {
   CheckCircle2,
   AlertCircle,
   Smartphone,
-  Sparkles
+  Sparkles,
+  Camera,
+  Upload,
+  Trash2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+
+const PRESET_AVATARS = [
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
+  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80',
+  'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=400&q=80',
+  'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&q=80',
+  'https://images.unsplash.com/photo-1628157582853-a796fa650a6a?auto=format&fit=crop&w=400&q=80'
+];
 
 export const SettingsPage: React.FC = () => {
   const { user, credits, updateUserProfile } = useUser();
   const { theme, setTheme } = useTheme();
+  const location = useLocation();
 
-  const [activeTab, setActiveTab] = useState<'appearance' | 'profile' | 'notifications' | 'security'>('appearance');
+  // Default to 'profile' tab (matches Aurora university profile view)
+  const [activeTab, setActiveTab] = useState<'profile' | 'appearance' | 'notifications' | 'security'>(() => {
+    if (location.pathname === '/profile') return 'profile';
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab === 'appearance' || tab === 'notifications' || tab === 'security') return tab;
+    return 'profile';
+  });
+
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   // Profile Form State
   const [profileForm, setProfileForm] = useState({
     name: user?.name || '',
+    avatar: user?.avatar || '',
     email: user?.email || '',
     phone: user?.phone || '',
     countryCode: user?.countryCode || '+91',
@@ -41,6 +67,7 @@ export const SettingsPage: React.FC = () => {
     if (user) {
       setProfileForm({
         name: user.name || '',
+        avatar: user.avatar || '',
         email: user.email || '',
         phone: user.phone || '',
         countryCode: user.countryCode || '+91',
@@ -50,6 +77,22 @@ export const SettingsPage: React.FC = () => {
       });
     }
   }, [user]);
+
+  // Handle Photo Upload via File input
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setSaveError('Profile image must be under 5MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setProfileForm(prev => ({ ...prev, avatar: base64 }));
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Phone OTP Verification State
   const [otpStep, setOtpStep] = useState<'idle' | 'sent' | 'verifying'>('idle');
@@ -85,6 +128,7 @@ export const SettingsPage: React.FC = () => {
     try {
       const res = await updateUserProfile({
         name: profileForm.name.trim(),
+        avatar: profileForm.avatar,
         phone: profileForm.phone.trim(),
         countryCode: profileForm.countryCode.trim(),
         company: profileForm.company.trim(),
@@ -201,8 +245,8 @@ export const SettingsPage: React.FC = () => {
       {/* Settings Navigation Tabs (Segmented Controls) */}
       <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-[#E8EAF4] dark:border-[#2A2A46]">
         {[
+          { id: 'profile', label: 'User Profile & Identity', icon: User },
           { id: 'appearance', label: 'Theme & Palette', icon: Palette },
-          { id: 'profile', label: 'User Profile', icon: User },
           { id: 'notifications', label: 'Notification Signals', icon: Bell },
           { id: 'security', label: 'Security & Access', icon: Shield },
         ].map(tab => {
@@ -351,6 +395,90 @@ export const SettingsPage: React.FC = () => {
                     <AlertCircle className="w-3.5 h-3.5" /> {saveError}
                   </span>
                 )}
+              </div>
+
+              {/* Profile Photo / Avatar Uploader */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#F8F9FD] dark:bg-[#131326] border border-[#E8EAF4] dark:border-[#202038] flex flex-col md:flex-row md:items-center justify-between gap-5">
+                <div className="flex items-center gap-4">
+                  <div className="relative group shrink-0">
+                    <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-tr from-[#7357FF] to-[#3978FF] text-white flex items-center justify-center font-black text-2xl shadow-md border-2 border-white dark:border-[#2A2A46]">
+                      {profileForm.avatar ? (
+                        <img src={profileForm.avatar} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{profileForm.name ? profileForm.name.charAt(0).toUpperCase() : 'U'}</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => photoInputRef.current?.click()}
+                      className="absolute inset-0 bg-black/40 text-white rounded-2xl opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity cursor-pointer"
+                      title="Upload photo"
+                    >
+                      <Camera className="w-5 h-5" />
+                      <span className="text-[9px] font-bold mt-0.5">Edit</span>
+                    </button>
+                  </div>
+
+                  <div>
+                    <h3 className="font-display font-bold text-sm text-[#17172B] dark:text-white">
+                      Profile Photo & Avatar
+                    </h3>
+                    <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-0.5">
+                      Upload your real photo (.jpg, .png, .webp up to 5MB) or choose from curated styles.
+                    </p>
+                    <div className="flex items-center gap-2 mt-2.5">
+                      <button
+                        type="button"
+                        onClick={() => photoInputRef.current?.click()}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#7357FF] to-[#3978FF] hover:from-[#6245F5] hover:to-[#2B6AF5] text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload Photo</span>
+                      </button>
+
+                      {profileForm.avatar && (
+                        <button
+                          type="button"
+                          onClick={() => setProfileForm(prev => ({ ...prev, avatar: '' }))}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-[#E45D6D] text-xs font-semibold hover:bg-rose-100 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Remove</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Preset Avatars Selection */}
+                <div className="space-y-1.5 md:text-right">
+                  <span className="text-[10px] font-mono font-bold uppercase text-[#8F91A3] dark:text-[#73758C] block">
+                    Or Select Preset Avatar:
+                  </span>
+                  <div className="flex items-center gap-1.5 md:justify-end flex-wrap">
+                    {PRESET_AVATARS.map((preset, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setProfileForm(prev => ({ ...prev, avatar: preset }))}
+                        className={`w-8 h-8 rounded-full overflow-hidden border-2 transition-transform cursor-pointer hover:scale-110 ${
+                          profileForm.avatar === preset ? 'border-[#7357FF] scale-110 shadow-xs' : 'border-transparent opacity-80 hover:opacity-100'
+                        }`}
+                        title={`Select Avatar ${idx + 1}`}
+                      >
+                        <img src={preset} alt={`Avatar ${idx + 1}`} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <input
+                  type="file"
+                  ref={photoInputRef}
+                  onChange={handlePhotoUpload}
+                  accept="image/png,image/jpeg,image/webp,image/jpg"
+                  className="hidden"
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

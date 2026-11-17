@@ -315,6 +315,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const updated: User = {
           ...user,
           ...data,
+          avatar: res.user.avatar || data.avatar || user.avatar,
           name: res.user.name || user.name,
           phone: res.user.phone ?? user.phone,
           company: res.user.company ?? user.company,
