@@ -101,13 +101,14 @@ function App() {
                 <Route path="/admin/analytics" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="analytics" /></RequireRole>} />
                 <Route path="/admin/requests" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="intake" /></RequireRole>} />
                 <Route path="/admin/intake" element={<Navigate to="/admin/requests" replace />} />
-                <Route path="/admin/projects" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="intake" /></RequireRole>} />
+                <Route path="/admin/projects" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="projects" /></RequireRole>} />
                 <Route path="/admin/assignments" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="assignments" /></RequireRole>} />
                 <Route path="/admin/assessments" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="assessments-quotes" /></RequireRole>} />
                 <Route path="/admin/clients" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="clients" /></RequireRole>} />
                 <Route path="/admin/freelancers" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="freelancers" /></RequireRole>} />
                 <Route path="/admin/ai-intelligence" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="ai-intelligence" /></RequireRole>} />
                 <Route path="/admin/cost-intelligence" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="cost-intelligence" /></RequireRole>} />
+                <Route path="/admin/reference-template" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="reference-template" /></RequireRole>} />
                 <Route path="/admin/document-studio" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="document-management" /></RequireRole>} />
                 <Route path="/admin/document-requirements" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="document-management" /></RequireRole>} />
                 <Route path="/admin/sub-admins" element={<RequireRole allowedRoles={['admin']}><AdminDashboardPage view="sub-admins" /></RequireRole>} />

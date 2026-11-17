@@ -38,6 +38,12 @@ import { NexusSlaRadar } from '../../components/admin/NexusSlaRadar';
 import { ScopeChangeAnalyzerModal } from '../../components/admin/ScopeChangeAnalyzerModal';
 import { AdminDocumentManagementSuite } from '../../components/admin/AdminDocumentManagementSuite';
 import { AdminSubAdminManagementSuite } from '../../components/admin/AdminSubAdminManagementSuite';
+import { AdminReferenceTemplateManager } from '../../components/admin/AdminReferenceTemplateManager';
+import { AdminProjectsManager } from '../../components/admin/AdminProjectsManager';
+import { AdminAssignmentsManager } from '../../components/admin/AdminAssignmentsManager';
+import { AdminAnalyticsDashboard } from '../../components/admin/AdminAnalyticsDashboard';
+import { AdminAiStudio } from '../../components/admin/AdminAiStudio';
+import { AdminTasksWorkboard } from '../../components/admin/AdminTasksWorkboard';
 import type {
   FeasibilityAssessmentItem,
   FreelancerQuotationItem,
@@ -49,17 +55,23 @@ import confetti from 'canvas-confetti';
 
 type AdminModuleTab =
   | 'overview'
+  | 'analytics'
   | 'intake'
-  | 'cost-intelligence'
-  | 'deliverables'
+  | 'projects'
+  | 'assignments'
   | 'assessments-quotes'
-  | 'clarifications'
-  | 'freelancers'
   | 'clients'
-  | 'audit'
-  | 'document-management'
+  | 'freelancers'
   | 'sub-admins'
-  | 'compliance';
+  | 'ai-intelligence'
+  | 'cost-intelligence'
+  | 'reference-template'
+  | 'document-management'
+  | 'deliverables'
+  | 'compliance'
+  | 'audit'
+  | 'tasks'
+  | 'clarifications';
 
 interface AdminDashboardPageProps {
   view?: string;
@@ -87,10 +99,34 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
   const [selectedRequestId, setSelectedRequestId] = useState<string>('');
   const [searchParams] = useSearchParams();
 
-  // Sync active tab with direct dedicated route (/admin/requests, /admin/freelancers, etc.) or URL query parameter
+  // Sync active tab with direct dedicated route (/admin/requests, /admin/projects, /admin/assignments, etc.)
   useEffect(() => {
     const path = location.pathname;
-    if (view === 'intake' || path === '/admin/requests' || path === '/admin/intake' || path === '/admin/projects') {
+    if (view === 'analytics' || path === '/admin/analytics') {
+      setActiveTab('analytics');
+      return;
+    }
+    if (view === 'projects' || path === '/admin/projects') {
+      setActiveTab('projects');
+      return;
+    }
+    if (view === 'assignments' || path === '/admin/assignments') {
+      setActiveTab('assignments');
+      return;
+    }
+    if (view === 'ai-intelligence' || path === '/admin/ai-intelligence') {
+      setActiveTab('ai-intelligence');
+      return;
+    }
+    if (view === 'reference-template' || path === '/admin/reference-template') {
+      setActiveTab('reference-template');
+      return;
+    }
+    if (view === 'tasks' || path === '/admin/tasks') {
+      setActiveTab('tasks');
+      return;
+    }
+    if (view === 'intake' || path === '/admin/requests' || path === '/admin/intake') {
       setActiveTab('intake');
       return;
     }
@@ -134,21 +170,6 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
       setActiveTab('clarifications');
       return;
     }
-    if (view === 'analytics' || path === '/admin/analytics') {
-      setActiveTab('overview');
-      return;
-    }
-    if (
-      view === 'assignments' ||
-      path === '/admin/assignments' ||
-      view === 'tasks' ||
-      path === '/admin/tasks' ||
-      view === 'ai-intelligence' ||
-      path === '/admin/ai-intelligence'
-    ) {
-      setActiveTab('intake');
-      return;
-    }
     if (view === 'overview' || path === '/admin/dashboard' || path === '/admin') {
       setActiveTab('overview');
       return;
@@ -156,13 +177,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
 
     const tabParam = searchParams.get('tab');
     if (tabParam) {
-      if (['overview', 'intake', 'cost-intelligence', 'deliverables', 'assessments-quotes', 'clarifications', 'freelancers', 'clients', 'audit', 'document-management', 'sub-admins', 'compliance'].includes(tabParam)) {
-        setActiveTab(tabParam as AdminModuleTab);
-      } else if (tabParam === 'analytics') {
-        setActiveTab('overview');
-      } else if (tabParam === 'assignments' || tabParam === 'tasks' || tabParam === 'ai-intelligence') {
-        setActiveTab('intake');
-      }
+      setActiveTab(tabParam as AdminModuleTab);
     }
   }, [view, location.pathname, searchParams]);
 
@@ -569,12 +584,40 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
             <ChevronRight className="w-3.5 h-3.5 text-[#A0A4B8]" />
             <span className="hover:text-[#3978FF] cursor-pointer">Admin</span>
             <ChevronRight className="w-3.5 h-3.5 text-[#A0A4B8]" />
-            <span className="font-semibold text-[#222438] capitalize">
-              {activeTab === 'overview' ? 'Executive Overview' : activeTab.replace('-', ' ')}
+            <span className="font-semibold text-[#222438] dark:text-white capitalize">
+              {activeTab === 'overview'
+                ? 'Executive Overview'
+                : activeTab === 'analytics'
+                ? 'Analytics & Telemetry'
+                : activeTab === 'projects'
+                ? 'Project Portfolio Management'
+                : activeTab === 'assignments'
+                ? 'Specialist Assignments & Dispatch'
+                : activeTab === 'reference-template'
+                ? 'Official Reference Document'
+                : activeTab === 'ai-intelligence'
+                ? 'AI Project Intelligence'
+                : activeTab === 'tasks'
+                ? 'Administrative Workboard'
+                : activeTab.replace('-', ' ')}
             </span>
           </div>
-          <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-[#222438] tracking-tight">
-            Portfolio Intelligence & Operations
+          <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-[#222438] dark:text-white tracking-tight">
+            {activeTab === 'overview'
+              ? 'Portfolio Intelligence & Operations'
+              : activeTab === 'analytics'
+              ? 'Enterprise Telemetry & Analytics'
+              : activeTab === 'projects'
+              ? 'Project Portfolio Management'
+              : activeTab === 'assignments'
+              ? 'Specialist Assignments & Dispatch'
+              : activeTab === 'reference-template'
+              ? 'Project Intake Specification Template'
+              : activeTab === 'ai-intelligence'
+              ? 'AI Project Intelligence & Synthesis'
+              : activeTab === 'tasks'
+              ? 'Admin Tasks & Operational Workboard'
+              : 'Portfolio Intelligence & Operations'}
           </h1>
         </div>
 
@@ -2395,6 +2438,82 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ view }) 
       ───────────────────────────────────────────────────────────── */}
       {activeTab === 'compliance' && (
         <AdminDocumentManagementSuite />
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODULE 12: PROJECT PORTFOLIO MANAGEMENT (DEDICATED DASHBOARD)
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'projects' && (
+        <AdminProjectsManager
+          projects={projectRequests}
+          freelancers={freelancers}
+          onSelectProject={(id) => {
+            setSelectedRequestId(id);
+            setActiveTab('intake');
+          }}
+          onRefresh={refreshRequests}
+          onOpenShareModal={(p) => {
+            setSelectedRequestId(p._id || p.customId);
+            setShareModalOpen(true);
+          }}
+          onOpenDocViewer={(fileName, storagePath) => {
+            setDocViewer({ isOpen: true, fileName, storagePath });
+          }}
+        />
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODULE 13: SPECIALIST ASSIGNMENTS & DISPATCH (DEDICATED DASHBOARD)
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'assignments' && (
+        <AdminAssignmentsManager
+          projects={projectRequests}
+          freelancers={freelancers}
+          onRefresh={() => {
+            refreshRequests();
+            refreshFreelancers();
+          }}
+          onOpenShareModal={(p) => {
+            setSelectedRequestId(p._id || p.customId);
+            setShareModalOpen(true);
+          }}
+          onSelectProject={(id) => {
+            setSelectedRequestId(id);
+            setActiveTab('intake');
+          }}
+        />
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODULE 14: ENTERPRISE ANALYTICS & TELEMETRY (DEDICATED DASHBOARD)
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'analytics' && (
+        <AdminAnalyticsDashboard
+          projects={projectRequests}
+          freelancers={freelancers}
+          onRefresh={refreshRequests}
+        />
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODULE 15: AI PROJECT INTELLIGENCE STUDIO (DEDICATED DASHBOARD)
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'ai-intelligence' && (
+        <AdminAiStudio />
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODULE 16: GLOBAL REFERENCE DOCUMENT FORMAT MANAGER (DEDICATED DASHBOARD)
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'reference-template' && (
+        <AdminReferenceTemplateManager />
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODULE 17: ADMINISTRATIVE TASKS & WORKBOARD (DEDICATED DASHBOARD)
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'tasks' && (
+        <AdminTasksWorkboard />
       )}
 
       {/* ─────────────────────────────────────────────────────────────

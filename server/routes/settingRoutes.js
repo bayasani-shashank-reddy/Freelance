@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { PlatformSetting } from '../models/PlatformSetting.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { AdminActivityLog } from '../models/AdminActivityLog.js';
-import { ensureDefaultTemplateDocx } from '../scripts/generateDefaultTemplate.js';
+import { ensureDefaultTemplateDocx, generateCustomTemplateDocx, DEFAULT_TEMPLATE_SECTIONS } from '../scripts/generateDefaultTemplate.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,13 +47,20 @@ settingRouter.get('/intake-template', async (req, res) => {
         storagePath: '/uploads/NexusCraft_Project_Intake_Specification_Template.docx',
         fileSize: '32.5 KB',
         mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        title: 'Official Project Specification Template',
-        instructions: 'Please download this official reference document format. Fill in your project specifications and requirements following the template sections, then upload your completed document below.',
-        allowedFormats: ['docx', 'pdf', 'doc'],
+        title: 'NEXUSCRAFT — PROJECT INTAKE SPECIFICATION TEMPLATE',
+        subtitle: 'Official Reference Format for Project Submission & Scoping Dossier',
+        instructions: 'Please fill out this document following the structured sections below. Once complete, upload your finalized version (.docx or .pdf) to the NexusCraft Project Submission Portal.',
+        sections: DEFAULT_TEMPLATE_SECTIONS,
+        allowedFormats: ['docx', 'pdf', 'doc', 'txt', 'zip'],
         updatedByAdminId: 'admin',
         updatedByAdminName: 'NexusCraft Administration',
         updatedAt: new Date()
       };
+      await settings.save();
+    } else if (!settings.intakeReferenceTemplate.sections || settings.intakeReferenceTemplate.sections.length === 0) {
+      settings.intakeReferenceTemplate.title = 'NEXUSCRAFT — PROJECT INTAKE SPECIFICATION TEMPLATE';
+      settings.intakeReferenceTemplate.subtitle = 'Official Reference Format for Project Submission & Scoping Dossier';
+      settings.intakeReferenceTemplate.sections = DEFAULT_TEMPLATE_SECTIONS;
       await settings.save();
     }
     res.json({ success: true, template: settings.intakeReferenceTemplate });
@@ -65,7 +72,7 @@ settingRouter.get('/intake-template', async (req, res) => {
 // POST /api/settings/intake-template — Admin updates / replaces the official intake reference document
 settingRouter.post('/intake-template', upload.single('file'), async (req, res) => {
   try {
-    const { title, instructions, adminId = 'admin', adminName = 'Administrator' } = req.body;
+    const { title, subtitle, instructions, sections, adminId = 'admin', adminName = 'Administrator' } = req.body;
     let settings = await PlatformSetting.findOne().sort({ updatedAt: -1 });
     if (!settings) {
       settings = new PlatformSetting({ customId: `settings-${Date.now()}` });
@@ -73,6 +80,15 @@ settingRouter.post('/intake-template', upload.single('file'), async (req, res) =
 
     if (!settings.intakeReferenceTemplate) {
       settings.intakeReferenceTemplate = {};
+    }
+
+    let parsedSections = null;
+    if (sections) {
+      try {
+        parsedSections = typeof sections === 'string' ? JSON.parse(sections) : sections;
+      } catch (e) {
+        console.warn('Could not parse sections JSON:', e.message);
+      }
     }
 
     if (req.file) {
@@ -87,8 +103,33 @@ settingRouter.post('/intake-template', upload.single('file'), async (req, res) =
     if (title && title.trim()) {
       settings.intakeReferenceTemplate.title = title.trim();
     }
+    if (subtitle && subtitle.trim()) {
+      settings.intakeReferenceTemplate.subtitle = subtitle.trim();
+    }
     if (instructions && instructions.trim()) {
       settings.intakeReferenceTemplate.instructions = instructions.trim();
+    }
+    if (parsedSections && Array.isArray(parsedSections)) {
+      settings.intakeReferenceTemplate.sections = parsedSections;
+    }
+
+    // If no custom file was uploaded and sections/title changed, regenerate official docx
+    if (!req.file && (parsedSections || title || instructions || subtitle)) {
+      try {
+        const { sizeInKb } = await generateCustomTemplateDocx({
+          title: settings.intakeReferenceTemplate.title || 'NEXUSCRAFT — PROJECT INTAKE SPECIFICATION TEMPLATE',
+          subtitle: settings.intakeReferenceTemplate.subtitle || 'Official Reference Format for Project Submission & Scoping Dossier',
+          instructions: settings.intakeReferenceTemplate.instructions,
+          sections: settings.intakeReferenceTemplate.sections || DEFAULT_TEMPLATE_SECTIONS
+        });
+        settings.intakeReferenceTemplate.fileName = 'NexusCraft_Project_Intake_Specification_Template.docx';
+        settings.intakeReferenceTemplate.originalName = 'NexusCraft_Project_Intake_Specification_Template.docx';
+        settings.intakeReferenceTemplate.storagePath = '/uploads/NexusCraft_Project_Intake_Specification_Template.docx';
+        settings.intakeReferenceTemplate.fileSize = sizeInKb;
+        settings.intakeReferenceTemplate.mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      } catch (genErr) {
+        console.error('Failed to regenerate template docx:', genErr);
+      }
     }
 
     settings.intakeReferenceTemplate.updatedByAdminId = adminId;
@@ -119,6 +160,50 @@ settingRouter.post('/intake-template', upload.single('file'), async (req, res) =
     });
   } catch (err) {
     console.error('Error updating intake reference template:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/settings/intake-template/reset — Reset to default official template
+settingRouter.post('/intake-template/reset', async (req, res) => {
+  try {
+    const { adminId = 'admin', adminName = 'Administrator' } = req.body;
+    let settings = await PlatformSetting.findOne().sort({ updatedAt: -1 });
+    if (!settings) {
+      settings = new PlatformSetting({ customId: `settings-${Date.now()}` });
+    }
+
+    const { sizeInKb } = await generateCustomTemplateDocx({
+      title: 'NEXUSCRAFT — PROJECT INTAKE SPECIFICATION TEMPLATE',
+      subtitle: 'Official Reference Format for Project Submission & Scoping Dossier',
+      instructions: 'Please fill out this document following the structured sections below. Once complete, upload your finalized version (.docx or .pdf) to the NexusCraft Project Submission Portal.',
+      sections: DEFAULT_TEMPLATE_SECTIONS
+    });
+
+    settings.intakeReferenceTemplate = {
+      fileName: 'NexusCraft_Project_Intake_Specification_Template.docx',
+      originalName: 'NexusCraft_Project_Intake_Specification_Template.docx',
+      storagePath: '/uploads/NexusCraft_Project_Intake_Specification_Template.docx',
+      fileSize: sizeInKb,
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      title: 'NEXUSCRAFT — PROJECT INTAKE SPECIFICATION TEMPLATE',
+      subtitle: 'Official Reference Format for Project Submission & Scoping Dossier',
+      instructions: 'Please fill out this document following the structured sections below. Once complete, upload your finalized version (.docx or .pdf) to the NexusCraft Project Submission Portal.',
+      sections: DEFAULT_TEMPLATE_SECTIONS,
+      allowedFormats: ['docx', 'pdf', 'doc', 'txt', 'zip'],
+      updatedByAdminId: adminId,
+      updatedByAdminName: adminName,
+      updatedAt: new Date()
+    };
+    settings.updatedAt = new Date();
+    await settings.save();
+
+    res.json({
+      success: true,
+      message: 'Intake reference template reset to standard default.',
+      template: settings.intakeReferenceTemplate
+    });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

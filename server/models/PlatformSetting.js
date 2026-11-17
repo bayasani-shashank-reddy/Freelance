@@ -20,11 +20,18 @@ const PlatformSettingSchema = new mongoose.Schema({
     storagePath: { type: String, default: '/uploads/NexusCraft_Project_Intake_Specification_Template.docx' },
     fileSize: { type: String, default: '32.5 KB' },
     mimeType: { type: String, default: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
-    title: { type: String, default: 'Official Project Specification Template' },
+    title: { type: String, default: 'NEXUSCRAFT — PROJECT INTAKE SPECIFICATION TEMPLATE' },
+    subtitle: { type: String, default: 'Official Reference Format for Project Submission & Scoping Dossier' },
     instructions: {
       type: String,
-      default: 'Please download this official reference document format. Fill in your project specifications and requirements following the template sections, then upload your completed document below.'
+      default: 'Please fill out this document following the structured sections below. Once complete, upload your finalized version (.docx or .pdf) to the NexusCraft Project Submission Portal.'
     },
+    sections: [
+      {
+        title: { type: String },
+        placeholder: { type: String }
+      }
+    ],
     allowedFormats: [{ type: String, default: 'docx' }],
     updatedByAdminId: { type: String, default: 'admin' },
     updatedByAdminName: { type: String, default: 'NexusCraft Administration' },

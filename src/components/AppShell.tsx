@@ -141,7 +141,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       group: 'PROJECT OPERATIONS',
       items: [
         { label: 'Request Queue', path: '/admin/requests', icon: Layers, tab: 'intake' },
-        { label: 'Project Management', path: '/admin/projects', icon: Briefcase, tab: 'intake' },
+        { label: 'Project Management', path: '/admin/projects', icon: Briefcase, tab: 'projects' },
         { label: 'Assignments', path: '/admin/assignments', icon: UserCheck, tab: 'assignments' },
         { label: 'Feasibility & Quotations', path: '/admin/assessments', icon: CheckSquare, tab: 'assessments-quotes' },
       ],
@@ -164,6 +164,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
     {
       group: 'DOCUMENTS & DELIVERY',
       items: [
+        { label: 'Reference Document', path: '/admin/reference-template', icon: FileText, tab: 'reference-template' },
         { label: 'Document Requirements', path: '/admin/document-requirements', icon: FileText, tab: 'document-management' },
         { label: 'ZIP Deliverables', path: '/admin/deliverables', icon: PackageCheck, tab: 'deliverables' },
       ],

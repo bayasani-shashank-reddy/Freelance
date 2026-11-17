@@ -39,6 +39,7 @@ export const SubmitRequestPage: React.FC = () => {
   // Admin-managed Intake Reference Document Template
   const [intakeTemplate, setIntakeTemplate] = useState<{
     title?: string;
+    subtitle?: string;
     fileName?: string;
     originalName?: string;
     storagePath?: string;
@@ -461,10 +462,15 @@ export const SubmitRequestPage: React.FC = () => {
                   </span>
                 </div>
                 <h4 className="font-bold text-sm text-[#17172B] dark:text-white mt-1">
-                  {intakeTemplate?.title || 'Project Intake Specification Template'}
+                  {intakeTemplate?.title || 'NEXUSCRAFT — PROJECT INTAKE SPECIFICATION TEMPLATE'}
                 </h4>
+                {intakeTemplate?.subtitle && (
+                  <div className="text-[11px] font-semibold text-[#3978FF]">
+                    {intakeTemplate.subtitle}
+                  </div>
+                )}
                 <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-0.5 leading-relaxed">
-                  {intakeTemplate?.instructions || 'Please download this reference document format. Fill in your project specifications following this exact template, then upload your completed document below.'}
+                  {intakeTemplate?.instructions || 'Please fill out this document following the structured sections below. Once complete, upload your finalized version (.docx or .pdf) to the NexusCraft Project Submission Portal.'}
                 </p>
               </div>
 

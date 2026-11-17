@@ -1994,5 +1994,18 @@ export const api = {
     } catch (err: any) {
       return { success: false, error: err.message };
     }
+  },
+
+  async resetIntakeReferenceTemplate(adminId = 'admin', adminName = 'Administrator') {
+    try {
+      const res = await fetch(`${API_BASE}/settings/intake-template/reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminId, adminName })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
   }
 };
