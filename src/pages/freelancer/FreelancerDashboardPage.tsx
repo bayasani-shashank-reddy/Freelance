@@ -12,8 +12,16 @@ import {
   Clock,
   Edit3,
   X,
-  Copy,
-  ChevronRight
+  ChevronRight,
+  Download,
+  FileText,
+  Briefcase,
+  Calendar,
+  Archive,
+  PackageCheck,
+  AlertCircle,
+  FileCode,
+  ArrowRight
 } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 import { DocumentViewerModal } from '../../components/DocumentViewerModal';
@@ -22,7 +30,20 @@ import { api } from '../../lib/api';
 import type { FeasibilityAssessmentItem, FreelancerQuotationItem, DeliverableSubmissionItem, ProjectTaskItem } from '../../types';
 import confetti from 'canvas-confetti';
 
-type FreelancerTab = 'briefs' | 'timeline' | 'assessment' | 'quotation' | 'tasks' | 'deliverables';
+type FreelancerTab = 
+  | 'timeline' 
+  | 'workspace' 
+  | 'briefs' 
+  | 'assessment' 
+  | 'quotation' 
+  | 'tasks' 
+  | 'calendar' 
+  | 'documents' 
+  | 'deliverables' 
+  | 'zips' 
+  | 'revisions' 
+  | 'history'
+  | 'credits';
 
 interface FreelancerDashboardPageProps {
   view?: string;
@@ -34,14 +55,30 @@ export const FreelancerDashboardPage: React.FC<FreelancerDashboardPageProps> = (
   const [effortModalOpen, setEffortModalOpen] = useState(false);
   const [handoverModalOpen, setHandoverModalOpen] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<FreelancerTab>('briefs');
+  const [activeTab, setActiveTab] = useState<FreelancerTab>('timeline');
   const [selectedShareId, setSelectedShareId] = useState<string>('');
   const [searchParams] = useSearchParams();
+
+  // Helper to trigger direct document download
+  const handleDownloadDoc = (fileName: string, _storagePath?: string) => {
+    const downloadUrl = api.getDirectDownloadUrl(fileName);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = fileName;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // Sync active tab with direct dedicated route or URL query parameter
   useEffect(() => {
     const path = location.pathname;
-    if (view === 'briefs' || path === '/freelancer/briefs' || path === '/freelancer/projects') {
+    if (view === 'workspace' || path === '/freelancer/projects' || path === '/freelancer/workspace') {
+      setActiveTab('workspace');
+      return;
+    }
+    if (view === 'briefs' || path === '/freelancer/briefs') {
       setActiveTab('briefs');
       return;
     }
@@ -57,25 +94,43 @@ export const FreelancerDashboardPage: React.FC<FreelancerDashboardPageProps> = (
       setActiveTab('tasks');
       return;
     }
-    if (view === 'timeline' || path === '/freelancer/calendar' || path === '/freelancer/dashboard' || path === '/freelancer') {
-      setActiveTab('timeline');
+    if (view === 'calendar' || path === '/freelancer/calendar') {
+      setActiveTab('calendar');
       return;
     }
-    if (view === 'deliverables' || path === '/freelancer/deliverables' || path === '/freelancer/zips' || path === '/freelancer/revisions' || path === '/freelancer/history' || path === '/freelancer/documents') {
+    if (view === 'documents' || path === '/freelancer/documents') {
+      setActiveTab('documents');
+      return;
+    }
+    if (view === 'deliverables' || path === '/freelancer/deliverables') {
       setActiveTab('deliverables');
+      return;
+    }
+    if (view === 'zips' || path === '/freelancer/zips') {
+      setActiveTab('zips');
+      return;
+    }
+    if (view === 'revisions' || path === '/freelancer/revisions') {
+      setActiveTab('revisions');
+      return;
+    }
+    if (view === 'history' || path === '/freelancer/history') {
+      setActiveTab('history');
+      return;
+    }
+    if (view === 'timeline' || path === '/freelancer/dashboard' || path === '/freelancer') {
+      setActiveTab('timeline');
       return;
     }
 
     const tabParam = searchParams.get('tab');
     if (tabParam) {
-      if (['briefs', 'timeline', 'assessment', 'quotation', 'tasks', 'deliverables'].includes(tabParam)) {
+      if (['briefs', 'timeline', 'assessment', 'quotation', 'tasks', 'calendar', 'workspace', 'documents', 'deliverables', 'zips', 'revisions', 'history', 'credits'].includes(tabParam)) {
         setActiveTab(tabParam as FreelancerTab);
-      } else if (tabParam === 'workspace') {
-        setActiveTab('briefs');
+      } else if (tabParam === 'projects') {
+        setActiveTab('workspace');
       } else if (tabParam === 'quotes') {
         setActiveTab('quotation');
-      } else if (tabParam === 'documents' || tabParam === 'revisions' || tabParam === 'history') {
-        setActiveTab('deliverables');
       }
     }
   }, [view, location.pathname, searchParams]);
@@ -384,7 +439,7 @@ export const FreelancerDashboardPage: React.FC<FreelancerDashboardPageProps> = (
       {/* ─────────────────────────────────────────────────────────────
           1. SPECIALIST HEADER BANNER & PROFILE COMPLETION (OVERVIEW ONLY)
       ───────────────────────────────────────────────────────────── */}
-      {(activeTab === 'timeline' || activeTab === 'briefs') && (
+      {activeTab === 'timeline' && (
         <div className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] shadow-sm space-y-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div>
@@ -481,9 +536,9 @@ export const FreelancerDashboardPage: React.FC<FreelancerDashboardPageProps> = (
       )}
 
       {/* ─────────────────────────────────────────────────────────────
-          2. FOCUSED SPECIALIST SUBPAGE HEADER (WHEN NOT ON TIMELINE/BRIEFS)
+          2. FOCUSED SPECIALIST SUBPAGE HEADER (WHEN NOT ON TIMELINE)
       ───────────────────────────────────────────────────────────── */}
-      {activeTab !== 'timeline' && activeTab !== 'briefs' && (
+      {activeTab !== 'timeline' && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
           <div>
             <div className="flex items-center gap-1.5 text-xs text-[#777B8A] mb-1">
@@ -496,8 +551,22 @@ export const FreelancerDashboardPage: React.FC<FreelancerDashboardPageProps> = (
                   ? 'Quotations & Scoping'
                   : activeTab === 'tasks'
                   ? 'Tasks & Workboard'
+                  : activeTab === 'workspace'
+                  ? 'Assigned Projects'
+                  : activeTab === 'briefs'
+                  ? 'Assigned Briefs'
+                  : activeTab === 'calendar'
+                  ? 'Deadline Calendar'
+                  : activeTab === 'documents'
+                  ? 'Shared Documents'
                   : activeTab === 'deliverables'
-                  ? 'Deliverables & ZIP Center'
+                  ? 'Deliverables Center'
+                  : activeTab === 'zips'
+                  ? 'ZIP Submissions'
+                  : activeTab === 'revisions'
+                  ? 'Revision Tracker'
+                  : activeTab === 'history'
+                  ? 'Submission History'
                   : activeTab}
               </span>
             </div>
@@ -508,8 +577,22 @@ export const FreelancerDashboardPage: React.FC<FreelancerDashboardPageProps> = (
                 ? 'Multi-Tier Commercial Quotations'
                 : activeTab === 'tasks'
                 ? 'Assigned Tasks & Effort Tracking'
+                : activeTab === 'workspace'
+                ? 'Assigned Projects Architecture'
+                : activeTab === 'briefs'
+                ? 'Confidential Project Briefs'
+                : activeTab === 'calendar'
+                ? 'Deadline Calendar & Milestone Schedule'
+                : activeTab === 'documents'
+                ? 'Shared Client Documents & Specifications'
                 : activeTab === 'deliverables'
-                ? 'Deliverable Submissions & Integrity Inspector'
+                ? 'Deliverables Center & Release Management'
+                : activeTab === 'zips'
+                ? 'Production ZIP Package Submissions'
+                : activeTab === 'revisions'
+                ? 'Revision Tracker & QA Change Requests'
+                : activeTab === 'history'
+                ? 'Deliverable Submission History & Audit Log'
                 : 'Execution Studio'}
             </h1>
           </div>
@@ -531,6 +614,168 @@ export const FreelancerDashboardPage: React.FC<FreelancerDashboardPageProps> = (
       )}
 
 
+
+      {/* ─────────────────────────────────────────────────────────────
+          TAB: ASSIGNED PROJECTS & ARCHITECTURE WORKSPACE
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'workspace' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
+              <span className="text-[10px] font-mono uppercase text-[#65677A] font-bold">TOTAL ASSIGNED</span>
+              <p className="text-2xl font-display font-extrabold text-[#17172B] dark:text-white mt-1">
+                {freelancerShares.length}
+              </p>
+              <span className="text-[11px] text-[#65677A]">Active Client Projects</span>
+            </div>
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
+              <span className="text-[10px] font-mono uppercase text-[#65677A] font-bold">FEASIBILITY COMPLETED</span>
+              <p className="text-2xl font-display font-extrabold text-[#7357FF] mt-1">
+                {myAssessments.length}
+              </p>
+              <span className="text-[11px] text-[#65677A]">Technical Reviews Filed</span>
+            </div>
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
+              <span className="text-[10px] font-mono uppercase text-[#65677A] font-bold">DELIVERABLES IN PROGRESS</span>
+              <p className="text-2xl font-display font-extrabold text-[#3978FF] mt-1">
+                {myDeliverables.length}
+              </p>
+              <span className="text-[11px] text-[#65677A]">Production Packages</span>
+            </div>
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
+              <span className="text-[10px] font-mono uppercase text-[#65677A] font-bold">HOURLY RATE</span>
+              <p className="text-2xl font-display font-extrabold text-[#22c55e] mt-1">
+                ₹{profileForm.hourlyRate}
+              </p>
+              <span className="text-[11px] text-[#65677A]">Roster Billing Tier</span>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-display font-bold text-lg text-[#17172B] dark:text-white">
+                Assigned Production Workspaces ({freelancerShares.length})
+              </h3>
+              <span className="text-xs text-[#65677A]">Confidential execution sandboxes</span>
+            </div>
+
+            {freelancerShares.length === 0 ? (
+              <div className="p-12 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] text-center text-xs text-[#65677A]">
+                <Briefcase className="w-8 h-8 text-[#7357FF] mx-auto mb-2 opacity-60" />
+                <h4 className="font-bold text-sm text-[#17172B] dark:text-white">No active projects assigned yet</h4>
+                <p className="mt-1">When administration assigns client briefs or workspaces to you, they will appear here.</p>
+              </div>
+            ) : (
+              freelancerShares.map(s => (
+                <div
+                  key={s.customId || s.id}
+                  className="p-6 rounded-2xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-white dark:bg-[#17172B] space-y-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-mono text-[10px] text-[#7357FF] font-bold bg-[#7357FF]/10 px-2 py-0.5 rounded">
+                          {s.requestId}
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-[#22c55e]/10 text-[#22c55e] font-bold">
+                          {s.status || 'Active'}
+                        </span>
+                      </div>
+                      <h4 className="font-display font-bold text-lg text-[#17172B] dark:text-white">
+                        {s.projectTitle}
+                      </h4>
+                      {s.adminInstructions && (
+                        <p className="text-xs text-[#65677A] mt-1">
+                          <span className="font-semibold text-[#17172B] dark:text-white">Admin Directives: </span>
+                          {s.adminInstructions}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {s.documentFileName && (
+                        <>
+                          <BoxedButton
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => {
+                              setDocViewer({
+                                isOpen: true,
+                                fileName: s.documentFileName || '',
+                                storagePath: s.documentStoragePath
+                              });
+                            }}
+                          >
+                            <Eye className="w-3.5 h-3.5 mr-1" />
+                            View Brief
+                          </BoxedButton>
+                          <BoxedButton
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => {
+                              handleDownloadDoc(s.documentFileName || '', s.documentStoragePath);
+                            }}
+                          >
+                            <Download className="w-3.5 h-3.5 mr-1" />
+                            Download
+                          </BoxedButton>
+                        </>
+                      )}
+                      <BoxedButton
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedShareId(s.customId || s.id);
+                          setActiveTab('assessment');
+                        }}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                        Assess Feasibility
+                      </BoxedButton>
+                      <BoxedButton
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedShareId(s.customId || s.id);
+                          setActiveTab('zips');
+                        }}
+                      >
+                        <Upload className="w-3.5 h-3.5 mr-1" />
+                        Submit Package
+                      </BoxedButton>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-[#E8EAF4] dark:border-[#2A2A46] flex flex-wrap items-center justify-between gap-4 text-xs">
+                    <div className="flex items-center gap-4 text-[#65677A]">
+                      <span>Role: Lead Technical Specialist</span>
+                      <span>•</span>
+                      <span>Milestones: Phase 1 & 2 Execution</span>
+                      {s.dueDate && (
+                        <>
+                          <span>•</span>
+                          <span>Due: {new Date(s.dueDate).toLocaleDateString()}</span>
+                        </>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setSelectedShareId(s.customId || s.id);
+                          setActiveTab('quotation');
+                        }}
+                        className="text-xs font-semibold text-[#7357FF] hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        View Scoping & Quotation <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ─────────────────────────────────────────────────────────────
           TAB 1: ASSIGNED BRIEFS & CONFIDENTIAL DOCUMENTS
@@ -588,20 +833,32 @@ export const FreelancerDashboardPage: React.FC<FreelancerDashboardPageProps> = (
 
                       <div className="flex items-center gap-2">
                         {s.documentFileName && (
-                          <BoxedButton
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => {
-                              setDocViewer({
-                                isOpen: true,
-                                fileName: s.documentFileName || '',
-                                storagePath: s.documentStoragePath
-                              });
-                            }}
-                          >
-                            <Eye className="w-3.5 h-3.5 mr-1" />
-                            Preview Doc
-                          </BoxedButton>
+                          <>
+                            <BoxedButton
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => {
+                                setDocViewer({
+                                  isOpen: true,
+                                  fileName: s.documentFileName || '',
+                                  storagePath: s.documentStoragePath
+                                });
+                              }}
+                            >
+                              <Eye className="w-3.5 h-3.5 mr-1" />
+                              Preview Doc
+                            </BoxedButton>
+                            <BoxedButton
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => {
+                                handleDownloadDoc(s.documentFileName || '', s.documentStoragePath);
+                              }}
+                            >
+                              <Download className="w-3.5 h-3.5 mr-1" />
+                              Download
+                            </BoxedButton>
+                          </>
                         )}
                         <BoxedButton
                           variant="accent"
@@ -1148,9 +1405,411 @@ export const FreelancerDashboardPage: React.FC<FreelancerDashboardPageProps> = (
       )}
 
       {/* ─────────────────────────────────────────────────────────────
-          TAB 5: DELIVERABLES & ZIP UPLOAD STUDIO (SECTION F)
+          TAB: DEADLINE CALENDAR & MILESTONE SCHEDULE
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'calendar' && (
+        <div className="space-y-6">
+          <div className="p-6 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E8EAF4] dark:border-[#2A2A46]">
+              <div>
+                <span className="text-[10px] font-mono font-bold uppercase text-[#7357FF]">
+                  MILESTONE DEADLINES & SPRINT HORIZON
+                </span>
+                <h3 className="font-display font-bold text-xl text-[#17172B] dark:text-white mt-0.5">
+                  Production Milestone Schedule
+                </h3>
+                <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                  Track upcoming deliverables, client review dates, and QA completion deadlines.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#7357FF]/10 text-[#7357FF]">
+                  {myTimeline.length} Target Deadlines
+                </span>
+              </div>
+            </div>
+
+            {myTimeline.length === 0 ? (
+              <div className="py-16 text-center text-xs text-[#65677A] dark:text-[#A6A8C0] border-2 border-dashed border-[#E8EAF4] dark:border-[#2A2A46] rounded-2xl mt-6">
+                <Calendar className="w-8 h-8 text-[#7357FF] mx-auto mb-2 opacity-50" />
+                <h4 className="font-bold text-sm text-[#17172B] dark:text-white">No Scheduled Deadlines</h4>
+                <p className="mt-1">All upcoming milestones and sprint cutoff dates will be plotted here.</p>
+              </div>
+            ) : (
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {myTimeline.map((item, idx) => {
+                  const dueDate = item.dueDate ? new Date(item.dueDate) : null;
+                  const isOverdue = dueDate && dueDate.getTime() < Date.now() && item.status !== 'Done';
+                  const isDone = item.status === 'Done' || item.status === 'Completed';
+
+                  return (
+                    <div
+                      key={item._id || item.customId || idx}
+                      className="p-5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] space-y-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="space-y-1">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-[#7357FF]/10 text-[#7357FF]">
+                            {item.projectTitle || 'Production Phase'}
+                          </span>
+                          <h4 className="font-display font-bold text-sm text-[#17172B] dark:text-white">
+                            {item.title}
+                          </h4>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
+                          isDone ? 'bg-[#22c55e]/10 text-[#22c55e]' : isOverdue ? 'bg-red-500/10 text-red-500' : 'bg-amber-500/10 text-amber-500'
+                        }`}>
+                          {isDone ? 'Completed' : isOverdue ? 'Overdue' : 'Pending'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3 text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                        <span className="flex items-center gap-1 font-mono">
+                          <Calendar className="w-3.5 h-3.5 text-[#7357FF]" />
+                          {dueDate ? dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No fixed date'}
+                        </span>
+                        {item.estimatedHours && (
+                          <span className="flex items-center gap-1 font-mono">
+                            <Clock className="w-3.5 h-3.5 text-[#3978FF]" />
+                            {item.estimatedHours} hrs budgeted
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="pt-2 border-t border-[#E8EAF4] dark:border-[#2A2A46] flex items-center justify-between">
+                        <span className="text-[10px] text-[#65677A] dark:text-[#A6A8C0]">
+                          Assigned: {item.freelancerName || user?.name}
+                        </span>
+                        <button
+                          onClick={() => setEffortModalOpen(true)}
+                          className="text-[11px] font-semibold text-[#7357FF] hover:underline cursor-pointer"
+                        >
+                          Log Hours
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          TAB: SHARED CLIENT DOCUMENTS & SPECIFICATIONS
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'documents' && (
+        <div className="space-y-6">
+          <div className="p-6 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E8EAF4] dark:border-[#2A2A46]">
+              <div>
+                <span className="text-[10px] font-mono font-bold uppercase text-[#7357FF]">
+                  CONFIDENTIAL TECHNICAL ASSETS
+                </span>
+                <h3 className="font-display font-bold text-xl text-[#17172B] dark:text-white mt-0.5">
+                  Shared Client Documents & Intake Dossiers
+                </h3>
+                <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                  Review client-attached specifications, intake dossiers, and reference templates. Click "View Document" for instant in-browser inspection.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#7357FF]/10 text-[#7357FF]">
+                  {freelancerShares.filter(s => s.documentFileName).length + 1} Available Files
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              {/* Official Reference Template Card */}
+              <div className="p-5 rounded-xl border border-[#7357FF]/30 bg-[#EEE9FF]/10 dark:bg-[#7357FF]/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-[#7357FF]/15 text-[#7357FF] flex items-center justify-center shrink-0">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-[#7357FF] text-white">
+                        OFFICIAL TEMPLATE
+                      </span>
+                      <span className="font-mono text-xs text-[#7357FF] font-semibold">.docx</span>
+                    </div>
+                    <h4 className="font-display font-bold text-sm text-[#17172B] dark:text-white">
+                      NexusCraft Project Intake Specification Template.docx
+                    </h4>
+                    <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-0.5">
+                      Standardized reference format covering Executive Summary, Prioritized Capabilities, Architecture, and Brand Requirements.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <BoxedButton
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setDocViewer({
+                        isOpen: true,
+                        fileName: 'NexusCraft Project Intake Specification Template.docx'
+                      });
+                    }}
+                  >
+                    <Eye className="w-3.5 h-3.5 mr-1" />
+                    View Document
+                  </BoxedButton>
+                  <BoxedButton
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      handleDownloadDoc('NexusCraft Project Intake Specification Template.docx');
+                    }}
+                  >
+                    <Download className="w-3.5 h-3.5 mr-1" />
+                    Download
+                  </BoxedButton>
+                </div>
+              </div>
+
+              {/* Shared Project Documents */}
+              {freelancerShares.filter(s => s.documentFileName).map(s => {
+                const fileName = s.documentFileName || 'document.pdf';
+                const isPdf = fileName.toLowerCase().endsWith('.pdf');
+                const isDocx = fileName.toLowerCase().endsWith('.docx') || fileName.toLowerCase().endsWith('.doc');
+                const isZip = fileName.toLowerCase().endsWith('.zip') || fileName.toLowerCase().endsWith('.rar');
+
+                return (
+                  <div
+                    key={s.customId || s.id}
+                    className="p-5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  >
+                    <div className="flex items-start gap-3.5">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                        isPdf ? 'bg-red-500/10 text-red-500' : isDocx ? 'bg-blue-500/10 text-blue-500' : isZip ? 'bg-amber-500/10 text-amber-500' : 'bg-[#7357FF]/10 text-[#7357FF]'
+                      }`}>
+                        {isZip ? <Archive className="w-5 h-5" /> : isPdf ? <FileText className="w-5 h-5" /> : <FileCode className="w-5 h-5" />}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="font-mono text-[10px] text-[#7357FF] font-bold">
+                            {s.requestId}
+                          </span>
+                          <span className="text-xs text-[#65677A] dark:text-[#A6A8C0]">•</span>
+                          <span className="text-xs font-semibold text-[#17172B] dark:text-white">
+                            {s.projectTitle}
+                          </span>
+                        </div>
+                        <h4 className="font-display font-bold text-sm text-[#17172B] dark:text-white">
+                          {fileName}
+                        </h4>
+                        {s.adminInstructions && (
+                          <p className="text-xs text-[#65677A] dark:text-[#A6A8C0] mt-0.5">
+                            Note: {s.adminInstructions}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <BoxedButton
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setDocViewer({
+                            isOpen: true,
+                            fileName: fileName,
+                            storagePath: s.documentStoragePath
+                          });
+                        }}
+                      >
+                        <Eye className="w-3.5 h-3.5 mr-1" />
+                        View Document
+                      </BoxedButton>
+                      <BoxedButton
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          handleDownloadDoc(fileName, s.documentStoragePath);
+                        }}
+                      >
+                        <Download className="w-3.5 h-3.5 mr-1" />
+                        Download
+                      </BoxedButton>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {freelancerShares.filter(s => s.documentFileName).length === 0 && (
+                <div className="p-8 text-center text-xs text-[#65677A] dark:text-[#A6A8C0] border border-[#E8EAF4] dark:border-[#2A2A46] rounded-xl">
+                  <p>No project-specific confidential attachments shared currently.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          TAB: DELIVERABLES CENTER & RELEASE MANAGEMENT
       ───────────────────────────────────────────────────────────── */}
       {activeTab === 'deliverables' && (
+        <div className="space-y-6">
+          {/* Deliverables Overview Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
+              <span className="text-[10px] font-mono uppercase text-[#65677A] font-bold">TOTAL SUBMITTED</span>
+              <p className="text-2xl font-display font-extrabold text-[#17172B] dark:text-white mt-1">
+                {myDeliverables.length}
+              </p>
+              <span className="text-[11px] text-[#65677A]">Release Packages</span>
+            </div>
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
+              <span className="text-[10px] font-mono uppercase text-[#65677A] font-bold">APPROVED & RELEASED</span>
+              <p className="text-2xl font-display font-extrabold text-[#22c55e] mt-1">
+                {myDeliverables.filter(d => d.status === 'Approved').length}
+              </p>
+              <span className="text-[11px] text-[#65677A]">Client Accepted</span>
+            </div>
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
+              <span className="text-[10px] font-mono uppercase text-[#65677A] font-bold">IN QA REVIEW</span>
+              <p className="text-2xl font-display font-extrabold text-[#3978FF] mt-1">
+                {myDeliverables.filter(d => d.status !== 'Approved' && d.status !== 'Rejected' && d.status !== 'Changes Requested').length}
+              </p>
+              <span className="text-[11px] text-[#65677A]">Admin Validation</span>
+            </div>
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
+              <span className="text-[10px] font-mono uppercase text-[#65677A] font-bold">REVISIONS</span>
+              <p className="text-2xl font-display font-extrabold text-amber-500 mt-1">
+                {myDeliverables.filter(d => d.status === 'Changes Requested' || (d as any).adminFeedback).length}
+              </p>
+              <span className="text-[11px] text-[#65677A]">Action Items</span>
+            </div>
+          </div>
+
+          <div className="p-6 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E8EAF4] dark:border-[#2A2A46]">
+              <div>
+                <span className="text-[10px] font-mono font-bold uppercase text-[#7357FF]">
+                  PRODUCTION DELIVERABLES PIPELINE
+                </span>
+                <h3 className="font-display font-bold text-xl text-[#17172B] dark:text-white mt-0.5">
+                  Package Releases & QA Status
+                </h3>
+                <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                  Overview of all deliverable candidates, Git branches, and client delivery readiness.
+                </p>
+              </div>
+
+              <BoxedButton
+                variant="primary"
+                size="md"
+                onClick={() => setActiveTab('zips')}
+              >
+                <Upload className="w-4 h-4 mr-1.5" />
+                Submit New ZIP Package
+              </BoxedButton>
+            </div>
+
+            {myDeliverables.length === 0 ? (
+              <div className="py-16 text-center text-xs text-[#65677A] dark:text-[#A6A8C0] border-2 border-dashed border-[#E8EAF4] dark:border-[#2A2A46] rounded-2xl">
+                <PackageCheck className="w-8 h-8 text-[#7357FF] mx-auto mb-2 opacity-50" />
+                <h4 className="font-bold text-sm text-[#17172B] dark:text-white">No Deliverable Packages Yet</h4>
+                <p className="mt-1">When you finish a development phase, upload your candidate package under "ZIP Submissions".</p>
+                <div className="mt-4">
+                  <BoxedButton variant="secondary" size="sm" onClick={() => setActiveTab('zips')}>
+                    Go to ZIP Submissions
+                  </BoxedButton>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {myDeliverables.map(deliv => (
+                  <div
+                    key={deliv.customId}
+                    className="p-5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] space-y-3"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-[#7357FF]/10 text-[#7357FF]">
+                          v{deliv.version}
+                        </span>
+                        <h4 className="font-bold text-sm text-[#17172B] dark:text-white">{deliv.submissionTitle}</h4>
+                        <span className="text-xs text-[#65677A] dark:text-[#A6A8C0]">({deliv.projectTitle || 'Production Phase'})</span>
+                      </div>
+                      <span className={`px-2.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase w-fit ${
+                        deliv.status === 'Approved' ? 'bg-[#22c55e]/10 text-[#22c55e]' : 'bg-[#7357FF]/10 text-[#7357FF]'
+                      }`}>
+                        {deliv.status}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                      <div>
+                        <span className="font-semibold text-[#17172B] dark:text-white">Archive: </span>
+                        {deliv.zipFileName}
+                      </div>
+                      <div>
+                        <span className="font-semibold text-[#17172B] dark:text-white">Payload Size: </span>
+                        {deliv.zipFileSize}
+                      </div>
+                      <div>
+                        <span className="font-semibold text-[#17172B] dark:text-white">Files: </span>
+                        {deliv.fileCount || 0} files included
+                      </div>
+                      <div>
+                        <span className="font-semibold text-[#17172B] dark:text-white">Branch: </span>
+                        {deliv.gitBranch || 'main'}
+                      </div>
+                    </div>
+
+                    {/* Checksum and action row */}
+                    <div className="pt-3 border-t border-[#E8EAF4] dark:border-[#2A2A46] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="font-mono text-[10px] text-[#65677A] dark:text-[#A6A8C0] truncate max-w-md">
+                        <span className="font-bold text-[#7357FF]">SHA-256: </span>
+                        {(deliv as any).sha256Checksum || 'Verified Cryptographic Seal'}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <BoxedButton
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setDocViewer({
+                              isOpen: true,
+                              fileName: deliv.zipFileName || `${deliv.submissionTitle}.zip`
+                            });
+                          }}
+                        >
+                          <Eye className="w-3.5 h-3.5 mr-1" />
+                          Inspect Package
+                        </BoxedButton>
+                        <BoxedButton
+                          variant="primary"
+                          size="sm"
+                          onClick={() => {
+                            handleDownloadDoc(deliv.zipFileName || `${deliv.submissionTitle}.zip`);
+                          }}
+                        >
+                          <Download className="w-3.5 h-3.5 mr-1" />
+                          Download ZIP
+                        </BoxedButton>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          TAB: ZIP SUBMISSIONS (SECURE ARCHIVE ENGINE)
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'zips' && (
         <div className="space-y-6">
           <div className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46] space-y-6">
             <div>
@@ -1266,25 +1925,132 @@ export const FreelancerDashboardPage: React.FC<FreelancerDashboardPageProps> = (
                 </BoxedButton>
               </div>
             </form>
+          </div>
+        </div>
+      )}
 
-            {/* My Submissions History */}
-            {myDeliverables.length > 0 && (
-              <div className="mt-8 pt-6 border-t border-[#E8EAF4] dark:border-[#2A2A46] space-y-3">
-                <h4 className="font-mono text-xs font-bold uppercase text-[#7357FF]">
-                  Submission History ({myDeliverables.length})
-                </h4>
-                <div className="space-y-3">
-                  {myDeliverables.map(deliv => (
-                    <div
-                      key={deliv.customId}
-                      className="p-5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] space-y-3 text-xs"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-[#7357FF]">v{deliv.version}</span>
-                          <span className="font-bold text-[#17172B] dark:text-white">{deliv.submissionTitle}</span>
-                        </div>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase w-fit ${
+      {/* ─────────────────────────────────────────────────────────────
+          TAB: REVISION TRACKER & QA CHANGE REQUESTS
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'revisions' && (
+        <div className="space-y-6">
+          <div className="p-6 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E8EAF4] dark:border-[#2A2A46]">
+              <div>
+                <span className="text-[10px] font-mono font-bold uppercase text-amber-500">
+                  QUALITY ASSURANCE & CHANGE REQUESTS
+                </span>
+                <h3 className="font-display font-bold text-xl text-[#17172B] dark:text-white mt-0.5">
+                  Revision Tracker & Remediation Queue
+                </h3>
+                <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                  Administrative QA feedback, code review comments, and client revision items requiring resolution.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-amber-500/10 text-amber-500">
+                  {myDeliverables.filter(d => d.adminFeedback || d.status === 'Changes Requested').length} Active Feedback Items
+                </span>
+              </div>
+            </div>
+
+            {myDeliverables.filter(d => d.adminFeedback || d.status === 'Changes Requested').length === 0 ? (
+              <div className="py-16 text-center text-xs text-[#65677A] dark:text-[#A6A8C0] border-2 border-dashed border-[#E8EAF4] dark:border-[#2A2A46] rounded-2xl mt-6">
+                <CheckCircle2 className="w-8 h-8 text-[#22c55e] mx-auto mb-2 opacity-80" />
+                <h4 className="font-bold text-sm text-[#17172B] dark:text-white">Zero Pending Revisions</h4>
+                <p className="mt-1">All submitted packages have cleared QA with no pending remediation tickets.</p>
+              </div>
+            ) : (
+              <div className="mt-6 space-y-4">
+                {myDeliverables.filter(d => d.adminFeedback || d.status === 'Changes Requested').map(deliv => (
+                  <div
+                    key={deliv.customId}
+                    className="p-5 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-3"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+                        <h4 className="font-bold text-sm text-[#17172B] dark:text-white">
+                          Revision Required: {deliv.submissionTitle} (v{deliv.version})
+                        </h4>
+                      </div>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-amber-500 text-white">
+                        ACTION NEEDED
+                      </span>
+                    </div>
+
+                    <div className="p-3.5 rounded-lg bg-white dark:bg-[#1E1E38] border border-amber-500/20 text-xs text-[#17172B] dark:text-white">
+                      <span className="font-bold text-amber-600 dark:text-amber-400">QA Feedback Note: </span>
+                      {deliv.adminFeedback || 'Please address client requested adjustments and upload a patch package.'}
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-2 text-xs">
+                      <span className="text-[#65677A] dark:text-[#A6A8C0]">File: {deliv.zipFileName}</span>
+                      <BoxedButton
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          setDelivTitle(`${deliv.submissionTitle} - Patch`);
+                          setActiveTab('zips');
+                        }}
+                      >
+                        <Upload className="w-3.5 h-3.5 mr-1" />
+                        Upload Patch Release
+                      </BoxedButton>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          TAB: SUBMISSION HISTORY & AUDIT LOG
+      ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'history' && (
+        <div className="space-y-6">
+          <div className="p-6 rounded-2xl bg-white dark:bg-[#17172B] border border-[#E8EAF4] dark:border-[#2A2A46]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E8EAF4] dark:border-[#2A2A46]">
+              <div>
+                <span className="text-[10px] font-mono font-bold uppercase text-[#7357FF]">
+                  CRYPTOGRAPHIC LOG & ARCHIVE
+                </span>
+                <h3 className="font-display font-bold text-xl text-[#17172B] dark:text-white mt-0.5">
+                  Deliverable Submission History & Audit Log
+                </h3>
+                <p className="text-xs text-[#65677A] dark:text-[#A6A8C0]">
+                  Complete ledger of all releases submitted by your account with cryptographic SHA-256 seals.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#7357FF]/10 text-[#7357FF]">
+                  {myDeliverables.length} Releases Logged
+                </span>
+              </div>
+            </div>
+
+            {myDeliverables.length === 0 ? (
+              <div className="py-16 text-center text-xs text-[#65677A] dark:text-[#A6A8C0] border-2 border-dashed border-[#E8EAF4] dark:border-[#2A2A46] rounded-2xl mt-6">
+                <Archive className="w-8 h-8 text-[#7357FF] mx-auto mb-2 opacity-50" />
+                <h4 className="font-bold text-sm text-[#17172B] dark:text-white">No Historical Submissions</h4>
+                <p className="mt-1">Historical release records and download mirrors will appear here.</p>
+              </div>
+            ) : (
+              <div className="mt-6 space-y-3">
+                {myDeliverables.map(deliv => (
+                  <div
+                    key={deliv.customId}
+                    className="p-5 rounded-xl border border-[#E8EAF4] dark:border-[#2A2A46] bg-[#F7F8FC] dark:bg-[#131326] flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs"
+                  >
+                    <div className="space-y-1.5 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono font-bold text-[#7357FF]">v{deliv.version}</span>
+                        <span className="font-bold text-sm text-[#17172B] dark:text-white">{deliv.submissionTitle}</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
                           deliv.status === 'Approved' ? 'bg-[#22c55e]/10 text-[#22c55e]' : 'bg-[#7357FF]/10 text-[#7357FF]'
                         }`}>
                           {deliv.status}
@@ -1292,50 +2058,52 @@ export const FreelancerDashboardPage: React.FC<FreelancerDashboardPageProps> = (
                       </div>
 
                       <div className="flex items-center gap-2 flex-wrap text-[11px] font-mono text-[#65677A] dark:text-[#A6A8C0]">
-                        <span>{deliv.zipFileName} ({deliv.zipFileSize})</span>
+                        <span>{deliv.zipFileName}</span>
+                        <span>•</span>
+                        <span>{deliv.zipFileSize}</span>
                         <span>•</span>
                         <span>{deliv.fileCount || 0} files</span>
                         <span>•</span>
-                        <span>README: {deliv.readmeDetected || (deliv as any).hasReadme ? '✓ Found' : 'None'}</span>
+                        <span>Branch: {deliv.gitBranch || 'main'}</span>
                         <span>•</span>
-                        <span>package.json: {(deliv as any).hasPackageJson ? '✓ Found' : 'None'}</span>
+                        <span>Submitted: {new Date(deliv.submittedAt || Date.now()).toLocaleDateString()}</span>
                       </div>
 
-                      {/* SHA-256 Checksum Display */}
                       {(deliv as any).sha256Checksum && (
-                        <div className="p-2.5 rounded-lg bg-white dark:bg-[#1E1E38] border border-[#E8EAF4] dark:border-[#2A2A46] flex items-center justify-between gap-2">
-                          <div className="font-mono text-[10px] text-[#65677A] dark:text-[#A6A8C0] truncate">
-                            <span className="font-bold text-[#7357FF]">SHA-256: </span>
-                            {(deliv as any).sha256Checksum}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText((deliv as any).sha256Checksum);
-                              alert('SHA-256 Checksum copied to clipboard!');
-                            }}
-                            className="p-1 rounded text-[#65677A] hover:text-[#17172B] dark:hover:text-white"
-                            title="Copy Checksum"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Integrity Disclaimer */}
-                      <p className="text-[10px] text-[#65677A] dark:text-[#A6A8C0] italic">
-                        {deliv.checksumDisclaimer || 'Checksum calculated via Node.js crypto module. SHA-256 verifies deliverable package integrity against tampering. This is not a formal code audit guarantee.'}
-                      </p>
-
-                      {deliv.adminFeedback && (
-                        <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs">
-                          <span className="font-bold">Admin Feedback: </span>
-                          {deliv.adminFeedback}
+                        <div className="font-mono text-[10px] text-[#65677A] dark:text-[#A6A8C0] truncate">
+                          <span className="font-bold text-[#7357FF]">SHA-256: </span>
+                          {(deliv as any).sha256Checksum}
                         </div>
                       )}
                     </div>
-                  ))}
-                </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <BoxedButton
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setDocViewer({
+                            isOpen: true,
+                            fileName: deliv.zipFileName || `${deliv.submissionTitle}.zip`
+                          });
+                        }}
+                      >
+                        <Eye className="w-3.5 h-3.5 mr-1" />
+                        Inspect Manifest
+                      </BoxedButton>
+                      <BoxedButton
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          handleDownloadDoc(deliv.zipFileName || `${deliv.submissionTitle}.zip`);
+                        }}
+                      >
+                        <Download className="w-3.5 h-3.5 mr-1" />
+                        Download ZIP
+                      </BoxedButton>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

@@ -223,7 +223,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       group: 'EXECUTION & TASKS',
       items: [
         { label: 'Tasks & Workboard', path: '/freelancer/tasks', icon: Layers, tab: 'tasks', isNew: true },
-        { label: 'Deadline Calendar', path: '/freelancer/calendar', icon: Calendar, tab: 'timeline' },
+        { label: 'Deadline Calendar', path: '/freelancer/calendar', icon: Calendar, tab: 'calendar' },
         { label: 'Shared Documents', path: '/freelancer/documents', icon: FileText, tab: 'documents' },
       ],
     },
@@ -231,7 +231,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       group: 'DELIVERABLE CENTER',
       items: [
         { label: 'Deliverable Center', path: '/freelancer/deliverables', icon: PackageCheck, tab: 'deliverables' },
-        { label: 'ZIP Submissions', path: '/freelancer/deliverables', icon: Archive, tab: 'deliverables' },
+        { label: 'ZIP Submissions', path: '/freelancer/zips', icon: Archive, tab: 'zips' },
         { label: 'Revision Tracker', path: '/freelancer/revisions', icon: RefreshCw, tab: 'revisions' },
         { label: 'Submission History', path: '/freelancer/history', icon: CheckCircle2, tab: 'history' },
       ],
@@ -239,7 +239,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
     {
       group: 'ACCOUNT & SIGNALS',
       items: [
-        { label: 'NCX Ledger', path: '/credits', icon: Coins, badge: `${credits} NCX` },
+        { label: 'NCX Ledger', path: '/freelancer/credits', icon: Coins, badge: `${credits} NCX`, tab: 'credits' },
         { label: 'Notifications', path: '/notifications', icon: Bell, badge: unreadCount > 0 ? unreadCount : undefined },
         { label: 'Profile & Settings', path: '/settings', icon: Settings },
       ],

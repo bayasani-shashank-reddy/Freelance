@@ -142,15 +142,15 @@ function App() {
                 {/* Freelancer Dedicated Sub-Routes (Strictly Freelancer Role) */}
                 <Route path="/freelancer" element={<Navigate to="/freelancer/dashboard" replace />} />
                 <Route path="/freelancer/dashboard" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="timeline" /></RequireRole>} />
-                <Route path="/freelancer/projects" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="briefs" /></RequireRole>} />
+                <Route path="/freelancer/projects" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="workspace" /></RequireRole>} />
                 <Route path="/freelancer/briefs" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="briefs" /></RequireRole>} />
                 <Route path="/freelancer/assessments" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="assessment" /></RequireRole>} />
                 <Route path="/freelancer/quotations" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="quotation" /></RequireRole>} />
                 <Route path="/freelancer/tasks" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="tasks" /></RequireRole>} />
-                <Route path="/freelancer/calendar" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="timeline" /></RequireRole>} />
+                <Route path="/freelancer/calendar" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="calendar" /></RequireRole>} />
                 <Route path="/freelancer/documents" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="documents" /></RequireRole>} />
                 <Route path="/freelancer/deliverables" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="deliverables" /></RequireRole>} />
-                <Route path="/freelancer/zips" element={<Navigate to="/freelancer/deliverables" replace />} />
+                <Route path="/freelancer/zips" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="zips" /></RequireRole>} />
                 <Route path="/freelancer/revisions" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="revisions" /></RequireRole>} />
                 <Route path="/freelancer/history" element={<RequireRole allowedRoles={['freelancer']}><FreelancerDashboardPage view="history" /></RequireRole>} />
                 <Route path="/freelancer/credits" element={<RequireRole allowedRoles={['freelancer', 'admin']}><CreditsPage /></RequireRole>} />

@@ -29,6 +29,11 @@ export const api = {
     return `${base}${storagePath.startsWith('/') ? '' : '/'}${storagePath}`;
   },
 
+  getDirectDownloadUrl(fileName: string) {
+    if (!fileName) return '';
+    return `${API_BASE}/documents/download/${encodeURIComponent(fileName)}`;
+  },
+
   // Health
   async getHealth() {
     try {
